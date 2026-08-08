@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Armonía Connect — Your Lessons</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold: #C9A84C;
+    --gold-light: #E8C97A;
+    --cream: #F2EBD9;
+    --charcoal: #0E0D0B;
+    --charcoal-2: #141310;
+    --charcoal-3: #1C1A16;
+    --text-muted: #8A8275;
+    --border-gold: rgba(201,168,76,0.25);
+    --font-display: 'Playfair Display', Georgia, serif;
+    --font-serif: 'Cormorant Garamond', Georgia, serif;
+    --font-sans: 'Inter', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--charcoal);
+    color: var(--cream);
+    font-family: var(--font-sans);
+    min-height: 100vh;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border-gold);
+  }
+  .logo { font-family: var(--font-display); font-size: 1.3rem; color: var(--gold-light); }
+  .logout { color: var(--text-muted); font-size: 0.85rem; text-decoration: none; cursor: pointer; background: none; border: none; }
+  .logout:hover { color: var(--cream); }
+  main { max-width: 900px; margin: 0 auto; padding: 48px 24px; }
+  h1 { font-family: var(--font-display); font-size: 2rem; margin-bottom: 8px; }
+  .welcome { color: var(--text-muted); margin-bottom: 40px; }
+  .lesson {
+    background: var(--charcoal-3);
+    border: 1px solid var(--border-gold);
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .lesson h2 { font-family: var(--font-serif); font-size: 1.4rem; color: var(--gold-light); margin-bottom: 6px; }
+  .lesson p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px; }
+  .lesson video, .lesson iframe {
+    width: 100%;
+    aspect-ratio: 16/9;
+    border: none;
+    background: var(--charcoal-2);
+  }
+  .placeholder {
+    aspect-ratio: 16/9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--charcoal-2);
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    border: 1px dashed var(--border-gold);
+  }
+  .state {
+    text-align: center;
+    padding: 80px 24px;
+    color: var(--text-muted);
+  }
+  .state a { color: var(--gold-light); }
+</style>
+</head>
+<body>
+  <header>
+    <span class="logo">Armonía Connect</span>
+    <button class="logout" onclick="logout()">Log out</button>
+  </header>
+
+  <main id="main">
+    <div class="state">Loading your lessons…</div>
+  </main>
+
+  <script>
+    const token = localStorage.getItem('armonia_session');
+    const main = document.getElementById('main');
+
+    if (!token) {
+      window.location.href = '/course/';
+    }
+
+    function logout() {
+      localStorage.removeItem('armonia_session');
+      window.location.href = '/course/';
+    }
+
+    async function loadLessons() {
+      try {
+        const res = await fetch('/api/lessons', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          if (res.status === 401) {
+            localStorage.removeItem('armonia_session');
+            window.location.href = '/course/';
+            return;
+          }
+          throw new Error(data.error || 'Could not load lessons.');
+        }
+
+        renderLessons(data.email, data.lessons);
+      } catch (err) {
+        main.innerHTML = `<div class="state">${err.message}<br><br><a href="/course/">Back to login</a></div>`;
+      }
+    }
+
+    function renderLessons(email, lessons) {
+      const header = `
+        <h1>Welcome back</h1>
+        <p class="welcome">Signed in as ${email} &middot; ${lessons.length} lesson${lessons.length === 1 ? '' : 's'} available</p>
+      `;
+
+      const lessonHtml = lessons.map(l => {
+        // Soundslice embed: performance tracks students can slow down, loop, and follow along with.
+        const media = l.soundsliceId
+          ? `<iframe src="https://www.soundslice.com/slices/${l.soundsliceId}/embed/" allowfullscreen></iframe>`
+          : (l.videoUrl
+              ? `<video controls src="${l.videoUrl}"></video>`
+              : `<div class="placeholder">Video coming soon</div>`);
+
+        return `
+          <div class="lesson">
+            <h2>${l.title}</h2>
+            <p>${l.description}</p>
+            ${media}
+          </div>
+        `;
+      }).join('');
+
+      main.innerHTML = header + lessonHtml;
+    }
+
+    loadLessons();
+  </script>
+</body>
+</html>

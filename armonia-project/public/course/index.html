@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Armonía Connect — Course Access</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold: #C9A84C;
+    --gold-light: #E8C97A;
+    --cream: #F2EBD9;
+    --charcoal: #0E0D0B;
+    --charcoal-3: #1C1A16;
+    --text-muted: #8A8275;
+    --border-gold: rgba(201,168,76,0.25);
+    --red-accent: #9B2424;
+    --font-display: 'Playfair Display', Georgia, serif;
+    --font-serif: 'Cormorant Garamond', Georgia, serif;
+    --font-sans: 'Inter', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--charcoal);
+    color: var(--cream);
+    font-family: var(--font-sans);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .card {
+    width: 100%;
+    max-width: 420px;
+    text-align: center;
+  }
+  .logo {
+    font-family: var(--font-display);
+    font-size: 1.8rem;
+    letter-spacing: 1px;
+    color: var(--gold-light);
+    margin-bottom: 6px;
+  }
+  .tagline {
+    font-family: var(--font-serif);
+    font-style: italic;
+    color: var(--text-muted);
+    font-size: 1rem;
+    margin-bottom: 40px;
+  }
+  label {
+    display: block;
+    text-align: left;
+    font-size: 0.78rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+  input {
+    width: 100%;
+    background: var(--charcoal-3);
+    border: 1px solid var(--border-gold);
+    color: var(--cream);
+    padding: 14px 16px;
+    font-size: 1.1rem;
+    letter-spacing: 2px;
+    text-align: center;
+    font-family: monospace;
+    text-transform: uppercase;
+  }
+  input:focus { outline: none; border-color: var(--gold); }
+  button {
+    width: 100%;
+    margin-top: 20px;
+    background: var(--gold);
+    color: var(--charcoal);
+    border: none;
+    padding: 15px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  button:hover { background: var(--gold-light); }
+  button:disabled { opacity: 0.6; cursor: not-allowed; }
+  .error {
+    display: none;
+    margin-top: 16px;
+    padding: 12px 16px;
+    background: rgba(155,36,36,0.1);
+    border: 1px solid var(--red-accent);
+    color: #e8a8a8;
+    font-size: 0.85rem;
+  }
+  .hint {
+    margin-top: 28px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .hint a { color: var(--gold-light); text-decoration: none; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <p class="logo">Armonía Connect</p>
+    <p class="tagline">Enter your access code to begin</p>
+
+    <form id="loginForm">
+      <label for="code">Access Code</label>
+      <input id="code" name="code" type="text" placeholder="ARMONIA-XXXX-XXXX" autocomplete="off" required>
+      <button type="submit" id="submitBtn">Enter the Course</button>
+    </form>
+
+    <div class="error" id="errorBox"></div>
+
+    <p class="hint">
+      Don't have a code? Check your confirmation email, or
+      <a href="https://armonia-mariachi.com/#pricing">enroll here</a>.
+      Trouble logging in? Email <a href="mailto:maestro.armoniaconnect@gmail.com">maestro.armoniaconnect@gmail.com</a>.
+    </p>
+  </div>
+
+  <script>
+    // If a valid session is already stored, skip straight to the dashboard.
+    if (localStorage.getItem('armonia_session')) {
+      window.location.href = '/course/dashboard.html';
+    }
+
+    const form = document.getElementById('loginForm');
+    const errorBox = document.getElementById('errorBox');
+    const submitBtn = document.getElementById('submitBtn');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorBox.style.display = 'none';
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Checking…';
+
+      const code = document.getElementById('code').value.trim();
+
+      try {
+        const res = await fetch('/api/redeem', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Something went wrong.');
+
+        localStorage.setItem('armonia_session', data.token);
+        window.location.href = '/course/dashboard.html';
+      } catch (err) {
+        errorBox.textContent = err.message;
+        errorBox.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Enter the Course';
+      }
+    });
+  </script>
+</body>
+</html>
