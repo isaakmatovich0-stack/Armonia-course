@@ -958,6 +958,7 @@
 
     function openChat(code, name) {
       activeChatCode = code;
+      loadChat._lastSignature = null;
       document.getElementById('chatModalTitle').textContent = name;
       document.getElementById('chatModal').classList.add('open');
       loadChat();
@@ -969,6 +970,9 @@
       if (!activeChatCode) return;
       try {
         const data = await adminFetch(`/api/admin/messages?code=${encodeURIComponent(activeChatCode)}`);
+        const signature = data.messages.map(m => m.id).join(',');
+        if (loadChat._lastSignature === signature) return;
+        loadChat._lastSignature = signature;
         const host = document.getElementById('adminChatMessages');
         host.innerHTML = data.messages.length
           ? data.messages.map(m => `<div class="msg ${m.sender}">${m.body}</div>`).join('')
