@@ -266,6 +266,48 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // ── /api/admin/upload-resource ──
+  // Uploads a chord book PDF or short audio/MIDI file directly, returning
+  // a public URL to paste into a resource's File URL field. Capped at 3MB
+  // raw (works well for PDFs) because Vercel's serverless functions have a
+  // hard ~4.5MB request size limit that no config can override — a 3MB
+  // file becomes about 4MB once base64-encoded for transport, which stays
+  // safely under that ceiling.
+  //
+  // For larger files (most backing-track audio, some longer PDFs), upload
+  // directly through the Supabase dashboard instead — Storage → the
+  // course-resources bucket → Upload file — then copy the public URL it
+  // gives you into the File URL field here. That path has no size limit
+  // since the file never passes through this function.
+  if (route === 'upload-resource') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    const { fileBase64, contentType, fileName } = req.body || {};
+    if (!fileBase64) return res.status(400).json({ error: 'No file provided.' });
+
+    const allowed = ['application/pdf', 'audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/midi', 'audio/x-midi', 'audio/mp4'];
+    if (!allowed.includes(contentType)) {
+      return res.status(400).json({ error: 'Please upload a PDF, MP3, WAV, or MIDI file.' });
+    }
+
+    try {
+      const buffer = Buffer.from(fileBase64.split(',').pop(), 'base64');
+      if (buffer.length > 3 * 1024 * 1024) {
+        return res.status(400).json({
+          error: 'This file is over 3MB, which is too large to upload through this form. Upload it directly via the Supabase dashboard instead (Storage → course-resources → Upload file), then paste the resulting URL into the File URL field.',
+        });
+      }
+      const safeName = (fileName || 'file').replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = `${Date.now()}-${safeName}`;
+      const { error: uploadError } = await supabase.storage.from('course-resources').upload(path, buffer, { contentType, upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: publicUrlData } = supabase.storage.from('course-resources').getPublicUrl(path);
+      return res.status(200).json({ url: publicUrlData.publicUrl });
+    } catch (err) {
+      console.error('Resource upload error:', err);
+      return res.status(500).json({ error: 'Could not upload the file. Please try again.' });
+    }
+  }
+
   // ── /api/admin/site-content ──
   if (route === 'site-content') {
     if (req.method === 'GET') {

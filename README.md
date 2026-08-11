@@ -362,7 +362,30 @@ I dropped the confusing duplicate from the student view.
 Push this to GitHub and Vercel will redeploy it to `armoniaconnect.com`
 automatically, same as every update before.
 
-## 18. Linking from Instagram
+## 18. Uploading chord book and audio/MIDI files directly
+
+**a) Create one more storage bucket**
+Supabase → Storage → New bucket → name it exactly `course-resources` → toggle Public bucket ON → Create.
+
+**b) Uploading a file**
+`/admin/` → Lessons tab → scroll to Resources → Add Resource (or edit an
+existing one) → click **"📎 Choose file"** → pick a PDF, MP3, WAV, or MIDI
+file. It uploads automatically and fills in the File URL field for you —
+just hit Save after that.
+
+**c) The 3MB limit, and what to do above it**
+Files up to 3MB upload directly through that button — this comfortably
+covers most chord book PDFs. Vercel's serverless functions have a hard
+~4.5MB request size limit that no setting on our end can raise, so a
+typical backing-track MP3 (often 5–10MB) won't fit through this path.
+
+For anything over 3MB: Supabase → Storage → `course-resources` bucket →
+**Upload file** (drag and drop works there, no size limit) → click the
+uploaded file → copy its **public URL** → paste that into the File URL
+field in `/admin/` instead of using the upload button. Same end result,
+just routed around the platform limit.
+
+## 19. Linking from Instagram
 
 your chosen domain) in your Instagram bio link. That's the whole flyer page —
 enrollment, everything included list, and contact form all live there.

@@ -312,6 +312,13 @@
           <input type="text" id="resourceTitle" style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
         </div>
         <div style="margin-bottom:18px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Upload a file</label>
+          <button type="button" id="resourceUploadBtn" style="background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:9px 16px; font-size:0.85rem; cursor:pointer;">📎 Choose file (PDF, MP3, WAV, MIDI)</button>
+          <input type="file" id="resourceFileInput" accept=".pdf,.mp3,.wav,.midi,.mid,application/pdf,audio/*" style="display:none;">
+          <p id="resourceUploadStatus" style="font-size:0.78rem; color:var(--text-muted); margin-top:8px; display:none;"></p>
+          <p style="font-size:0.72rem; color:var(--text-muted); margin-top:6px;">Files up to 3MB upload directly. For larger audio files, upload via the Supabase dashboard (Storage → course-resources) and paste the URL below instead.</p>
+        </div>
+        <div style="margin-bottom:18px;">
           <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">File URL</label>
           <input type="text" id="resourceFileUrl" placeholder="https://…" style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
         </div>
@@ -523,6 +530,8 @@
       document.getElementById('resourceTitle').value = '';
       document.getElementById('resourceFileUrl').value = '';
       document.getElementById('resourceDeleteBtn').style.display = 'none';
+      document.getElementById('resourceUploadStatus').style.display = 'none';
+      document.getElementById('resourceFileInput').value = '';
       document.getElementById('resourceModal').classList.add('open');
     });
 
@@ -535,10 +544,39 @@
       document.getElementById('resourceTitle').value = r.title;
       document.getElementById('resourceFileUrl').value = r.file_url || '';
       document.getElementById('resourceDeleteBtn').style.display = 'inline-block';
+      document.getElementById('resourceUploadStatus').style.display = 'none';
+      document.getElementById('resourceFileInput').value = '';
       document.getElementById('resourceModal').classList.add('open');
     };
 
     document.getElementById('resourceModalClose').addEventListener('click', () => document.getElementById('resourceModal').classList.remove('open'));
+
+    document.getElementById('resourceUploadBtn').addEventListener('click', () => document.getElementById('resourceFileInput').click());
+    document.getElementById('resourceFileInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const statusEl = document.getElementById('resourceUploadStatus');
+      statusEl.style.display = 'block';
+      statusEl.style.color = 'var(--text-muted)';
+      statusEl.textContent = 'Uploading…';
+
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        try {
+          const data = await adminFetch('/api/admin/upload-resource', {
+            method: 'POST',
+            body: JSON.stringify({ fileBase64: ev.target.result, contentType: file.type, fileName: file.name }),
+          });
+          document.getElementById('resourceFileUrl').value = data.url;
+          statusEl.style.color = 'var(--gold-light)';
+          statusEl.textContent = '✓ Uploaded — URL filled in below.';
+        } catch (err) {
+          statusEl.style.color = '#e8a8a8';
+          statusEl.textContent = err.message;
+        }
+      };
+      reader.readAsDataURL(file);
+    });
 
     document.getElementById('resourceSaveBtn').addEventListener('click', async () => {
       const id = document.getElementById('resourceId').value;
