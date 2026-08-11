@@ -573,16 +573,26 @@ function showKicked() {
   localStorage.removeItem('armonia_session');
   document.getElementById('kickedBanner').classList.add('show');
 }
+async function safeJson(res) {
+  try {
+    return await res.json();
+  } catch (err) {
+    // The server (or Vercel's platform itself, e.g. for oversized requests)
+    // returned something that isn't JSON — show a clear message instead of
+    // a confusing parse error.
+    throw new Error(res.status === 413 ? 'That file is too large. Please try a smaller one.' : 'Something went wrong. Please try again.');
+  }
+}
 async function apiGet(url) {
   const res = await fetch(url, { headers: authHeaders });
-  const data = await res.json();
+  const data = await safeJson(res);
   if (res.status === 401 && data.kicked) { showKicked(); throw new Error('kicked'); }
   if (!res.ok) throw new Error(data.error || 'Request failed.');
   return data;
 }
 async function apiPost(url, body, method = 'POST') {
   const res = await fetch(url, { method, headers: authHeaders, body: JSON.stringify(body) });
-  const data = await res.json();
+  const data = await safeJson(res);
   if (res.status === 401 && data.kicked) { showKicked(); throw new Error('kicked'); }
   if (!res.ok) throw new Error(data.error || 'Request failed.');
   return data;
@@ -711,21 +721,47 @@ apiGet('/api/announcements').then(data => {
     </div>`).join('');
 }).catch(err => { if (err.message !== 'kicked') console.error(err); });
 
+// Resizes/compresses an image in the browser before upload — phone camera
+// photos are often 8-15MB, and Vercel's platform hard-caps request bodies
+// at 4.5MB regardless of any app-level config. Shrinking client-side keeps
+// every upload safely under that limit and also makes pages load faster.
+function resizeImageFile(file, maxDim = 900, quality = 0.85) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) { height = Math.round(height * (maxDim / width)); width = maxDim; }
+          else { width = Math.round(width * (maxDim / height)); height = maxDim; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve({ dataUrl: canvas.toDataURL('image/jpeg', quality), contentType: 'image/jpeg' });
+      };
+      img.onerror = () => reject(new Error('Could not read that image. Please try a different file.'));
+      img.src = e.target.result;
+    };
+    reader.onerror = () => reject(new Error('Could not read that file.'));
+    reader.readAsDataURL(file);
+  });
+}
+
 let pendingImageUrl = null;
 document.getElementById('communityImageBtn').addEventListener('click', () => document.getElementById('communityImageInput').click());
-document.getElementById('communityImageInput').addEventListener('change', (e) => {
+document.getElementById('communityImageInput').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = async (ev) => {
-    try {
-      const data = await apiPost('/api/community/upload-image', { imageBase64: ev.target.result, contentType: file.type });
-      pendingImageUrl = data.url;
-      document.getElementById('communityImagePreview').src = pendingImageUrl;
-      document.getElementById('communityImagePreviewWrap').style.display = 'block';
-    } catch (err) { if (err.message !== 'kicked') alert(err.message); }
-  };
-  reader.readAsDataURL(file);
+  try {
+    const { dataUrl, contentType } = await resizeImageFile(file, 1000, 0.85);
+    const data = await apiPost('/api/community/upload-image', { imageBase64: dataUrl, contentType });
+    pendingImageUrl = data.url;
+    document.getElementById('communityImagePreview').src = pendingImageUrl;
+    document.getElementById('communityImagePreviewWrap').style.display = 'block';
+  } catch (err) { if (err.message !== 'kicked') alert(err.message); }
 });
 document.getElementById('communityImageRemoveBtn').addEventListener('click', () => {
   pendingImageUrl = null;
@@ -922,19 +958,16 @@ document.getElementById('editProfileBtn').addEventListener('click', () => {
   document.getElementById('editProfileBtn').textContent = form.classList.contains('open') ? 'Cancel' : 'Edit Profile';
 });
 document.getElementById('changePhotoBtn').addEventListener('click', () => document.getElementById('profilePhotoInput').click());
-document.getElementById('profilePhotoInput').addEventListener('change', (e) => {
+document.getElementById('profilePhotoInput').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = async (ev) => {
-    try {
-      const data = await apiPost('/api/upload-photo', { imageBase64: ev.target.result, contentType: file.type });
-      currentPhotoUrl = data.url;
-      document.getElementById('profileAvatarLg').style.backgroundImage = `url(${currentPhotoUrl})`;
-      document.getElementById('profileAvatarLg').textContent = '';
-    } catch (err) { if (err.message !== 'kicked') alert(err.message); }
-  };
-  reader.readAsDataURL(file);
+  try {
+    const { dataUrl, contentType } = await resizeImageFile(file, 700, 0.85);
+    const data = await apiPost('/api/upload-photo', { imageBase64: dataUrl, contentType });
+    currentPhotoUrl = data.url;
+    document.getElementById('profileAvatarLg').style.backgroundImage = `url(${currentPhotoUrl})`;
+    document.getElementById('profileAvatarLg').textContent = '';
+  } catch (err) { if (err.message !== 'kicked') alert(err.message); }
 });
 document.getElementById('profileForm').addEventListener('submit', async (e) => {
   e.preventDefault();

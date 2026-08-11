@@ -112,20 +112,58 @@
     let photoBase64 = null;
     let photoContentType = null;
 
+    async function safeJsonParse(res) {
+      try {
+        return await res.json();
+      } catch (err) {
+        throw new Error(res.status === 413 ? 'That file is too large. Please try a smaller one.' : 'Something went wrong. Please try again.');
+      }
+    }
+
+    // Resizes/compresses an image in the browser before upload — phone
+    // camera photos are often 8-15MB, and Vercel's platform hard-caps
+    // request bodies at 4.5MB regardless of any app-level config.
+    function resizeImageFile(file, maxDim = 700, quality = 0.85) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            let { width, height } = img;
+            if (width > maxDim || height > maxDim) {
+              if (width > height) { height = Math.round(height * (maxDim / width)); width = maxDim; }
+              else { width = Math.round(width * (maxDim / height)); height = maxDim; }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+            resolve({ dataUrl: canvas.toDataURL('image/jpeg', quality), contentType: 'image/jpeg' });
+          };
+          img.onerror = () => reject(new Error('Could not read that image. Please try a different file.'));
+          img.src = e.target.result;
+        };
+        reader.onerror = () => reject(new Error('Could not read that file.'));
+        reader.readAsDataURL(file);
+      });
+    }
+
     document.getElementById('photoBtn').addEventListener('click', () => {
       document.getElementById('photoInput').click();
     });
 
-    document.getElementById('photoInput').addEventListener('change', (e) => {
+    document.getElementById('photoInput').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-      photoContentType = file.type;
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        photoBase64 = ev.target.result;
+      try {
+        const { dataUrl, contentType } = await resizeImageFile(file, 700, 0.85);
+        photoBase64 = dataUrl;
+        photoContentType = contentType;
         document.getElementById('photoPreview').style.backgroundImage = `url(${photoBase64})`;
-      };
-      reader.readAsDataURL(file);
+      } catch (err) {
+        errorBox.textContent = err.message;
+        errorBox.style.display = 'block';
+      }
     });
 
     const form = document.getElementById('onboardingForm');
@@ -146,7 +184,7 @@
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify({ imageBase64: photoBase64, contentType: photoContentType }),
           });
-          const uploadData = await uploadRes.json();
+          const uploadData = await safeJsonParse(uploadRes);
           if (!uploadRes.ok) throw new Error(uploadData.error || 'Photo upload failed.');
           photoUrl = uploadData.url;
         }
@@ -163,7 +201,7 @@
             photoUrl,
           }),
         });
-        const data = await res.json();
+        const data = await safeJsonParse(res);
         if (!res.ok) throw new Error(data.error || 'Something went wrong.');
 
         window.location.href = '/course/dashboard.html';

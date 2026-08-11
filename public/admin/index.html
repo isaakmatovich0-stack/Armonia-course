@@ -396,7 +396,12 @@
         window.location.reload();
         throw new Error('Session expired.');
       }
-      const data = await res.json();
+      let data;
+      try {
+        data = await res.json();
+      } catch (err) {
+        throw new Error(res.status === 413 ? 'That file is too large. Please try a smaller one.' : 'Something went wrong. Please try again.');
+      }
       if (!res.ok) throw new Error(data.error || 'Request failed.');
       return data;
     }
@@ -619,21 +624,47 @@
     ];
 
     let maestroPhotoUrl = '';
+
+    // Resizes/compresses an image in the browser before upload — phone
+    // camera photos are often 8-15MB, and Vercel's platform hard-caps
+    // request bodies at 4.5MB regardless of any app-level config.
+    function resizeImageFile(file, maxDim = 700, quality = 0.85) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            let { width, height } = img;
+            if (width > maxDim || height > maxDim) {
+              if (width > height) { height = Math.round(height * (maxDim / width)); width = maxDim; }
+              else { width = Math.round(width * (maxDim / height)); height = maxDim; }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+            resolve({ dataUrl: canvas.toDataURL('image/jpeg', quality), contentType: 'image/jpeg' });
+          };
+          img.onerror = () => reject(new Error('Could not read that image. Please try a different file.'));
+          img.src = e.target.result;
+        };
+        reader.onerror = () => reject(new Error('Could not read that file.'));
+        reader.readAsDataURL(file);
+      });
+    }
+
     document.getElementById('maestroPhotoBtn').addEventListener('click', () => document.getElementById('maestroPhotoInput').click());
-    document.getElementById('maestroPhotoInput').addEventListener('change', (e) => {
+    document.getElementById('maestroPhotoInput').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-      const reader = new FileReader();
-      reader.onload = async (ev) => {
-        try {
-          const data = await adminFetch('/api/admin/upload-maestro-photo', {
-            method: 'POST', body: JSON.stringify({ imageBase64: ev.target.result, contentType: file.type }),
-          });
-          maestroPhotoUrl = data.url;
-          document.getElementById('maestroPhotoPreview').style.backgroundImage = `url(${data.url})`;
-        } catch (err) { alert(err.message); }
-      };
-      reader.readAsDataURL(file);
+      try {
+        const { dataUrl, contentType } = await resizeImageFile(file, 700, 0.85);
+        const data = await adminFetch('/api/admin/upload-maestro-photo', {
+          method: 'POST', body: JSON.stringify({ imageBase64: dataUrl, contentType }),
+        });
+        maestroPhotoUrl = data.url;
+        document.getElementById('maestroPhotoPreview').style.backgroundImage = `url(${data.url})`;
+      } catch (err) { alert(err.message); }
     });
 
     async function loadSiteContent() {
