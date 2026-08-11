@@ -25,7 +25,7 @@ const INSTRUMENT_META = [
 ];
 
 function shapeLesson(row) {
-  return { id: row.id, title: row.title, description: row.description, videoUrl: row.video_url, soundsliceId: row.soundslice_id };
+  return { id: row.id, title: row.title, description: row.description, videoUrl: row.video_url, soundsliceId: row.soundslice_id, coverImageUrl: row.cover_image_url };
 }
 
 export default async function handler(req, res) {
@@ -103,7 +103,7 @@ export default async function handler(req, res) {
   // ── /api/announcements ──
   if (route === 'announcements') {
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-    const { data, error } = await supabase.from('announcements').select('id, title, body, created_at').order('created_at', { ascending: false }).limit(50);
+    const { data, error } = await supabase.from('announcements').select('id, title, body, image_url, created_at').order('created_at', { ascending: false }).limit(50);
     if (error) { console.error('Announcements fetch error:', error); return res.status(500).json({ error: 'Could not load announcements.' }); }
     return res.status(200).json({ announcements: data });
   }
@@ -152,6 +152,33 @@ export default async function handler(req, res) {
       console.error('Photo upload error:', err);
       return res.status(500).json({ error: 'Could not upload your photo. Please try again.' });
     }
+  }
+
+  // ── /api/mock-auditions ──
+  if (route === 'mock-auditions') {
+    if (req.method === 'GET') {
+      const { data: auditions, error } = await supabase.from('mock_auditions').select('*').order('event_date', { ascending: true });
+      if (error) { console.error(error); return res.status(500).json({ error: 'Could not load mock auditions.' }); }
+      const { data: mySignups, error: signupErr } = await supabase.from('mock_audition_signups').select('mock_audition_id').eq('code', session.code);
+      if (signupErr) { console.error(signupErr); return res.status(500).json({ error: 'Could not load your sign-ups.' }); }
+      const signedUpIds = new Set((mySignups || []).map(s => s.mock_audition_id));
+      const shaped = auditions.map(a => ({
+        id: a.id, title: a.title, description: a.description, eventDate: a.event_date,
+        isSignedUp: signedUpIds.has(a.id),
+        // Only reveal the Zoom link to students who've actually agreed to attend.
+        zoomLink: signedUpIds.has(a.id) ? a.zoom_link : null,
+      }));
+      return res.status(200).json({ auditions: shaped });
+    }
+    if (req.method === 'POST') {
+      const mockAuditionId = req.body?.mockAuditionId;
+      if (!mockAuditionId) return res.status(400).json({ error: 'mockAuditionId is required.' });
+      const { error } = await supabase.from('mock_audition_signups').insert({ mock_audition_id: mockAuditionId, code: session.code });
+      if (error && error.code !== '23505') { console.error(error); return res.status(500).json({ error: 'Could not sign you up. Please try again.' }); }
+      const { data: audition } = await supabase.from('mock_auditions').select('zoom_link').eq('id', mockAuditionId).maybeSingle();
+      return res.status(200).json({ ok: true, zoomLink: audition?.zoom_link || null });
+    }
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   return res.status(404).json({ error: 'Not found.' });

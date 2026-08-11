@@ -79,6 +79,9 @@
     transition: box-shadow 0.2s, transform 0.2s;
   }
   .avatar-btn:hover { box-shadow: 0 0 0 3px rgba(201,168,76,0.18); transform: scale(1.05); }
+  .strum-count { position: absolute; top: 2px; right: 2px; background: var(--gold); color: var(--charcoal); font-size: 0.62rem; font-weight: 700; min-width: 15px; height: 15px; border-radius: 50%; display: flex; align-items: center; justify-content: center; padding: 0 2px; line-height: 1; }
+  @keyframes strumBounce { 0% { transform: scale(1); } 40% { transform: scale(1.3) rotate(-8deg); } 70% { transform: scale(0.95) rotate(4deg); } 100% { transform: scale(1) rotate(0); } }
+  #strumBtn.strummed .icon-wrap { animation: strumBounce 0.4s ease; }
 
   .shell { display: flex; min-height: calc(100vh - 65px); }
 
@@ -214,7 +217,22 @@
   .message-btn:hover { background: var(--gold-light); }
   .message-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  .dm-wrap { max-width: 620px; border: 1px solid var(--border-gold); background: var(--charcoal-3); display: flex; flex-direction: column; height: calc(100vh - 220px); min-height: 360px; }
+  .dm-wrap { max-width: 620px; border: 1px solid var(--border-gold); background: var(--charcoal-3); display: flex; flex-direction: column; height: calc(100vh - 220px); min-height: 360px; flex: 1; }
+  .messages-layout { display: flex; gap: 20px; align-items: flex-start; }
+  .mock-audition-panel { width: 260px; flex-shrink: 0; border: 1px solid var(--border-gold); background: var(--charcoal-3); }
+  .mock-audition-panel-head { display: flex; align-items: center; gap: 8px; padding: 14px 16px; border-bottom: 1px solid var(--border-gold); font-family: var(--font-serif); font-size: 1.05rem; color: var(--gold-light); }
+  .mock-audition-card { padding: 14px 16px; border-bottom: 1px solid rgba(201,168,76,0.12); }
+  .mock-audition-card .ma-title { font-weight: 600; font-size: 0.88rem; margin-bottom: 4px; }
+  .mock-audition-card .ma-date { font-size: 0.78rem; color: var(--gold-light); margin-bottom: 6px; }
+  .mock-audition-card .ma-desc { font-size: 0.8rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 10px; }
+  .mock-audition-card .ma-enter-btn { width: 100%; background: var(--gold); color: var(--charcoal); border: none; padding: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+  .mock-audition-card .ma-enter-btn:hover { background: var(--gold-light); }
+  .mock-audition-card .ma-entered { font-size: 0.8rem; color: var(--gold-light); }
+  .mock-audition-card .ma-entered a { color: var(--gold-light); }
+  @media (max-width: 860px) {
+    .messages-layout { flex-direction: column; }
+    .mock-audition-panel { width: 100%; }
+  }
   .dm-header { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--border-gold); background: var(--charcoal-2); }
   .dm-header .dm-avatar { width: 42px; height: 42px; border-radius: 50%; background: var(--charcoal-4); border: 1px solid var(--border-gold); background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); color: var(--gold-light); position: relative; }
   .dm-header .dm-avatar .status-dot { position: absolute; bottom: -1px; right: -1px; width: 10px; height: 10px; border-radius: 50%; background: #4caf6b; border: 2px solid var(--charcoal-2); animation: glowPulse 2s ease-in-out infinite; }
@@ -322,10 +340,15 @@
       <div class="brand-text"><div class="l1">Armonía Connect</div><div class="l2">ALL-STATE ETUDE STUDIES</div></div>
     </div>
     <div class="topbar-right">
+      <button class="icon-btn" id="strumBtn" title="Strum a string (pointless, but fun)" style="position:relative;">
+        <span class="icon-wrap" id="strumIcon" data-icon="strum"></span>
+        <span id="strumCount" class="strum-count">0</span>
+      </button>
       <button class="icon-btn" id="topCommunityBtn" title="Community"></button>
       <div class="avatar-btn" id="avatarBtn" title="My Profile">A</div>
     </div>
   </header>
+  <audio id="strumAudio" src="/sounds/vihuela-strum.mp3" preload="auto"></audio>
 
   <div class="shell">
     <nav class="sidebar" id="sidebar">
@@ -402,16 +425,22 @@
       <section class="view" id="view-messages">
         <h1>Message the Maestro</h1>
         <p class="subhead">Questions about a lesson or your progress — Isaak sees these directly.</p>
-        <div class="dm-wrap">
-          <div class="dm-header">
-            <div class="dm-avatar" id="dmAvatar"><span class="status-dot"></span></div>
-            <div><div class="dm-name" id="dmName">Isaak Matovich</div><div class="dm-status">Usually replies within a day</div></div>
+        <div class="messages-layout">
+          <div class="dm-wrap">
+            <div class="dm-header">
+              <div class="dm-avatar" id="dmAvatar"><span class="status-dot"></span></div>
+              <div><div class="dm-name" id="dmName">Isaak Matovich</div><div class="dm-status">Usually replies within a day</div></div>
+            </div>
+            <div class="dm-messages" id="dmMessages"></div>
+            <form class="dm-input-row" id="dmForm">
+              <input type="text" id="dmInput" placeholder="Message…" autocomplete="off">
+              <button type="submit" data-icon="send"><span class="icon-wrap"></span></button>
+            </form>
           </div>
-          <div class="dm-messages" id="dmMessages"></div>
-          <form class="dm-input-row" id="dmForm">
-            <input type="text" id="dmInput" placeholder="Message…" autocomplete="off">
-            <button type="submit" data-icon="send"><span class="icon-wrap"></span></button>
-          </form>
+          <div class="mock-audition-panel">
+            <div class="mock-audition-panel-head"><span class="icon-wrap" data-icon="calendar" style="display:inline-flex;"></span> Mock Auditions</div>
+            <div id="mockAuditionsList"><p class="empty-state" style="padding:14px 0;">Loading…</p></div>
+          </div>
         </div>
       </section>
 
@@ -518,7 +547,25 @@ const ICONS = {
   document: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3.5h7.5L19 8v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"/><path d="M14 3.5V8h4.7"/><path d="M9 13h6M9 16.5h6"/></svg>',
   shield: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v6c0 4.8 3.2 8 7.5 9 4.3-1 7.5-4.2 7.5-9V6L12 3Z"/><path d="m9 12 2 2 4-4.5"/></svg>',
   film: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="1.5"/><path d="M8 5v14M16 5v14M3 10h5M16 10h5M3 15h5M16 15h5"/></svg>',
+  calendar: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="16" rx="1.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>',
+  trash: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6 7l1 13.5h10L18 7"/></svg>',
+  'inst-vihuela': '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="14" r="6"/><line x1="12" y1="8" x2="12" y2="3"/></svg>',
+  'inst-guitarra': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="9" cy="10" r="4.5"/><circle cx="14.5" cy="16" r="6"/><line x1="9" y1="6" x2="9" y2="2"/></svg>',
+  'inst-guitarra-de-golpe': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="9" cy="10" r="4.5"/><circle cx="14.5" cy="16" r="6"/><line x1="9" y1="6" x2="9" y2="2"/><path d="M20 4l1.4 1.4M20 4l-1.4 1.4M20 4V2.2M20 4h1.8" stroke-width="1.3"/></svg>',
+  'inst-guitarron': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="13" r="8"/><line x1="12" y1="5" x2="12" y2="2"/></svg>',
+  strum: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><ellipse cx="12" cy="14.5" rx="7" ry="8.5"/><line x1="12" y1="6" x2="12" y2="1.5"/><line x1="9" y1="11" x2="9" y2="19"/><line x1="12" y1="11" x2="12" y2="19"/><line x1="15" y1="11" x2="15" y2="19"/></svg>',
 };
+const INSTRUMENT_ICON_KEY = {
+  'Vihuela': 'inst-vihuela',
+  'Guitarra': 'inst-guitarra',
+  'Guitarra de Golpe': 'inst-guitarra-de-golpe',
+  'Guitarrón': 'inst-guitarron',
+};
+function instrumentIconHtml(instrumentName) {
+  const key = INSTRUMENT_ICON_KEY[instrumentName];
+  if (!key) return '';
+  return `<span class="icon-wrap" style="color:var(--gold-light); vertical-align:middle; margin-left:5px;" title="${instrumentName}">${icon(key)}</span>`;
+}
 function icon(name) { return ICONS[name] || ''; }
 document.querySelectorAll('[data-icon]').forEach(el => {
   const wrap = el.matches('.icon-wrap') ? el : el.querySelector('.icon-wrap');
@@ -530,6 +577,23 @@ document.querySelectorAll('[data-icon]').forEach(el => {
 });
 document.getElementById('topCommunityBtn').innerHTML = icon('community');
 document.getElementById('topCommunityBtn').addEventListener('click', () => switchView('community'));
+
+// A little pointless fun: strum a string, count how many times you have.
+(function() {
+  const btn = document.getElementById('strumBtn');
+  const audio = document.getElementById('strumAudio');
+  const countEl = document.getElementById('strumCount');
+  let count = parseInt(localStorage.getItem('armonia_strum_count') || '0', 10);
+  countEl.textContent = count;
+  btn.addEventListener('click', () => {
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
+    count += 1;
+    localStorage.setItem('armonia_strum_count', String(count));
+    countEl.textContent = count;
+    btn.classList.remove('strummed'); void btn.offsetWidth; btn.classList.add('strummed');
+  });
+})();
 
 const ARMONIA_FACTS = [
   "The Harp originated as the first bass instrument of the Mariachi ensemble, eventually being replaced by the Guitarrón.",
@@ -619,7 +683,7 @@ function switchView(key) {
   el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
   const navEl = document.querySelector(`.nav-item[data-view="${key}"]`);
   if (navEl) navEl.classList.add('active');
-  if (key === 'messages') loadMessages();
+  if (key === 'messages') { loadMessages(); loadMockAuditions(); }
   if (key === 'community') loadCommunity();
 }
 document.querySelectorAll('.nav-item[data-view]').forEach(item => item.addEventListener('click', () => switchView(item.dataset.view)));
@@ -641,9 +705,10 @@ document.getElementById('playerClose').addEventListener('click', () => {
 });
 function cardHtml(item, kind) {
   const ready = !!(item.soundsliceId || item.videoUrl);
+  const coverStyle = item.coverImageUrl ? `style="background-image:url('${item.coverImageUrl}'); background-size:cover; background-position:center;"` : '';
   return `
     <div class="card" data-title="${item.title}" data-soundslice="${item.soundsliceId || ''}" data-video="${item.videoUrl || ''}" data-desc="${(item.description || '').replace(/"/g,'&quot;')}">
-      <div class="card-thumb ${ready ? 'ready' : ''}">${ready ? '' : '♪'}</div>
+      <div class="card-thumb ${ready ? 'ready' : ''}" ${coverStyle}>${(ready || item.coverImageUrl) ? '' : '♪'}</div>
       <div class="card-body">
         <div class="card-title">${item.title}</div>
         <div class="card-sub">${kind}</div>
@@ -680,12 +745,21 @@ document.getElementById('backToLibrary').addEventListener('click', () => {
   document.getElementById('libraryLanding').style.display = 'block';
 });
 
-apiGet('/api/library').then(data => {
+let SITE_CONTENT = {};
+const siteContentPromise = fetch('/api/site-content').then(r => r.json()).then(data => {
+  SITE_CONTENT = data.content || {};
+  document.querySelectorAll('[data-content-key]').forEach(el => {
+    const val = SITE_CONTENT[el.dataset.contentKey];
+    if (val) el.textContent = val;
+  });
+}).catch(() => {});
+
+Promise.all([apiGet('/api/library'), siteContentPromise]).then(([data]) => {
   const portalScroll = document.getElementById('portalScroll');
   data.instruments.forEach(inst => {
     const card = document.createElement('div');
     card.className = 'portal-card';
-    card.innerHTML = `<div class="portal-bg" style="background:${INSTRUMENT_COLORS[inst.key] || 'var(--charcoal-4)'};"></div><div class="portal-shine"></div>
+    card.innerHTML = `<div class="portal-bg" style="${SITE_CONTENT['instrument.' + inst.key + '.cover_url'] ? `background-image:url('${SITE_CONTENT['instrument.' + inst.key + '.cover_url']}'); background-size:cover; background-position:center;` : `background:${INSTRUMENT_COLORS[inst.key] || 'var(--charcoal-4)'};`}"></div><div class="portal-shine"></div>
       <div class="portal-label"><div class="name">${inst.name}</div><div class="sub">${inst.teacher || ''}</div></div>`;
     card.addEventListener('click', () => openInstrument(inst));
     portalScroll.appendChild(card);
@@ -701,15 +775,6 @@ apiGet('/api/library').then(data => {
     : '<p class="empty-state">Coming soon.</p>';
 }).catch(err => { if (err.message !== 'kicked') console.error(err); });
 
-let SITE_CONTENT = {};
-fetch('/api/site-content').then(r => r.json()).then(data => {
-  SITE_CONTENT = data.content || {};
-  document.querySelectorAll('[data-content-key]').forEach(el => {
-    const val = SITE_CONTENT[el.dataset.contentKey];
-    if (val) el.textContent = val;
-  });
-}).catch(() => {});
-
 apiGet('/api/announcements').then(data => {
   const host = document.getElementById('announcementsList');
   if (!data.announcements.length) { host.innerHTML = '<p class="empty-state">No announcements yet — check back soon.</p>'; return; }
@@ -717,6 +782,7 @@ apiGet('/api/announcements').then(data => {
     <div class="announcement">
       <h3>${a.title}</h3>
       <div class="date">${new Date(a.created_at).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</div>
+      ${a.image_url ? `<img src="${a.image_url}" style="max-width:100%; border:1px solid var(--border-gold); margin:10px 0; display:block;">` : ''}
       <p>${a.body}</p>
     </div>`).join('');
 }).catch(err => { if (err.message !== 'kicked') console.error(err); });
@@ -796,7 +862,7 @@ function renderPost(p) {
   el.innerHTML = `
     <div class="post-avatar" style="${p.author.photoUrl ? `background-image:url(${p.author.photoUrl});` : ''}">${p.author.photoUrl ? '' : p.author.name.charAt(0)}</div>
     <div class="post-body">
-      <div class="post-name-row"><span class="post-name">${p.author.name}${p.isMine ? ' (You)' : ''}</span><span class="post-meta">${timeAgo(p.createdAt)}</span></div>
+      <div class="post-name-row"><span class="post-name">${p.author.name}${p.isMine ? ' (You)' : ''}${instrumentIconHtml(p.author.instrument)}</span><span class="post-meta">${timeAgo(p.createdAt)}</span></div>
       <div class="post-text"></div>
       ${p.imageUrl ? `<img class="post-image" src="${p.imageUrl}">` : ''}
       <div class="post-actions">
@@ -831,6 +897,14 @@ function renderPost(p) {
         const row = document.createElement('div');
         row.className = 'post-reply';
         const nameSpan = document.createElement('span'); nameSpan.className = 'post-reply-name'; nameSpan.textContent = r.author.name + (r.isMine ? ' (You)' : '');
+        const iconKey = INSTRUMENT_ICON_KEY[r.author.instrument];
+        if (iconKey) {
+          const iconSpan = document.createElement('span');
+          iconSpan.style.cssText = 'color:var(--gold-light); vertical-align:middle; margin-left:5px;';
+          iconSpan.title = r.author.instrument;
+          iconSpan.innerHTML = icon(iconKey);
+          nameSpan.appendChild(iconSpan);
+        }
         const metaSpan = document.createElement('span'); metaSpan.className = 'post-reply-meta'; metaSpan.textContent = timeAgo(r.createdAt);
         const bodyDiv = document.createElement('div'); bodyDiv.textContent = r.body;
         row.append(nameSpan, metaSpan, bodyDiv);
@@ -884,6 +958,38 @@ function loadCommunity() {
   loadMaestroCard();
   loadCommunityFeed();
 }
+
+async function loadMockAuditions() {
+  try {
+    const data = await apiGet('/api/mock-auditions');
+    const host = document.getElementById('mockAuditionsList');
+    if (!data.auditions.length) {
+      host.innerHTML = '<p class="empty-state" style="padding:14px 16px;">No mock auditions scheduled right now — check back soon.</p>';
+      return;
+    }
+    host.innerHTML = data.auditions.map(a => `
+      <div class="mock-audition-card" data-id="${a.id}">
+        <div class="ma-title">${a.title}</div>
+        <div class="ma-date">${new Date(a.eventDate).toLocaleString(undefined, { month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</div>
+        ${a.description ? `<div class="ma-desc">${a.description}</div>` : ''}
+        ${a.isSignedUp
+          ? `<div class="ma-entered">✓ You're entered${a.zoomLink ? `<br><a href="${a.zoomLink}" target="_blank">Join link ↗</a>` : ''}</div>`
+          : `<button class="ma-enter-btn" data-id="${a.id}">Enter Mock Audition</button>`}
+      </div>`).join('');
+  } catch (err) { if (err.message !== 'kicked') console.error(err); }
+}
+document.getElementById('mockAuditionsList').addEventListener('click', async (e) => {
+  const btn = e.target.closest('.ma-enter-btn');
+  if (!btn) return;
+  const id = btn.dataset.id;
+  const card = btn.closest('.mock-audition-card');
+  const title = card.querySelector('.ma-title').textContent;
+  if (!confirm(`Enter "${title}"?\n\nBy entering, you're committing to attend and perform in this mock audition, held externally via Zoom. The join link will be shown here once you confirm.`)) return;
+  try {
+    await apiPost('/api/mock-auditions', { mockAuditionId: id });
+    loadMockAuditions();
+  } catch (err) { if (err.message !== 'kicked') alert(err.message); }
+});
 
 async function loadMessages() {
   const name = SITE_CONTENT['maestro.name'] || 'Isaak Matovich';

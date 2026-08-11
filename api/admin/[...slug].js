@@ -195,18 +195,18 @@ export default async function handler(req, res) {
       return res.status(200).json({ lessons: data });
     }
     if (req.method === 'POST') {
-      const { instrumentKey, section, title, description, videoUrl, soundsliceId, sortOrder } = req.body || {};
+      const { instrumentKey, section, title, description, videoUrl, soundsliceId, sortOrder, coverImageUrl } = req.body || {};
       if (!VALID_INSTRUMENTS.includes(instrumentKey)) return res.status(400).json({ error: 'Invalid instrument.' });
       if (!VALID_SECTIONS.includes(section)) return res.status(400).json({ error: 'Invalid section.' });
       if (!title) return res.status(400).json({ error: 'Title is required.' });
-      const { data, error } = await supabase.from('lessons').insert({ instrument_key: instrumentKey, section, title, description: description || null, video_url: videoUrl || null, soundslice_id: soundsliceId || null, sort_order: sortOrder || 0 }).select().single();
+      const { data, error } = await supabase.from('lessons').insert({ instrument_key: instrumentKey, section, title, description: description || null, video_url: videoUrl || null, soundslice_id: soundsliceId || null, sort_order: sortOrder || 0, cover_image_url: coverImageUrl || null }).select().single();
       if (error) { console.error(error); return res.status(500).json({ error: 'Could not create lesson.' }); }
       return res.status(200).json({ lesson: data });
     }
     if (req.method === 'PATCH') {
       const id = req.query.id;
       if (!id) return res.status(400).json({ error: 'id query param required.' });
-      const { title, description, videoUrl, soundsliceId, sortOrder, section, instrumentKey } = req.body || {};
+      const { title, description, videoUrl, soundsliceId, sortOrder, section, instrumentKey, coverImageUrl } = req.body || {};
       const update = { updated_at: new Date().toISOString() };
       if (title !== undefined) update.title = title;
       if (description !== undefined) update.description = description;
@@ -215,6 +215,7 @@ export default async function handler(req, res) {
       if (sortOrder !== undefined) update.sort_order = sortOrder;
       if (section !== undefined) update.section = section;
       if (instrumentKey !== undefined) update.instrument_key = instrumentKey;
+      if (coverImageUrl !== undefined) update.cover_image_url = coverImageUrl;
       const { data, error } = await supabase.from('lessons').update(update).eq('id', id).select().single();
       if (error) { console.error(error); return res.status(500).json({ error: 'Could not update lesson.' }); }
       return res.status(200).json({ lesson: data });
@@ -328,9 +329,9 @@ export default async function handler(req, res) {
   // ── /api/admin/announcements ──
   if (route === 'announcements') {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-    const { title, body } = req.body || {};
+    const { title, body, imageUrl } = req.body || {};
     if (!title || !body) return res.status(400).json({ error: 'Title and body are required.' });
-    const { error } = await supabase.from('announcements').insert({ title, body });
+    const { error } = await supabase.from('announcements').insert({ title, body, image_url: imageUrl || null });
     if (error) { console.error('Announcement post error:', error); return res.status(500).json({ error: 'Could not post announcement.' }); }
     return res.status(200).json({ ok: true });
   }
@@ -400,6 +401,109 @@ export default async function handler(req, res) {
       console.error('Maestro photo upload error:', err);
       return res.status(500).json({ error: 'Could not upload the photo. Please try again.' });
     }
+  }
+
+  // ── /api/admin/upload-image ──
+  // Generic image upload used for lesson covers, instrument portal covers,
+  // and announcement images — all go to the shared "site-images" bucket.
+  if (route === 'upload-image') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    const { imageBase64, contentType } = req.body || {};
+    if (!imageBase64) return res.status(400).json({ error: 'No image provided.' });
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowed.includes(contentType)) return res.status(400).json({ error: 'Please upload a JPG, PNG, GIF, or WEBP image.' });
+    try {
+      const buffer = Buffer.from(imageBase64.split(',').pop(), 'base64');
+      if (buffer.length > 6 * 1024 * 1024) return res.status(400).json({ error: 'Image is too large — please use one under 6MB.' });
+      const ext = contentType.split('/')[1];
+      const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from('site-images').upload(path, buffer, { contentType, upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: publicUrlData } = supabase.storage.from('site-images').getPublicUrl(path);
+      return res.status(200).json({ url: publicUrlData.publicUrl });
+    } catch (err) {
+      console.error('Site image upload error:', err);
+      return res.status(500).json({ error: 'Could not upload that image. Please try again.' });
+    }
+  }
+
+  // ── /api/admin/community-posts (moderation view) ──
+  if (route === 'community-posts') {
+    if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+    const { data: posts, error } = await supabase
+      .from('community_posts')
+      .select('id, author_code, body, image_url, created_at')
+      .order('created_at', { ascending: false })
+      .limit(150);
+    if (error) { console.error(error); return res.status(500).json({ error: 'Could not load posts.' }); }
+
+    const codes = [...new Set(posts.map(p => p.author_code))];
+    const { data: profiles } = codes.length
+      ? await supabase.from('student_profiles').select('code, name').in('code', codes)
+      : { data: [] };
+    const nameByCode = {};
+    (profiles || []).forEach(p => { nameByCode[p.code] = p.name; });
+
+    const shaped = posts.map(p => ({
+      id: p.id, body: p.body, imageUrl: p.image_url, createdAt: p.created_at,
+      authorName: nameByCode[p.author_code] || 'Armonía Student',
+    }));
+    return res.status(200).json({ posts: shaped });
+  }
+
+  // ── /api/admin/community-post (delete one, for moderation) ──
+  if (route === 'community-post') {
+    if (req.method !== 'DELETE') return res.status(405).json({ error: 'Method not allowed' });
+    const id = req.query.id;
+    if (!id) return res.status(400).json({ error: 'id query param required.' });
+    // community_replies and community_likes cascade-delete automatically (foreign key ON DELETE CASCADE).
+    const { error } = await supabase.from('community_posts').delete().eq('id', id);
+    if (error) { console.error(error); return res.status(500).json({ error: 'Could not delete that post.' }); }
+    return res.status(200).json({ ok: true });
+  }
+
+  // ── /api/admin/mock-auditions ──
+  if (route === 'mock-auditions') {
+    if (req.method === 'GET') {
+      const { data: auditions, error } = await supabase.from('mock_auditions').select('*').order('event_date', { ascending: true });
+      if (error) { console.error(error); return res.status(500).json({ error: 'Could not load mock auditions.' }); }
+      const { data: signups } = await supabase.from('mock_audition_signups').select('mock_audition_id, code');
+      const countByAudition = {};
+      (signups || []).forEach(s => { countByAudition[s.mock_audition_id] = (countByAudition[s.mock_audition_id] || 0) + 1; });
+      const shaped = auditions.map(a => ({
+        id: a.id, title: a.title, description: a.description, eventDate: a.event_date,
+        zoomLink: a.zoom_link, signupCount: countByAudition[a.id] || 0,
+      }));
+      return res.status(200).json({ auditions: shaped });
+    }
+    if (req.method === 'POST') {
+      const { title, description, eventDate, zoomLink } = req.body || {};
+      if (!title || !eventDate) return res.status(400).json({ error: 'Title and event date are required.' });
+      const { data, error } = await supabase.from('mock_auditions').insert({ title, description: description || null, event_date: eventDate, zoom_link: zoomLink || null }).select().single();
+      if (error) { console.error(error); return res.status(500).json({ error: 'Could not create the mock audition.' }); }
+      return res.status(200).json({ audition: data });
+    }
+    if (req.method === 'PATCH') {
+      const id = req.query.id;
+      if (!id) return res.status(400).json({ error: 'id query param required.' });
+      const { title, description, eventDate, zoomLink } = req.body || {};
+      const update = {};
+      if (title !== undefined) update.title = title;
+      if (description !== undefined) update.description = description;
+      if (eventDate !== undefined) update.event_date = eventDate;
+      if (zoomLink !== undefined) update.zoom_link = zoomLink;
+      const { data, error } = await supabase.from('mock_auditions').update(update).eq('id', id).select().single();
+      if (error) { console.error(error); return res.status(500).json({ error: 'Could not update that.' }); }
+      return res.status(200).json({ audition: data });
+    }
+    if (req.method === 'DELETE') {
+      const id = req.query.id;
+      if (!id) return res.status(400).json({ error: 'id query param required.' });
+      const { error } = await supabase.from('mock_auditions').delete().eq('id', id);
+      if (error) { console.error(error); return res.status(500).json({ error: 'Could not delete that.' }); }
+      return res.status(200).json({ ok: true });
+    }
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   return res.status(404).json({ error: 'Not found.' });

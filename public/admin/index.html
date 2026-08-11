@@ -103,6 +103,8 @@
       <div class="tab" data-panel="lessons">Lessons</div>
       <div class="tab" data-panel="content">Site Text</div>
       <div class="tab" data-panel="devices">Device Requests</div>
+      <div class="tab" data-panel="community">Community</div>
+      <div class="tab" data-panel="auditions">Mock Auditions</div>
       <div class="tab" data-panel="account">Account Settings</div>
       <div class="tab" data-panel="announcements">Post Announcement</div>
     </div>
@@ -160,6 +162,10 @@
           <button type="button" id="maestroPhotoBtn" style="background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:9px 16px; font-size:0.83rem; cursor:pointer;">Upload photo</button>
           <input type="file" id="maestroPhotoInput" accept="image/png, image/jpeg, image/webp" style="display:none;">
         </div>
+
+        <h2 style="font-family:var(--font-display); margin:34px 0 8px; font-size:1.3rem;">Instrument Cover Images</h2>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:18px;">Replace the colored gradient on each Course Library card with a real photo — same hover animations either way.</p>
+        <div id="instrumentCoversList" style="display:flex; flex-wrap:wrap; gap:20px;"></div>
       </section>
 
       <!-- Device Requests -->
@@ -171,6 +177,26 @@
         <table>
           <thead><tr><th>Code</th><th>Attempted Device</th><th>When</th><th>Status</th><th></th></tr></thead>
           <tbody id="deviceRequestsBody"></tbody>
+        </table>
+      </section>
+
+      <!-- Community Moderation -->
+      <section class="panel" id="panel-community">
+        <h2 style="font-family:var(--font-display); margin-bottom:8px; font-size:1.3rem;">Community</h2>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:22px;">Recent posts from every student. Delete anything that needs moderating — this also removes its likes and replies.</p>
+        <div id="communityModList"></div>
+      </section>
+
+      <!-- Mock Auditions -->
+      <section class="panel" id="panel-auditions">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+          <h2 style="font-family:var(--font-display); font-size:1.3rem;">Mock Auditions</h2>
+          <button id="newAuditionBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:9px 18px; font-weight:600; cursor:pointer;">+ Schedule One</button>
+        </div>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:22px;">Students see these on the Message the Maestro page and can enter — the Zoom link only shows up for them once they've agreed to attend.</p>
+        <table>
+          <thead><tr><th>Title</th><th>Date</th><th>Entered</th><th></th></tr></thead>
+          <tbody id="auditionsTableBody"></tbody>
         </table>
       </section>
 
@@ -231,6 +257,12 @@
         <div class="composer">
           <input type="text" id="annTitle" placeholder="Title">
           <textarea id="annBody" placeholder="Message to every enrolled student…"></textarea>
+          <div style="margin-bottom:14px;">
+            <div id="annImagePreview" style="display:none; width:200px; margin-bottom:8px;"><img style="width:100%; border:1px solid var(--border-gold); display:block;"></div>
+            <button type="button" id="annImageBtn" style="background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:8px 14px; font-size:0.83rem; cursor:pointer;">📷 Add image (optional)</button>
+            <button type="button" id="annImageRemoveBtn" style="display:none; background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:8px 14px; font-size:0.83rem; cursor:pointer; margin-left:8px;">Remove</button>
+            <input type="file" id="annImageInput" accept="image/png, image/jpeg, image/webp, image/gif" style="display:none;">
+          </div>
           <div style="display:flex; align-items:center;">
             <button id="annSubmitBtn">Post</button>
             <span class="composer-note" id="annSavedNote">✓ Posted</span>
@@ -283,6 +315,15 @@
           <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Or direct video URL</label>
           <input type="text" id="lessonVideoUrl" placeholder="https://…" style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
         </div>
+        <div style="margin-bottom:18px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Cover image</label>
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div id="lessonCoverPreview" style="width:64px; height:36px; background:var(--charcoal-3); border:1px solid var(--border-gold); background-size:cover; background-position:center; flex-shrink:0;"></div>
+            <button type="button" id="lessonCoverBtn" style="background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:8px 14px; font-size:0.83rem; cursor:pointer;">Upload cover</button>
+            <input type="file" id="lessonCoverInput" accept="image/png, image/jpeg, image/webp" style="display:none;">
+          </div>
+          <p style="font-size:0.72rem; color:var(--text-muted); margin-top:6px;">Shows on the card instead of the grey placeholder. Optional.</p>
+        </div>
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <button id="lessonDeleteBtn" style="background:none; border:1px solid var(--red-accent); color:#e8a8a8; padding:9px 16px; cursor:pointer; display:none;">Delete</button>
           <button id="lessonSaveBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:9px 22px; font-weight:600; cursor:pointer; margin-left:auto;">Save</button>
@@ -325,6 +366,39 @@
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <button id="resourceDeleteBtn" style="background:none; border:1px solid var(--red-accent); color:#e8a8a8; padding:9px 16px; cursor:pointer; display:none;">Delete</button>
           <button id="resourceSaveBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:9px 22px; font-weight:600; cursor:pointer; margin-left:auto;">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mock Audition editor modal -->
+  <div class="modal-overlay" id="auditionModal">
+    <div class="modal-box" style="max-width:440px;">
+      <div class="modal-header">
+        <h3 id="auditionModalTitle">Schedule a Mock Audition</h3>
+        <button class="modal-close" id="auditionModalClose">✕</button>
+      </div>
+      <div style="padding:20px;">
+        <input type="hidden" id="auditionId">
+        <div style="margin-bottom:14px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Title</label>
+          <input type="text" id="auditionTitle" placeholder="e.g. Mock Audition — Vihuela" style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
+        </div>
+        <div style="margin-bottom:14px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Date &amp; Time</label>
+          <input type="datetime-local" id="auditionDate" style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
+        </div>
+        <div style="margin-bottom:14px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Description</label>
+          <textarea id="auditionDescription" style="width:100%; min-height:70px; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;" placeholder="What to prepare, what to expect…"></textarea>
+        </div>
+        <div style="margin-bottom:18px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Zoom (or other) link</label>
+          <input type="text" id="auditionZoomLink" placeholder="https://zoom.us/…" style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
+          <p style="font-size:0.72rem; color:var(--text-muted); margin-top:6px;">Only shown to a student after they've entered and agreed to attend.</p>
+        </div>
+        <div style="display:flex; justify-content:flex-end;">
+          <button id="auditionSaveBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:9px 22px; font-weight:600; cursor:pointer;">Save</button>
         </div>
       </div>
     </div>
@@ -414,9 +488,11 @@
         tab.classList.add('active');
         document.getElementById(`panel-${tab.dataset.panel}`).classList.add('active');
         if (tab.dataset.panel === 'lessons') { loadLessons(); loadResources(); }
-        if (tab.dataset.panel === 'content') { loadSiteContent(); }
+        if (tab.dataset.panel === 'content') { loadSiteContent(); loadInstrumentCovers(); }
         if (tab.dataset.panel === 'devices') { loadDeviceRequests(); }
         if (tab.dataset.panel === 'account') { loadAccount(); }
+        if (tab.dataset.panel === 'community') { loadCommunityMod(); }
+        if (tab.dataset.panel === 'auditions') { loadAuditions(); }
       });
     });
 
@@ -449,6 +525,19 @@
     document.getElementById('lessonInstrumentFilter').addEventListener('change', renderLessonsTable);
 
     function openLessonModal() { document.getElementById('lessonModal').classList.add('open'); }
+    let currentLessonCoverUrl = null;
+    document.getElementById('lessonCoverBtn').addEventListener('click', () => document.getElementById('lessonCoverInput').click());
+    document.getElementById('lessonCoverInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const { dataUrl, contentType } = await resizeImageFile(file, 500, 0.82);
+        const data = await adminFetch('/api/admin/upload-image', { method: 'POST', body: JSON.stringify({ imageBase64: dataUrl, contentType }) });
+        currentLessonCoverUrl = data.url;
+        document.getElementById('lessonCoverPreview').style.backgroundImage = `url(${data.url})`;
+      } catch (err) { alert(err.message); }
+    });
+
     document.getElementById('newLessonBtn').addEventListener('click', () => {
       document.getElementById('lessonModalTitle').textContent = 'Add Lesson';
       document.getElementById('lessonId').value = '';
@@ -459,6 +548,8 @@
       document.getElementById('lessonSoundslice').value = '';
       document.getElementById('lessonVideoUrl').value = '';
       document.getElementById('lessonDeleteBtn').style.display = 'none';
+      currentLessonCoverUrl = null;
+      document.getElementById('lessonCoverPreview').style.backgroundImage = '';
       openLessonModal();
     });
 
@@ -474,6 +565,8 @@
       document.getElementById('lessonSoundslice').value = l.soundslice_id || '';
       document.getElementById('lessonVideoUrl').value = l.video_url || '';
       document.getElementById('lessonDeleteBtn').style.display = 'inline-block';
+      currentLessonCoverUrl = l.cover_image_url || null;
+      document.getElementById('lessonCoverPreview').style.backgroundImage = currentLessonCoverUrl ? `url(${currentLessonCoverUrl})` : '';
       openLessonModal();
     };
 
@@ -488,6 +581,7 @@
         description: document.getElementById('lessonDescription').value.trim(),
         soundsliceId: document.getElementById('lessonSoundslice').value.trim(),
         videoUrl: document.getElementById('lessonVideoUrl').value.trim(),
+        coverImageUrl: currentLessonCoverUrl,
       };
       if (!payload.title) { alert('Title is required.'); return; }
       try {
@@ -903,19 +997,183 @@
     });
 
     // ── Announcements ──
+    let annImageUrl = null;
+    document.getElementById('annImageBtn').addEventListener('click', () => document.getElementById('annImageInput').click());
+    document.getElementById('annImageInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const { dataUrl, contentType } = await resizeImageFile(file, 800, 0.85);
+        const data = await adminFetch('/api/admin/upload-image', { method: 'POST', body: JSON.stringify({ imageBase64: dataUrl, contentType }) });
+        annImageUrl = data.url;
+        const preview = document.getElementById('annImagePreview');
+        preview.querySelector('img').src = annImageUrl;
+        preview.style.display = 'block';
+        document.getElementById('annImageRemoveBtn').style.display = 'inline-block';
+      } catch (err) { alert(err.message); }
+    });
+    document.getElementById('annImageRemoveBtn').addEventListener('click', () => {
+      annImageUrl = null;
+      document.getElementById('annImagePreview').style.display = 'none';
+      document.getElementById('annImageRemoveBtn').style.display = 'none';
+      document.getElementById('annImageInput').value = '';
+    });
+
     document.getElementById('annSubmitBtn').addEventListener('click', async () => {
       const title = document.getElementById('annTitle').value.trim();
       const body = document.getElementById('annBody').value.trim();
       if (!title || !body) { alert('Title and message are both required.'); return; }
       try {
-        await adminFetch('/api/admin/announcements', { method: 'POST', body: JSON.stringify({ title, body }) });
+        await adminFetch('/api/admin/announcements', { method: 'POST', body: JSON.stringify({ title, body, imageUrl: annImageUrl }) });
         document.getElementById('annTitle').value = '';
         document.getElementById('annBody').value = '';
+        annImageUrl = null;
+        document.getElementById('annImagePreview').style.display = 'none';
+        document.getElementById('annImageRemoveBtn').style.display = 'none';
+        document.getElementById('annImageInput').value = '';
         const note = document.getElementById('annSavedNote');
         note.style.display = 'inline';
         setTimeout(() => { note.style.display = 'none'; }, 2000);
       } catch (err) { alert(err.message); }
     });
+
+    // ── Community moderation ──
+    async function loadCommunityMod() {
+      try {
+        const data = await adminFetch('/api/admin/community-posts');
+        const host = document.getElementById('communityModList');
+        if (!data.posts.length) { host.innerHTML = '<p class="empty-state">No posts yet.</p>'; return; }
+        host.innerHTML = data.posts.map(p => `
+          <div style="display:flex; gap:14px; padding:14px 0; border-bottom:1px solid rgba(201,168,76,0.12);">
+            <div style="flex:1;">
+              <div style="font-size:0.85rem; margin-bottom:4px;"><strong>${p.authorName}</strong> <span style="color:var(--text-muted); font-size:0.78rem;">${new Date(p.createdAt).toLocaleString()}</span></div>
+              <div style="font-size:0.87rem; white-space:pre-wrap;">${p.body || ''}</div>
+              ${p.imageUrl ? `<img src="${p.imageUrl}" style="max-width:200px; margin-top:8px; border:1px solid var(--border-gold); display:block;">` : ''}
+            </div>
+            <button onclick="deleteCommunityPost('${p.id}')" style="background:none; border:1px solid var(--red-accent); color:#e8a8a8; padding:7px 12px; font-size:0.78rem; cursor:pointer; height:fit-content;">Delete</button>
+          </div>`).join('');
+      } catch (err) { console.error(err); }
+    }
+    window.deleteCommunityPost = async function(id) {
+      if (!confirm('Delete this post? This also removes its likes and replies.')) return;
+      try {
+        await adminFetch(`/api/admin/community-post?id=${id}`, { method: 'DELETE' });
+        loadCommunityMod();
+      } catch (err) { alert(err.message); }
+    };
+
+    // ── Mock Auditions ──
+    let allAuditions = [];
+    async function loadAuditions() {
+      try {
+        const data = await adminFetch('/api/admin/mock-auditions');
+        allAuditions = data.auditions;
+        const body = document.getElementById('auditionsTableBody');
+        body.innerHTML = allAuditions.length ? allAuditions.map(a => `
+          <tr>
+            <td>${a.title}</td>
+            <td>${new Date(a.eventDate).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</td>
+            <td>${a.signupCount}</td>
+            <td class="row-actions">
+              <button onclick="editAudition('${a.id}')">Edit</button>
+              <button onclick="deleteAudition('${a.id}')">Delete</button>
+            </td>
+          </tr>`).join('') : '<tr><td colspan="4" class="empty-state">No mock auditions scheduled yet.</td></tr>';
+      } catch (err) { console.error(err); }
+    }
+    document.getElementById('newAuditionBtn').addEventListener('click', () => {
+      document.getElementById('auditionModalTitle').textContent = 'Schedule a Mock Audition';
+      document.getElementById('auditionId').value = '';
+      document.getElementById('auditionTitle').value = '';
+      document.getElementById('auditionDate').value = '';
+      document.getElementById('auditionDescription').value = '';
+      document.getElementById('auditionZoomLink').value = '';
+      document.getElementById('auditionModal').classList.add('open');
+    });
+    window.editAudition = function(id) {
+      const a = allAuditions.find(x => x.id === id);
+      if (!a) return;
+      document.getElementById('auditionModalTitle').textContent = 'Edit Mock Audition';
+      document.getElementById('auditionId').value = a.id;
+      document.getElementById('auditionTitle').value = a.title;
+      // datetime-local needs "YYYY-MM-DDTHH:mm" in local time
+      const d = new Date(a.eventDate);
+      const pad = n => String(n).padStart(2, '0');
+      document.getElementById('auditionDate').value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      document.getElementById('auditionDescription').value = a.description || '';
+      document.getElementById('auditionZoomLink').value = a.zoomLink || '';
+      document.getElementById('auditionModal').classList.add('open');
+    };
+    window.deleteAudition = async function(id) {
+      if (!confirm('Delete this mock audition? Students who signed up will no longer see it.')) return;
+      try {
+        await adminFetch(`/api/admin/mock-auditions?id=${id}`, { method: 'DELETE' });
+        loadAuditions();
+      } catch (err) { alert(err.message); }
+    };
+    document.getElementById('auditionModalClose').addEventListener('click', () => document.getElementById('auditionModal').classList.remove('open'));
+    document.getElementById('auditionSaveBtn').addEventListener('click', async () => {
+      const id = document.getElementById('auditionId').value;
+      const title = document.getElementById('auditionTitle').value.trim();
+      const dateVal = document.getElementById('auditionDate').value;
+      if (!title || !dateVal) { alert('Title and date/time are required.'); return; }
+      const payload = {
+        title,
+        eventDate: new Date(dateVal).toISOString(),
+        description: document.getElementById('auditionDescription').value.trim(),
+        zoomLink: document.getElementById('auditionZoomLink').value.trim(),
+      };
+      try {
+        if (id) {
+          await adminFetch(`/api/admin/mock-auditions?id=${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+        } else {
+          await adminFetch('/api/admin/mock-auditions', { method: 'POST', body: JSON.stringify(payload) });
+        }
+        document.getElementById('auditionModal').classList.remove('open');
+        loadAuditions();
+      } catch (err) { alert(err.message); }
+    });
+
+    // ── Instrument cover images ──
+    const INSTRUMENT_LIST = [
+      { key: 'vihuela', name: 'Vihuela' },
+      { key: 'guitarra', name: 'Guitarra' },
+      { key: 'guitarra-de-golpe', name: 'Guitarra de Golpe' },
+      { key: 'guitarron', name: 'Guitarrón' },
+    ];
+    async function loadInstrumentCovers() {
+      let saved = {};
+      try {
+        const data = await adminFetch('/api/admin/site-content');
+        data.content.forEach(row => { saved[row.key] = row.value; });
+      } catch (err) { console.error(err); }
+
+      document.getElementById('instrumentCoversList').innerHTML = INSTRUMENT_LIST.map(inst => `
+        <div style="width:180px;">
+          <div style="font-size:0.82rem; margin-bottom:8px;">${inst.name}</div>
+          <div class="inst-cover-preview" data-key="${inst.key}" style="width:180px; height:110px; background:var(--charcoal-3); border:1px solid var(--border-gold); background-size:cover; background-position:center; margin-bottom:8px; ${saved['instrument.' + inst.key + '.cover_url'] ? `background-image:url('${saved['instrument.' + inst.key + '.cover_url']}');` : ''}"></div>
+          <button type="button" class="inst-cover-btn" data-key="${inst.key}" style="width:100%; background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:7px; font-size:0.78rem; cursor:pointer;">Upload</button>
+        </div>`).join('');
+
+      document.querySelectorAll('.inst-cover-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const picker = document.createElement('input');
+          picker.type = 'file';
+          picker.accept = 'image/png, image/jpeg, image/webp';
+          picker.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            try {
+              const { dataUrl, contentType } = await resizeImageFile(file, 700, 0.85);
+              const data = await adminFetch('/api/admin/upload-image', { method: 'POST', body: JSON.stringify({ imageBase64: dataUrl, contentType }) });
+              await adminFetch('/api/admin/site-content', { method: 'PATCH', body: JSON.stringify({ key: `instrument.${btn.dataset.key}.cover_url`, value: data.url }) });
+              document.querySelector(`.inst-cover-preview[data-key="${btn.dataset.key}"]`).style.backgroundImage = `url(${data.url})`;
+            } catch (err) { alert(err.message); }
+          });
+          picker.click();
+        });
+      });
+    }
   </script>
 </body>
 </html>

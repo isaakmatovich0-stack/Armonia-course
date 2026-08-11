@@ -385,7 +385,52 @@ uploaded file → copy its **public URL** → paste that into the File URL
 field in `/admin/` instead of using the upload button. Same end result,
 just routed around the platform limit.
 
-## 19. Linking from Instagram
+## 19. Cover images, announcement images, instrument icons, Community moderation, and mock auditions
+
+**a) Run one more schema file, and create one more bucket**
+Supabase → SQL Editor → run `supabase/schema-v7.sql`. Then Storage → New
+bucket → name it exactly `site-images` → toggle Public ON → Create. This
+is where lesson covers, instrument portal covers, and announcement
+images all get stored.
+
+**b) Cover images**
+- **Lessons tab** → Add/Edit Lesson now has an "Upload cover" button —
+  the image replaces the grey placeholder on that lesson's card.
+- **Site Text tab** → scroll down to "Instrument Cover Images" — upload a
+  photo for each of the four instruments to replace the colored gradient
+  on their Course Library card. All the existing hover/shine animations
+  stay exactly the same either way.
+
+**c) Announcement images**
+Post an Announcement tab now has an optional "Add image" button —
+whatever you attach shows above the message text on the student side.
+
+**d) Instrument icons next to names**
+Automatic, no setup needed — a small icon matching each instrument (a
+vihuela, guitarra, guitarra de golpe, or guitarrón glyph, in the site's
+own line-art style) now shows next to a student's name in Community,
+pulled from their profile's instrument field.
+
+**e) Community moderation**
+New **Community** tab in `/admin/` — every recent post, with a Delete
+button. Deleting a post also removes its likes and replies automatically
+(the database handles the cascade).
+
+**f) Mock Auditions**
+New **Mock Auditions** tab — schedule one with a title, date/time,
+description, and a Zoom (or other) link. Students see it on their
+Message the Maestro page and can hit "Enter Mock Audition," which asks
+them to confirm they're committing to attend and perform — only after
+that confirmation does the Zoom link actually appear for them. You can
+see how many students have entered right from the tab.
+
+**g) The strum icon**
+Top-right of the student dashboard, next to the Community icon — a small
+vihuela glyph that plays one string's sound (pulled from the audio clip
+you sent) and keeps a running count next to it, saved in that student's
+browser. Genuinely pointless, as requested.
+
+## 20. Linking from Instagram
 
 your chosen domain) in your Instagram bio link. That's the whole flyer page —
 enrollment, everything included list, and contact form all live there.
