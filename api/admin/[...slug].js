@@ -26,7 +26,10 @@ const VALID_INSTRUMENTS = ['vihuela', 'guitarra', 'guitarra-de-golpe', 'guitarro
 const VALID_SECTIONS = ['etude', 'practice_technique', 'performance', 'etude_fifths'];
 
 export default async function handler(req, res) {
-  const route = Array.isArray(req.query.slug) ? req.query.slug[0] : req.query.slug;
+  // Derive the route from the URL path (e.g. /api/admin/lessons -> "lessons")
+  // rather than relying solely on Vercel's dynamic-route query population.
+  const urlParts = req.url.split('?')[0].split('/').filter(Boolean); // ['api', 'admin', 'lessons']
+  const route = urlParts[2];
 
   // ══════════════ Public (no admin token required) ══════════════
 

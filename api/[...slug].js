@@ -29,7 +29,11 @@ function shapeLesson(row) {
 }
 
 export default async function handler(req, res) {
-  const route = Array.isArray(req.query.slug) ? req.query.slug[0] : req.query.slug;
+  // Derive the route directly from the URL path (e.g. /api/profile -> "profile")
+  // rather than relying solely on Vercel's dynamic-route query population,
+  // which is more robust across deployment configurations.
+  const urlParts = req.url.split('?')[0].split('/').filter(Boolean); // ['api', 'profile']
+  const route = urlParts[1];
 
   // site-content is public (no login) — everything else below requires a session.
   if (route === 'site-content') {

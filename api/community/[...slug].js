@@ -18,7 +18,10 @@ export default async function handler(req, res) {
     return res.status(session.status).json({ error: session.error, kicked: !!session.kicked });
   }
 
-  const route = Array.isArray(req.query.slug) ? req.query.slug[0] : req.query.slug;
+  // Derive the route from the URL path (e.g. /api/community/posts -> "posts")
+  // rather than relying solely on Vercel's dynamic-route query population.
+  const urlParts = req.url.split('?')[0].split('/').filter(Boolean); // ['api', 'community', 'posts']
+  const route = urlParts[2];
 
   // ── /api/community/posts ──
   if (route === 'posts') {
