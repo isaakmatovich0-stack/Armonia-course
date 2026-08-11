@@ -112,31 +112,258 @@ supabase/schema.sql        → run this once to create your database tables
    payment link (step 3 above uses live mode already if you toggled it),
    and you're ready for real customers.
 
-## 6. Adding your lessons as you finish editing them
+## 6. The Lessons CMS — no more editing code to add lessons
 
-Open `api/lessons.js` and add an entry to the `LESSONS` array for each
-finished lesson:
+Lesson content now lives in the database, managed entirely from `/admin/`
+under the **Lessons** tab. You no longer edit any file to add a lesson.
 
-```js
-{
-  id: 3,
-  title: 'Lesson 3 — Manico Patterns II',
-  description: 'Building speed without losing clarity.',
-  videoUrl: 'https://your-video-host.com/lesson3.mp4', // if hosting video directly
-  soundsliceId: '123456', // if using a Soundslice embed for the performance track
-},
+**a) Run one more schema file**
+Supabase → SQL Editor → paste in `supabase/schema-v3.sql` → Run. This
+creates the `lessons` and `resources` tables that replace the old
+`lib/lessonLibrary.js` (which has been removed — it's fully superseded).
+
+**b) Adding a lesson**
+Go to `armoniaconnect.com/admin` → **Lessons** tab → **+ Add Lesson**.
+Pick the instrument, the section (Etude / Practice Technique /
+Performance Track / Etude in Fifths — that last one only applies to
+Guitarra de Golpe), give it a title and description, and either:
+- paste a **Soundslice ID** once you have your Soundslice licensing (just
+  the number from your embed URL — `soundslice.com/slices/`**`123456`**`/embed/`), or
+- paste a **direct video URL** if you're hosting the lesson video
+  elsewhere (e.g. Vimeo).
+
+Save, and it's live on the course site immediately — no redeploy needed,
+since this is a database change, not a code change.
+
+**c) Adding chord books / MIDI tracks**
+Same tab, further down — **+ Add Resource**, pick Chord Book or MIDI
+Track, title, and a file URL (link to a PDF or audio file you've hosted
+somewhere, e.g. a Supabase Storage bucket like you use for profile
+photos, or Google Drive with public link sharing).
+
+**d) When your Soundslice licensing comes through**
+Nothing else needs to change — the Soundslice ID field in the Lessons CMS
+is already wired up. Every lesson you've entered with a Soundslice ID
+will start rendering the interactive embed on the student dashboard the
+moment you paste that ID in.
+
+## 7. Legal pages
+
+Two drafts are included in the `legal/` folder: `terms-and-conditions.md`
+and `privacy-policy.md`, written specifically around how Armonía Connect
+works (access codes, single-session login, piracy consequences, the
+third-party services you use). **These are starting drafts, not legal
+advice** — get them reviewed by a Texas-licensed attorney before
+publishing, especially given you're handling payments from and
+communications with students who are likely minors. Once you're happy
+with the wording, tell me and I'll turn them into real pages on the site
+(e.g. `armoniaconnect.com/terms` and `/privacy`) linked from the footer
+and checkout flow.
+
+## 9. Setting up the other features (profiles, chat, announcements, single-session security)
+
+**a) Run the new database tables**
+Supabase → SQL Editor → paste in `supabase/schema-v2.sql` → Run. This is
+additive and safe even if you've already run `schema.sql`.
+
+**b) Create a Storage bucket for profile photos**
+1. Supabase → **Storage** (left sidebar) → **New bucket**
+2. Name it exactly: `profile-photos`
+3. Toggle **Public bucket** ON (so photos display without extra auth)
+4. Create
+
+**c) Set your admin password**
+Add one more environment variable in Vercel:
 ```
+ADMIN_PASSWORD=choose-something-only-you-know
+```
+Redeploy after adding it.
 
-Push the change (`git push`) and Vercel redeploys automatically — no other
-steps needed, every enrolled student sees the new lesson immediately.
+**d) Where things live**
+- Students log in at `/course/` same as before — first-time students now
+  land on `/course/onboarding.html` (name, instrument, experience, bio,
+  photo) before reaching the dashboard.
+- The redesigned dashboard (`/course/dashboard.html`) has a sidebar:
+  Announcements, each instrument, Chord Books & MIDI, Message the Maestro,
+  and My Profile.
+- You manage everything at **`/admin/`** (e.g. `armoniaconnect.com/admin`)
+  — log in with `ADMIN_PASSWORD`. From there you can see every student
+  and their profile, message any of them directly (updates every few
+  seconds, no page refresh needed), post an announcement to everyone, and
+  revoke a code if needed.
+- **Keep `/admin/` unlisted** — it's protected by the password, but don't
+  link to it publicly; just bookmark it yourself.
 
-**Soundslice ID:** in your Soundslice dashboard, open a slice → **Embed** →
-the ID is the number in the embed code's URL
-(`soundslice.com/slices/`**`123456`**`/embed/`).
+**e) How the single-session lock works**
+Every time a code is used to log in, that login gets a fresh session
+token, overwriting whatever was there before. Every other tab/device
+using that code gets automatically signed out within about 15 seconds,
+with a message explaining why — so a code can only ever be "in use" in
+one place at a time. If a student legitimately switches devices, they
+just re-enter their code and their old session ends automatically — no
+action needed from you. If you ever see a code logging in constantly
+from very different places/devices, that's your signal it may be shared;
+revoke it from the admin panel.
 
-## 7. Linking from Instagram
+## 11. Site text editing, Terms/Privacy/Credits pages
+
+**a) The pages themselves:**
+- `armoniaconnect.com/course/terms.html` — Terms & Conditions
+- `armoniaconnect.com/course/privacy.html` — Privacy Policy
+- `armoniaconnect.com/course/credits.html` — Thank You & Credits, with a placeholder box for your closing video. When you have the video ready, tell Claude and it'll wire in a real embed (Vimeo, direct file, etc.) in place of the placeholder.
+
+All three are linked from the dashboard sidebar and match the site's look.
+
+**b) Editing text without touching code:**
+`/admin/` has a new **Site Text** tab — edit the Announcements page title/subtitle and the Thank You page's title/subtitle/message right from a form, no code or redeploy needed. This uses the `site_content` table from `schema-v3.sql`, so make sure you've run that file in Supabase.
+
+More fields can be made editable the same way later — just tell Claude which text you want to control, and it adds it to that list.
 
 Once steps 1–5 are done and tested, put `https://armonia-mariachi.com` (or
+
+## 12. Community — real posts, one-tap likes, replies, images
+
+**a) Run one more schema file**
+Supabase → SQL Editor → paste in `supabase/schema-v4.sql` → Run. This adds
+`community_posts`, `community_likes`, and `community_replies`.
+
+**b) Create a Storage bucket for post images**
+Same as you did for `profile-photos`: Supabase → **Storage** → **New
+bucket** → name it exactly `community-images` → toggle **Public bucket**
+ON → Create.
+
+**c) How it actually works**
+- Students post text and/or an image from the Community tab.
+- **Likes are a real toggle**, enforced by the database itself — there's
+  a unique constraint on (post, student), so double-liking is impossible
+  even if two clicks fire at once. Clicking again removes the like.
+- **Replies work** — click "Reply" under any post to expand a thread and
+  add your own.
+- Every other student's raw access code is never sent to the browser —
+  only their display name, photo, and instrument. The like/reply/post
+  endpoints all check "is this the logged-in student's own item" server-side.
+
+**d) Your own profile in Community**
+`/admin/` → **Site Text** tab → **Your Community Profile** section. Set
+your name, bio, and upload a photo — that's what shows in the pinned
+"Maestro" card at the top of every student's Community tab. Clicking it
+takes them straight to messaging you (the same system as the sidebar's
+"Message the Maestro").
+
+## 13. A note on who can edit what
+
+Every editing feature — Lessons, Resources, Site Text, your Community
+profile, announcements, revoking codes — lives behind `/admin/` and your
+`ADMIN_PASSWORD`. The student-facing site (`/course/...`) never calls any
+`/api/admin/...` endpoint and has no edit controls anywhere in it. A
+student cannot reach editing features even if they know the URLs, because
+every admin endpoint independently re-checks the admin password's token
+server-side — it doesn't matter what page they're looking at.
+
+## 14. Device binding — a code only ever works on one device
+
+**a) Run one more schema file**
+Supabase → SQL Editor → paste in `supabase/schema-v5.sql` → Run.
+
+**b) How it works**
+The first time a code is used to log in, it's permanently tied to that
+browser (a random ID stored in that browser's `localStorage`, separate
+from the session token). If someone tries to use the same code from a
+different phone or computer after that, they're rejected immediately
+with a message asking them to contact you — it's not just "logged out,"
+it's refused outright.
+
+**c) The trade-off, on purpose**
+This means a student can only use their code on **one device, ever**,
+unless you reset it. That's intentional — it's what actually stops "here,
+borrow my code." But it means a legitimate student who gets a new phone,
+resets their old one, or wants to switch from phone to laptop will hit
+this wall too.
+
+**d) Releasing a device (for legitimate changes)**
+`/admin/` → Students tab → any student showing "Bound" has a **Reset
+Device** button. Use it after confirming with the student (e.g. by email
+or in your DM thread with them) that it's a genuine device change — not
+just anyone asking, since resetting it is also what someone would ask
+for if they'd been caught sharing a code and wanted a clean slate.
+
+**e) What this doesn't fully stop**
+A technically determined person could clear their browser's storage to
+appear as a "new" device and re-trigger a fresh binding. Combined with
+the single-active-session system already in place, this makes casual
+sharing (the "here's my code" text to a friend) meaningfully harder — but
+it's not a perfect lock. If you want a stronger version later (e.g.
+requiring email confirmation before a new device is approved), that's a
+reasonable next step.
+
+## 15. Device requests, real admin account, and the loading screen
+
+**a) Run one more schema file**
+Supabase → SQL Editor → paste in `supabase/schema-v6.sql` → Run.
+
+**b) Device requests — you approve, not the system**
+The device-binding from before now works differently: instead of a
+device mismatch being silently rejected forever, it creates a request in
+`/admin/` → **Device Requests** tab. You see the code, a shortened
+version of the device fingerprint, and when it happened — **Approve** to
+let that device in (rebinds the code to it), or **Deny** to leave it
+blocked. Nothing changes automatically without you.
+
+**c) Your admin account is now real, not just an env var**
+The first time you log into `/admin/` after this update, your existing
+`ADMIN_PASSWORD` becomes your actual password (hashed and stored in the
+database) — after that first login, changing your password from
+**Account Settings** is what actually matters; the env var is never
+checked again. From that same tab:
+- **Name** — saves instantly, and also updates what students see as your
+  name in Community (one field, kept in sync automatically)
+- **Login email** — editable, with a real **Verify** button that emails
+  you a confirmation link (uses your existing Resend setup)
+- **Billing email** — separate editable field for invoice/billing contact
+- **Password** — actually changes it; verifies your current password first
+- **Manage Billing** — opens your real Stripe dashboard in a new tab,
+  since that's where your actual billing lives (student payments, payouts)
+- **Support Information** — your account ID and when your admin account
+  was created
+
+**d) The animated loading screen**
+Shows on the flyer page and the course dashboard every time they're
+opened or refreshed — your logo with a slow pulsing ring, and a random
+mariachi fun fact from the list you gave me. Stays up for at least 1.6
+seconds (long enough to actually read) even if the page loads faster than
+that, then fades out. Want it on other pages too (Community, Terms,
+etc.)? Just say which ones.
+
+## 17. The dashboard redesign is now live in the code
+
+Everything from the final preview is merged into the real, deployable
+`public/course/dashboard.html` — not just a mockup anymore:
+
+- The new logo, animated background pattern, custom icon set, and
+  collapsible sidebar
+- Course Library as portal cards, same as before but restyled
+- **Community** — real posts, images, one-tap-toggle likes, working
+  replies — pulling from the backend built earlier
+- Messaging is reached by clicking the Maestro's card in Community (or
+  the community icon in the top bar) rather than a dedicated sidebar
+  entry, matching the last design you approved
+- **My Profile** — same real editing/photo upload as before, with the
+  fixed avatar display and the nicer banner-style layout
+- The 4.5-second animated loading screen with your fun facts, wired to
+  real page-load
+
+**One deliberate removal:** the earlier preview mockups included a
+"Settings" page with fields like Name, Login Email, and Password — that
+was actually modeling *your* admin account, not a student's. It never
+belonged on the student dashboard. That functionality already has its
+real home in `/admin/` → **Account Settings**, which is fully working.
+I dropped the confusing duplicate from the student view.
+
+Push this to GitHub and Vercel will redeploy it to `armoniaconnect.com`
+automatically, same as every update before.
+
+## 18. Linking from Instagram
+
 your chosen domain) in your Instagram bio link. That's the whole flyer page —
 enrollment, everything included list, and contact form all live there.
 

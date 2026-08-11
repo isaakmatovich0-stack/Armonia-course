@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Thank You — Armonía Connect</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root { --gold:#C9A84C; --gold-light:#E8C97A; --cream:#F2EBD9; --charcoal:#0E0D0B; --charcoal-3:#1C1A16; --charcoal-4:#242019; --text-muted:#8A8275; --border-gold:rgba(201,168,76,0.25); --border-gold-strong:rgba(201,168,76,0.5); }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--charcoal); color: var(--cream); font-family: 'Inter', sans-serif; padding: 48px 24px 80px; }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  a.back { color: var(--gold-light); text-decoration: none; font-size: 0.85rem; }
+  h1 { font-family: 'Playfair Display', serif; font-size: 2rem; margin: 20px 0 6px; }
+  .subhead { color: var(--text-muted); margin-bottom: 30px; }
+  .video-placeholder {
+    border: 1px dashed var(--border-gold-strong); background: var(--charcoal-3); aspect-ratio: 16/9;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; margin-bottom: 32px; text-align: center; padding: 20px;
+  }
+  .video-placeholder svg { color: var(--gold-light); opacity: 0.6; }
+  .video-placeholder p { font-family: 'Cormorant Garamond', serif; font-size: 1.2rem; color: var(--gold-light); }
+  .video-placeholder span { font-size: 0.8rem; color: var(--text-muted); max-width: 380px; }
+  .body-text p { font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; line-height: 1.8; color: var(--cream); margin-bottom: 16px; }
+  .row-label { font-family: 'Cormorant Garamond', serif; font-size: 1.2rem; color: var(--gold-light); margin: 30px 0 14px; }
+  .credits-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid rgba(201,168,76,0.14); font-size: 0.9rem; }
+  .credits-role { color: var(--text-muted); }
+  .credits-name { color: var(--gold-light); font-weight: 600; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <a class="back" href="/course/dashboard.html">← Back to Armonía Connect</a>
+    <h1 data-content-key="credits.title">Thank You</h1>
+    <p class="subhead" data-content-key="credits.subtitle">A word from Isaak, and everyone who made Armonía Connect possible.</p>
+
+    <div class="video-placeholder">
+      <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="5" width="18" height="14" rx="1.5"/><path d="M8 5v14M16 5v14M3 10h5M16 10h5M3 15h5M16 15h5"/></svg>
+      <p>Closing thank-you video goes here</p>
+      <span>Replace this block with your video embed (e.g. a Vimeo or direct video URL) once it's recorded — ask Claude to wire it in when you're ready.</span>
+    </div>
+
+    <div class="body-text" data-content-key="credits.body">
+      <p>To every student who trusted me with their preparation this season — thank you. Watching this community grow, hearing your questions in Armonía Connect, and seeing the progress in your practice logs has been the best part of building this course.</p>
+      <p>Special thanks to the families who make the long practice hours possible, the directors who recommend Armonía Connect to their sections, and everyone testing this platform in its first season.</p>
+    </div>
+
+    <p class="row-label">Credits</p>
+    <div class="credits-row"><span class="credits-role">Instruction &amp; Course Content</span><span class="credits-name">Isaak Matovich</span></div>
+    <div class="credits-row"><span class="credits-role">Photography</span><span class="credits-name">bynicolephotography</span></div>
+    <div class="credits-row"><span class="credits-role">Platform Design &amp; Development</span><span class="credits-name">Armonía Connect</span></div>
+  </div>
+
+  <script>
+    fetch('/api/site-content').then(r => r.json()).then(data => {
+      document.querySelectorAll('[data-content-key]').forEach(el => {
+        const val = data.content && data.content[el.dataset.contentKey];
+        if (val) el.textContent = val;
+      });
+    }).catch(() => {});
+  </script>
+</body>
+</html>

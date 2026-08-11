@@ -1,16 +1,18 @@
 // POST /api/redeem
 // Called by the course site's login screen when a student enters their code.
-// Validates the code and returns a signed session token (a simple JWT) that
-// the course site stores and sends with future requests to unlock lessons.
 //
-// Requires SESSION_SECRET in Vercel env vars (any long random string).
+// Device binding, now with a review queue: the first time a code is used,
+// it's tied to that browser. A different device trying the same code
+// doesn't get auto-rejected forever — it creates a pending request that
+// shows up in /admin/ under "Device Requests," where you personally
+// decide whether to approve it (e.g. a real device change) or leave it
+// blocked (e.g. someone trying to reuse a friend's code).
 
 import { supabase } from '../lib/supabase.js';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 
 function hashIp(ip) {
-  // Lightweight, non-reversible fingerprint for the login_events log —
-  // never store raw IPs.
   let hash = 0;
   const str = ip || 'unknown';
   for (let i = 0; i < str.length; i++) {
@@ -26,13 +28,18 @@ export default async function handler(req, res) {
   }
 
   const raw = (req.body?.code || '').trim().toUpperCase();
+  const deviceId = (req.body?.deviceId || '').trim();
+
   if (!raw) {
     return res.status(400).json({ error: 'Enter your access code.' });
+  }
+  if (!deviceId) {
+    return res.status(400).json({ error: 'Could not verify this browser. Please refresh the page and try again.' });
   }
 
   const { data: record, error } = await supabase
     .from('access_codes')
-    .select('code, email, revoked, redeemed_count')
+    .select('code, email, revoked, redeemed_count, bound_device_id')
     .eq('code', raw)
     .maybeSingle();
 
@@ -49,27 +56,75 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: 'This code is no longer active. Contact maestro.armoniaconnect@gmail.com for help.' });
   }
 
-  // Log the login and bump counters — lets you spot a code being shared widely.
   const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket?.remoteAddress;
+  const ipHash = hashIp(ip);
+
+  // ── Device binding check ──
+  if (record.bound_device_id && record.bound_device_id !== deviceId) {
+    // Don't spam duplicate pending rows if they keep retrying with the same device.
+    const { data: existingPending } = await supabase
+      .from('device_change_requests')
+      .select('id')
+      .eq('code', record.code)
+      .eq('attempted_device_id', deviceId)
+      .eq('status', 'pending')
+      .maybeSingle();
+
+    if (!existingPending) {
+      await supabase.from('device_change_requests').insert({
+        code: record.code,
+        attempted_device_id: deviceId,
+        ip_hash: ipHash,
+        user_agent: req.headers['user-agent'] || '',
+      });
+    }
+
+    return res.status(403).json({
+      error: 'This code is already active on a different device. We\'ve sent this request to the instructor for review — you\'ll be able to log in once it\'s approved. If this is your own new device, you can also email maestro.armoniaconnect@gmail.com directly.',
+      pendingApproval: true,
+    });
+  }
+
+  const sessionToken = crypto.randomBytes(24).toString('hex');
+  const isFirstBinding = !record.bound_device_id;
+
   await supabase.from('login_events').insert({
     code: record.code,
-    ip_hash: hashIp(ip),
+    ip_hash: ipHash,
     user_agent: req.headers['user-agent'] || '',
   });
-  await supabase
-    .from('access_codes')
-    .update({
-      redeemed_at: record.redeemed_count === 0 ? new Date().toISOString() : undefined,
-      last_login_at: new Date().toISOString(),
-      redeemed_count: (record.redeemed_count || 0) + 1,
-    })
-    .eq('code', record.code);
+
+  const update = {
+    redeemed_at: record.redeemed_count === 0 ? new Date().toISOString() : undefined,
+    last_login_at: new Date().toISOString(),
+    redeemed_count: (record.redeemed_count || 0) + 1,
+    current_session_token: sessionToken,
+    session_started_at: new Date().toISOString(),
+  };
+  if (isFirstBinding) {
+    update.bound_device_id = deviceId;
+    update.bound_ip_hash = ipHash;
+    update.bound_at = new Date().toISOString();
+  }
+
+  await supabase.from('access_codes').update(update).eq('code', record.code);
+
+  // Check whether this student has completed onboarding yet.
+  const { data: profile } = await supabase
+    .from('student_profiles')
+    .select('code, name')
+    .eq('code', record.code)
+    .maybeSingle();
 
   const token = jwt.sign(
-    { code: record.code, email: record.email },
+    { code: record.code, email: record.email, sessionToken },
     process.env.SESSION_SECRET,
     { expiresIn: '30d' }
   );
 
-  return res.status(200).json({ token, email: record.email });
+  return res.status(200).json({
+    token,
+    email: record.email,
+    needsOnboarding: !profile,
+  });
 }

@@ -117,6 +117,11 @@
     </form>
 
     <div class="error" id="errorBox"></div>
+    <div class="error" id="kickedBox" style="display:none;">
+      Your access code was just used to log in somewhere else, so this session was signed out.
+      If that wasn't you, your code may have been shared — contact
+      <a href="mailto:maestro.armoniaconnect@gmail.com">maestro.armoniaconnect@gmail.com</a>.
+    </div>
 
     <p class="hint">
       Don't have a code? Check your confirmation email, or
@@ -127,13 +132,44 @@
 
   <script>
     // If a valid session is already stored, skip straight to the dashboard.
-    if (localStorage.getItem('armonia_session')) {
-      window.location.href = '/course/dashboard.html';
+    // Show a message if we were bounced here for being logged out elsewhere.
+    if (new URLSearchParams(window.location.search).get('kicked') === '1') {
+      document.getElementById('kickedBox').style.display = 'block';
     }
+
+    // If a stored session still checks out, skip straight past the code screen.
+    (async () => {
+      const existing = localStorage.getItem('armonia_session');
+      if (!existing) return;
+      try {
+        const res = await fetch('/api/session-check', {
+          headers: { Authorization: `Bearer ${existing}` },
+        });
+        if (res.ok) {
+          window.location.href = '/course/dashboard.html';
+        } else {
+          localStorage.removeItem('armonia_session');
+        }
+      } catch (e) {
+        // network hiccup — just let them log in again manually
+      }
+    })();
 
     const form = document.getElementById('loginForm');
     const errorBox = document.getElementById('errorBox');
     const submitBtn = document.getElementById('submitBtn');
+
+    // A persistent, per-browser identifier — separate from the session
+    // token — used to permanently bind an access code to one device.
+    // Generated once and kept in localStorage indefinitely.
+    function getDeviceId() {
+      let id = localStorage.getItem('armonia_device_id');
+      if (!id) {
+        id = (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+        localStorage.setItem('armonia_device_id', id);
+      }
+      return id;
+    }
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -147,13 +183,13 @@
         const res = await fetch('/api/redeem', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code }),
+          body: JSON.stringify({ code, deviceId: getDeviceId() }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Something went wrong.');
 
         localStorage.setItem('armonia_session', data.token);
-        window.location.href = '/course/dashboard.html';
+        window.location.href = data.needsOnboarding ? '/course/onboarding.html' : '/course/dashboard.html';
       } catch (err) {
         errorBox.textContent = err.message;
         errorBox.style.display = 'block';

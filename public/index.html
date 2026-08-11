@@ -2085,6 +2085,70 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
   </style>
 </head>
 <body class="" style="" contenteditable="false">
+  <!-- Animated loading screen with mariachi fun facts -->
+  <div id="armoniaLoadingScreen" style="position:fixed; inset:0; z-index:9999; background:#0E0D0B; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; transition:opacity 0.5s ease;">
+    <style>
+      @keyframes armoniaLoadPulse { 0%,100% { transform:scale(1); opacity:1; } 50% { transform:scale(1.08); opacity:0.85; } }
+      @keyframes armoniaLoadRing { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+      @keyframes armoniaFactFade { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+      #armoniaLoadingScreen .al-logo-wrap { position:relative; width:74px; height:74px; margin-bottom:28px; }
+      #armoniaLoadingScreen .al-logo-wrap::before { content:''; position:absolute; inset:-10px; border:1px dashed rgba(201,168,76,0.5); border-radius:50%; animation: armoniaLoadRing 8s linear infinite; }
+      #armoniaLoadingScreen .al-logo-wrap img { width:74px; height:74px; animation: armoniaLoadPulse 1.8s ease-in-out infinite; }
+      #armoniaLoadingScreen .al-word { font-family: 'Playfair Display', Georgia, serif; font-size:1.3rem; color:#E8C97A; letter-spacing:1px; margin-bottom:6px; }
+      #armoniaLoadingScreen .al-sub { font-family:'Inter', system-ui, sans-serif; font-size:0.7rem; color:#8A8275; letter-spacing:3px; text-transform:uppercase; margin-bottom:38px; }
+      #armoniaLoadingScreen .al-fact-label { font-family:'Inter', system-ui, sans-serif; font-size:0.68rem; letter-spacing:2px; text-transform:uppercase; color:#C9A84C; margin-bottom:10px; animation: armoniaFactFade 0.5s ease 0.3s both; }
+      #armoniaLoadingScreen .al-fact { font-family: 'Cormorant Garamond', Georgia, serif; font-style:italic; font-size:1.15rem; line-height:1.6; color:#F2EBD9; max-width:480px; text-align:center; animation: armoniaFactFade 0.5s ease 0.45s both; }
+    </style>
+    <div class="al-logo-wrap"><img id="armoniaLoadLogo" alt="Armonía Connect"></div>
+    <div class="al-word">Armonía Connect</div>
+    <div class="al-sub">All-State Etude Studies</div>
+    <div class="al-fact-label">Did you know?</div>
+    <div class="al-fact" id="armoniaLoadFact"></div>
+  </div>
+  <script>
+    (function() {
+      var facts = [
+        "The Harp originated as the first bass instrument of the Mariachi ensemble, eventually being replaced by the Guitarrón.",
+        "Paul McCartney played the traditional vihuela on the track \"Goodnight Tonight\" by his band Wings in 1979.",
+        "\"El Pato\" played vihuela for the legendary Mariachi Vargas de Tecalitlán for 50 consecutive years, from 1960 until his retirement in January of 2011.",
+        "Isaak has spent over 1,000 hours developing this course.",
+        "There are four tuning systems for the Guitarra de Golpe: Tecalitlán, Michoacán, urbana, and vihuela.",
+        "Tacote was the wood type originally known to be used to build instruments, known for its lightweight yet durable composition.",
+        "Practice, practice, practice — practice makes perfect.",
+        "Roberto Morales is considered to be the greatest mariachi luthier of all time, having built some of the most reputable instruments in all of mariachi.",
+        "The traje de charro we all know and love was once the everyday attire of wealthy hacienda owners in Mexico.",
+        "The preferred instrumentation from southern Jalisco and Michoacán favored just two violins, harp, and guitarra de golpe.",
+        "Miguel Martínez is considered to have invented the mariachi trumpet style in the 1940s.",
+        "In 1969, Los Camperos opened La Fonda restaurant in Los Angeles — the world's first venue designed to showcase a mariachi."
+      ];
+      var fact = facts[Math.floor(Math.random() * facts.length)];
+      var factEl = document.getElementById('armoniaLoadFact');
+      if (factEl) factEl.textContent = fact;
+
+      var logoImg = document.getElementById('armoniaLoadLogo');
+      if (logoImg) logoImg.src = '/armonia-connect-logo.png';
+
+      var minDisplay = 1600; // ms — long enough to actually read the fact
+      var start = Date.now();
+      function hideLoadingScreen() {
+        var el = document.getElementById('armoniaLoadingScreen');
+        if (!el) return;
+        var elapsed = Date.now() - start;
+        var wait = Math.max(0, minDisplay - elapsed);
+        setTimeout(function() {
+          el.style.opacity = '0';
+          setTimeout(function() { el.remove(); }, 520);
+        }, wait);
+      }
+      if (document.readyState === 'complete') {
+        hideLoadingScreen();
+      } else {
+        window.addEventListener('load', hideLoadingScreen);
+      }
+    })();
+  </script>
+
+
 
 
 
@@ -2831,7 +2895,7 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
           - Under "Customer information," turn ON "Collect customer's email" (usually on by default)
           The test link below only works in Stripe test mode and will not charge real cards.
         -->
-        <a href="https://buy.stripe.com/28EfZg5XZajU6Qx1GhbAs00" target="_blank" rel="noopener noreferrer" class="stripe-cta" aria-label="Pay with Stripe for $100">
+        <a href="https://buy.stripe.com/test_9B68wObjqc2F219c7v0co00" target="_blank" rel="noopener noreferrer" class="stripe-cta" aria-label="Pay with Stripe for $100">
           <div class="stripe-cta-inner">
             <span class="stripe-cta-logo">💳</span>
             <span>Pay with Stripe — $100</span>
