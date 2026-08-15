@@ -4,12 +4,12 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
 </style>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Armonía Connect — The premier TMEA All-State Mariachi course. Master the audition. Earn your chair. Join Isaak Matovich's elite course for $100.">
-  <meta property="og:title" content="Armonía Connect — TMEA All-State Mariachi Course">
-  <meta property="og:description" content="Master the audition. Earn your chair. The most elite TMEA All-State Mariachi prep course available.">
+  <meta name="description" content="Armonía Connect — Etude prep for Texas All-State auditions. Join Isaak Matovich's elite course for $100.">
+  <meta property="og:title" content="Armonía Connect — All-State Audition Etudes Course">
+  <meta property="og:description" content="Etude prep for Texas All-State auditions. Reach your highest potential with Isaak Matovich's elite prep course.">
   <meta property="og:image" content="https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1200&amp;q=80">
   <link rel="canonical" href="https://armonia-mariachi.com">
-  <title>Armonía Connect — TMEA All-State Mariachi Course</title>
+  <title>Armonía Connect — All-State Audition Etudes Course</title>
 
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -163,6 +163,13 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
       background: var(--gold) !important;
       color: var(--charcoal) !important;
     }
+    .nav-price {
+      font-family: var(--font-serif);
+      font-size: 1.05rem;
+      color: var(--gold-light);
+      font-weight: 600;
+      padding-right: 4px;
+    }
     .nav-cta::after { display: none !important; }
 
     .nav-hamburger {
@@ -223,7 +230,7 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
     ═══════════════════════════════════════════════════ */
     .hero {
       position: relative;
-      min-height: 100vh;
+      min-height: 72vh;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -414,6 +421,8 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
       opacity: 0;
       animation: fadeUp 1s 1.3s forwards;
     }
+    .hero-buttons-quad { gap: 14px; margin-top: 8px; }
+    .hero-buttons-quad .btn-secondary, .hero-buttons-quad .btn-primary { font-size: 0.78rem; padding: 14px 22px; }
 
     .btn-primary {
       position: relative;
@@ -664,6 +673,15 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
     }
 
     .about-content {}
+    .about-subtext {
+      font-family: var(--font-sans);
+      font-size: 0.82rem;
+      letter-spacing: 0.04em;
+      color: var(--gold-light);
+      text-transform: uppercase;
+      margin-bottom: 22px;
+      font-weight: 600;
+    }
     .about-bio {
       font-family: var(--font-serif);
       font-size: 1.15rem;
@@ -677,6 +695,41 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
       line-height: 1.8;
       color: var(--text-muted);
       margin-bottom: 32px;
+    }
+    .about-disciplines {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      margin-top: 40px;
+      padding-top: 32px;
+      border-top: 1px solid var(--border-dim);
+    }
+    .ad-item {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+    }
+    .ad-item svg { margin-bottom: 6px; filter: drop-shadow(0 0 8px rgba(201,168,76,0.25)); }
+    .ad-item span {
+      font-family: var(--font-serif);
+      font-size: 1rem;
+      color: var(--cream);
+    }
+    .ad-item p {
+      font-family: var(--font-sans);
+      font-size: 0.72rem;
+      color: var(--text-dim);
+    }
+    .ad-divider {
+      width: 1px;
+      align-self: stretch;
+      background: var(--border-gold);
+      flex-shrink: 0;
+    }
+    @media (max-width: 560px) {
+      .about-disciplines { flex-direction: column; align-items: flex-start; gap: 20px; }
+      .ad-divider { display: none; }
     }
     .about-credentials {
       display: flex;
@@ -767,6 +820,157 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
       line-height: 1.9;
       color: var(--cream-soft);
     }
+    .decor-texture, .mission-section {
+      background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22180%22%20height%3D%22180%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23C9A84C%22%20stroke-width%3D%221%22%20stroke-opacity%3D%220.05%22%3E%3Cg%20transform%3D%22translate%2820%2C18%29%20scale%280.34%29%22%3E%3Cpath%20d%3D%22M20%2010%20C5%2010%200%2030%208%2045%20C0%2060%205%2085%2020%2090%20C35%2085%2040%2060%2032%2045%20C40%2030%2035%2010%2020%2010%20Z%22/%3E%3Cline%20x1%3D%2220%22%20y1%3D%2210%22%20x2%3D%2220%22%20y2%3D%22-16%22/%3E%3C/g%3E%3Cg%20transform%3D%22translate%28130%2C120%29%20rotate%2812%29%20scale%280.3%29%22%3E%3Cpath%20d%3D%22M20%2010%20C3%2010%20-2%2032%207%2048%20C-2%2065%203%2092%2020%2098%20C37%2092%2042%2065%2033%2048%20C42%2032%2037%2010%2020%2010%20Z%22/%3E%3Cline%20x1%3D%2220%22%20y1%3D%2210%22%20x2%3D%2220%22%20y2%3D%22-14%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+      background-repeat: repeat;
+      background-size: 180px 180px;
+    }
+    /* Corner ornaments — reusable decorative frame accents for section containers */
+    .decor-corners { position: relative; }
+    .decor-corner {
+      position: absolute;
+      width: 34px; height: 34px;
+      border: 1px solid var(--border-gold);
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    .decor-corner.tl { top: 18px; left: 18px; border-right: none; border-bottom: none; }
+    .decor-corner.tr { top: 18px; right: 18px; border-left: none; border-bottom: none; }
+    .decor-corner.bl { bottom: 18px; left: 18px; border-right: none; border-top: none; }
+    .decor-corner.br { bottom: 18px; right: 18px; border-left: none; border-top: none; }
+    @media (max-width: 900px) { .decor-corner { display: none; } }
+    /* Floating note accents */
+    .decor-note {
+      position: absolute;
+      color: var(--gold);
+      opacity: 0.18;
+      font-size: 1.8rem;
+      pointer-events: none;
+      user-select: none;
+    }
+    @media (max-width: 900px) { .decor-note { display: none; } }
+    /* Enhanced separator with flanking diamonds */
+    .separator-enhanced {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      padding: 50px 24px;
+    }
+    .separator-enhanced .sep-diamond {
+      width: 7px; height: 7px;
+      background: var(--gold);
+      transform: rotate(45deg);
+      opacity: 0.6;
+      flex-shrink: 0;
+    }
+    .separator-enhanced .separator-line { max-width: 140px; }
+    .mission-logo-corner {
+      position: absolute;
+      top: 32px;
+      left: 32px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      opacity: 0.85;
+    }
+    .mission-logo-corner img { width: 34px; height: 34px; }
+    .mission-logo-corner span {
+      font-family: var(--font-serif);
+      font-size: 0.95rem;
+      color: var(--gold-light);
+      letter-spacing: 0.01em;
+    }
+    @media (max-width: 640px) {
+      .mission-logo-corner { position: static; justify-content: center; margin-bottom: 24px; }
+    }
+    .mission-statement {
+      font-family: var(--font-serif);
+      font-weight: 700;
+      font-size: clamp(1.7rem, 3.6vw, 2.5rem);
+      line-height: 1.32;
+      color: var(--cream);
+      letter-spacing: -0.01em;
+    }
+    .checklist-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      max-width: 780px;
+      margin: 0 auto;
+      gap: 4px 40px;
+    }
+    .checklist-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 13px 4px;
+      border-bottom: 1px solid var(--border-dim);
+    }
+    .checklist-check {
+      flex-shrink: 0;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: rgba(201,168,76,0.12);
+      border: 1px solid var(--border-gold);
+      color: var(--gold-light);
+      font-size: 0.72rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .checklist-label {
+      font-family: var(--font-sans);
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--cream);
+      letter-spacing: 0.01em;
+    }
+    @media (max-width: 700px) {
+      .checklist-grid { grid-template-columns: 1fr; }
+    }
+    .instruments-taught {
+      max-width: 780px;
+      margin: 56px auto 0;
+      padding-top: 40px;
+      border-top: 1px solid var(--border-dim);
+      text-align: center;
+    }
+    .instruments-taught-label {
+      font-size: 0.68rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 28px;
+    }
+    .it-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 18px;
+    }
+    .it-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 18px 10px;
+      transition: var(--transition-fast);
+    }
+    .it-card:hover { transform: translateY(-3px); }
+    .it-card svg { filter: drop-shadow(0 0 8px rgba(201,168,76,0.25)); margin-bottom: 4px; }
+    .it-name {
+      font-family: var(--font-serif);
+      font-size: 1rem;
+      color: var(--cream);
+    }
+    .it-desc {
+      font-family: var(--font-sans);
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      line-height: 1.5;
+    }
+    @media (max-width: 700px) {
+      .it-grid { grid-template-columns: repeat(2, 1fr); }
+    }
     .feature-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -840,7 +1044,7 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
     /* ═══════════════════════════════════════════════════
        ARMONÍA CONNECT SECTION
     ═══════════════════════════════════════════════════ */
-    #armonia-connect {
+    #connect {
       background: linear-gradient(180deg, var(--charcoal-2) 0%, var(--charcoal-3) 100%);
       border-top: 1px solid var(--border-dim);
       border-bottom: 1px solid var(--border-dim);
@@ -883,6 +1087,80 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
       align-items: center;
       gap: 8px;
       border-right: 1px solid rgba(255,255,255,0.04);
+    }
+    .ac-sidebar-real {
+      width: 168px;
+      background: var(--charcoal-2);
+      padding: 16px 10px;
+      border-right: 1px solid rgba(255,255,255,0.06);
+      flex-shrink: 0;
+    }
+    .acr-item {
+      font-family: var(--font-sans);
+      font-size: 0.72rem;
+      color: var(--cream-soft);
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-left: 2px solid transparent;
+      margin-bottom: 2px;
+    }
+    .acr-item.acr-active {
+      color: var(--gold-light);
+      border-left-color: var(--gold);
+      background: rgba(201,168,76,0.06);
+    }
+    .acr-dot {
+      width: 4px; height: 4px; border-radius: 50%;
+      background: currentColor;
+      flex-shrink: 0;
+      opacity: 0.6;
+    }
+    .acr-label {
+      font-size: 0.6rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      padding: 12px 10px 4px;
+    }
+    .acr-portal-row {
+      display: flex;
+      gap: 8px;
+      padding: 14px 16px 10px;
+      flex-wrap: wrap;
+    }
+    .acr-portal-card {
+      flex: 1;
+      min-width: 70px;
+      height: 54px;
+      border-radius: 2px;
+      display: flex;
+      align-items: flex-end;
+      padding: 6px 8px;
+      font-size: 0.58rem;
+      font-family: var(--font-sans);
+      color: var(--cream);
+      font-weight: 600;
+      border: 1px solid rgba(201,168,76,0.15);
+    }
+    .acr-announce-list { padding: 4px 16px 16px; }
+    .acr-announce {
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .acr-announce-title {
+      font-family: var(--font-sans);
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--gold-light);
+      margin-bottom: 3px;
+    }
+    .acr-announce-text {
+      font-family: var(--font-sans);
+      font-size: 0.68rem;
+      color: var(--text-dim);
+      line-height: 1.5;
     }
     .d-server-icon {
       width: 48px; height: 48px;
@@ -1295,7 +1573,7 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
     /* ═══════════════════════════════════════════════════
        CONTACT / FAQ SECTION
     ═══════════════════════════════════════════════════ */
-    #contact {
+    #faq {
       background: var(--charcoal-2);
       border-top: 1px solid var(--border-dim);
     }
@@ -1622,6 +1900,16 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
       transition: var(--transition-fast);
     }
     .footer-links a:hover { color: var(--gold-light); padding-left: 4px; }
+    .footer-disclaimer {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      line-height: 1.7;
+      max-width: 900px;
+      margin: 0 auto 24px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border-dim);
+      text-align: center;
+    }
     .footer-bottom {
       display: flex;
       justify-content: space-between;
@@ -2155,24 +2443,17 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
   <a href="#main" class="skip-link">Skip to content</a>
 
   <!-- ═══════════════════════════════════════════
-       ANNOUNCEMENT BAR
-  ═══════════════════════════════════════════ -->
-  <div class="announcement-bar">
-    🎻 Now Enrolling — <span>TMEA All-State 2026–2027 Season</span> — Limited spots available
-  </div>
-
-  <!-- ═══════════════════════════════════════════
        NAVIGATION
   ═══════════════════════════════════════════ -->
   <nav class="nav scrolled" id="navbar" aria-label="Main navigation">
     <a href="#" class="nav-logo" aria-label="Armonía home">Armonía Connect<span>.</span></a>
     <ul class="nav-links" role="list">
-      <li><a href="#about">About</a></li>
+      <li><a href="#mission">Mission</a></li>
       <li><a href="#course">Course</a></li>
-      <li><a href="#armonia-connect">Armonía Connect</a></li>
-      <li><a href="#pricing">Pricing</a></li>
-<li><a href="#contact">Contact</a></li>
-      <li><a href="#pricing" class="nav-cta" onclick="openPaywall(event)">Enroll — $100</a></li>
+      <li><a href="#connect">Connect</a></li>
+      <li><a href="#faq">FAQ</a></li>
+      <li><a href="#about">About</a></li>
+      <li><a href="#pricing" class="nav-cta" onclick="openPaywall(event)">Enroll</a></li>
     </ul>
     <button class="nav-hamburger" aria-label="Open menu" onclick="openDrawer()">
       <span></span><span></span><span></span>
@@ -2183,11 +2464,11 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
   <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
   <nav class="nav-drawer" id="navDrawer" aria-label="Mobile navigation">
     <button class="drawer-close" onclick="closeDrawer()" aria-label="Close menu">✕</button>
-    <a href="#about" onclick="closeDrawer()">About</a>
+    <a href="#mission" onclick="closeDrawer()">Mission</a>
     <a href="#course" onclick="closeDrawer()">Course</a>
-    <a href="#armonia-connect" onclick="closeDrawer()">Armonía Connect</a>
-<a href="#pricing" onclick="closeDrawer()">Pricing</a>
-    <a href="#contact" onclick="closeDrawer()">Contact</a>
+    <a href="#connect" onclick="closeDrawer()">Connect</a>
+    <a href="#faq" onclick="closeDrawer()">FAQ</a>
+    <a href="#about" onclick="closeDrawer()">About</a>
     <a href="#pricing" class="btn-primary" style="text-align:center;padding:14px 24px;" onclick="closeDrawer(); openPaywall(event);"><span>Enroll — $100</span></a>
   </nav>
 
@@ -2215,30 +2496,20 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
     <div class="hero-clef" aria-hidden="true">𝄞</div>
 
     <div class="hero-content">
-      <div class="hero-eyebrow" aria-label="TMEA All-State Mariachi">
-        TMEA All-State Mariachi
+      <div class="hero-eyebrow" aria-label="All-State Audition Etudes Course">
+        Etude Prep for Texas All-State Auditions
       </div>
 
       <h1 class="hero-title" id="hero-title">
         <span class="hero-title-accent">Armonía Connect</span>
       </h1>
 
-      <p class="hero-subtitle">TMEA All-State Mariachi Course</p>
+      <p class="hero-subtitle">All-State Audition Etudes Course</p>
 
       <div class="hero-divider" aria-hidden="true">
         <div class="hero-divider-line"></div>
         <div class="hero-divider-diamond"></div>
         <div class="hero-divider-line"></div>
-      </div>
-
-      <p class="hero-tagline">"Master the audition. Earn your chair."</p>
-<div class="hero-buttons">
-        <a href="#pricing" class="btn-primary" onclick="openPaywall(event)">
-          <span>Join the Course — $100</span>
-        </a>
-        <a href="#armonia-connect" class="btn-secondary" rel="noopener noreferrer">
-          Join Armonía Connect
-        </a>
       </div>
     </div>
 
@@ -2253,95 +2524,91 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
   </section>
 
   <!-- ═══════════════════════════════════════════
-       WHO AM I
+       MISSION STATEMENT
   ═══════════════════════════════════════════ -->
-  <section class="section" id="about" aria-labelledby="about-title">
+  <section class="section mission-section" id="mission" aria-labelledby="mission-title" style="text-align:center; padding-top:70px; padding-bottom:80px; position:relative;">
+    <div class="mission-logo-corner" aria-hidden="true">
+      <img src="/armonia-connect-logo.png" alt="" width="40" height="40">
+      <span>Armonía Connect</span>
+    </div>
+    <div class="section-inner" style="max-width:800px;">
+      <p class="section-eyebrow reveal visible" style="justify-content:center;">What Is Armonía Connect</p>
+      <h2 class="mission-statement reveal reveal-delay-1 visible" id="mission-title">
+        A complete video-streaming education platform, built etude-by-etude for this year's All-State Mariachi repertoire.
+      </h2>
+      <div class="gold-line reveal reveal-delay-2 visible" style="margin:26px auto;"></div>
+      <p class="course-overview-text reveal reveal-delay-3 visible" style="font-size:1.05rem; line-height:1.8;">
+        Every etude breakdown, every recording, every part of this course was built toward one goal: putting each student in the best possible position to reach their highest potential.
+      </p>
+    </div>
+  </section>
+
+  </section>
+
+  <!-- ═══════════════════════════════════════════
+       LEARN YOUR WAY (Soundslice integration)
+  ═══════════════════════════════════════════ -->
+  <section class="section decor-texture" id="learn-your-way" aria-labelledby="learn-your-way-title" style="position:relative;">
+    <span class="decor-note" style="top:8%; right:6%;" aria-hidden="true">𝄞</span>
     <div class="section-inner">
-      <div class="about-grid">
-
-        <!-- Image / Portrait -->
-        <div class="about-image-wrap reveal visible">
-          <div class="about-corner about-corner-tl" aria-hidden="true"></div>
-          <div class="about-corner about-corner-br" aria-hidden="true"><br></div><div class="about-image-frame"><div class="about-image-placeholder"><p class="about-image-role"><img src="/isaak-portrait.jpg" alt="2026 TMEA-94" class="" style="max-width: 100%;">Credits: bynicolephotography</p>
-            </div>
-          </div>
+      <div style="text-align:center; max-width:760px; margin:0 auto 50px;">
+        <p class="section-eyebrow reveal visible" style="justify-content:center;">Learn Your Way</p>
+        <h2 class="section-title reveal reveal-delay-1 visible" style="text-align:center;" id="learn-your-way-title">
+          Watch at <em>Your</em> Pace.<br>Learn on <em>Your</em> Time.
+        </h2>
+        <div class="gold-line reveal reveal-delay-2 visible" style="margin:20px auto;"></div>
+        <p class="section-subtitle reveal reveal-delay-2 visible" style="margin:0 auto; text-align:center;">
+          On-demand video lessons you can pick up on your desktop, phone, tablet, or TV — built for how you actually practice.
+        </p>
+      </div>
+      <div class="feature-grid" style="grid-template-columns:repeat(4,1fr);">
+        <div class="feature-card reveal visible">
+          <div class="feature-card-icon" aria-hidden="true">📱</div>
+          <h3 class="feature-card-title">Any Device</h3>
+          <p class="feature-card-desc">Pick up right where you left off, whether you're at a desk or between rehearsals on your phone.</p>
         </div>
-
-        <!-- Content -->
-        <div class="about-content">
-          <p class="section-eyebrow reveal visible">Who Am I?</p>
-          <h2 class="section-title reveal reveal-delay-1 visible" id="about-title">
-            Isaak<br><em>Matovich</em>
-          </h2>
-          <div class="gold-line reveal reveal-delay-2 visible"></div>
-
-          <p class="about-bio reveal reveal-delay-2 visible">
-            My name is Isaak Matovich — Professional Vihuelista, Multi Instrumentalist, educator, and the 2025-2026 TMEA All state vihuela player.&nbsp;</p><p class="about-bio-small reveal reveal-delay-3 visible">As a TMEA All-State clinician, musician and mentor, I've helped countless students from raw talent into chair earning musicians for years. I understand what the judges are listening for when a student enters that audition room and more than that, I know what they want to hear. All the technicalities, all the Manico patterns, shapes, all the nuances of authentic and clean mariachi style that make the difference between a first chair and the rest. That is what I have been able to learn over the years that I have seen success, I teach with precision, warmth and commitment, and the prospect that I would like to pass that on to you someday.&nbsp;</p><p class="about-bio-small reveal reveal-delay-3 visible">Alongside mariachi, I’ve studied classical violin for over six years, and that training has profoundly shaped my approach to Armonía playing. By combining authentic mariachi style with disciplined classical foundations, I teach students how to perform with confidence, refinement, and the kind of musicality that stands out in auditions and on stage alike.</p>
-          <p class="about-bio-small reveal reveal-delay-3 visible">Finally, I built Armonía Connect because I believe that every student deserves to learn from the best, especially in a niche musical art form like mariachi, when elite level lessons are less common. This course is my way of leveling the playing field and giving you every tool you need to walk into that audition room ready, not just to make region, but All state too.<br></p>
-
-          <div class="about-credentials reveal reveal-delay-4 visible">
-            <div class="credential-item">
-              <span class="credential-icon" aria-hidden="true">♦</span>
-              <div class="credential-text">
-                <strong>President, Mariachi Organization</strong>
-                Leadership in mariachi education, competition prep, and community building.
-              </div>
-            </div>
-            <div class="credential-item">
-              <span class="credential-icon" aria-hidden="true">♦</span>
-              <div class="credential-text">
-                <strong>TMEA All-State Specialist</strong>
-                Dedicated mentor guiding students through region, area, and All-State auditions.
-              </div>
-            </div>
-            <div class="credential-item">
-              <span class="credential-icon" aria-hidden="true">♦</span>
-              <div class="credential-text">
-                <strong>Violinist &amp; Technique Educator</strong>
-                Deep expertise in bowings, fingerings, tone production, and authentic mariachi style.
-              </div>
-            </div>
-            <div class="credential-item">
-              <span class="credential-icon" aria-hidden="true">♦</span>
-              <div class="credential-text">
-                <strong>Student-Centered Mentor</strong>
-                Results-driven preparation focused on discipline, musicality, and personal growth.
-              </div>
-            </div>
-          </div>
-
-          <div class="about-stats reveal reveal-delay-5 visible">
-            <div class="stat-item">
-              <div class="stat-number">100+</div>
-              <div class="stat-label">Students Mentored</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-number">All-State</div>
-              <div class="stat-label">Mentor Preparation</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-number">100%</div>
-              <div class="stat-label">Dedication</div>
-            </div>
-          </div>
+        <div class="feature-card reveal reveal-delay-1 visible">
+          <div class="feature-card-icon" aria-hidden="true">⏱️</div>
+          <h3 class="feature-card-title">Change the Speed</h3>
+          <p class="feature-card-desc">Slow a passage down until the technique clicks, then bring it back up to performance tempo.</p>
+        </div>
+        <div class="feature-card reveal reveal-delay-2 visible">
+          <div class="feature-card-icon" aria-hidden="true">🔁</div>
+          <h3 class="feature-card-title">Loop Any Section</h3>
+          <p class="feature-card-desc">Isolate a single measure and repeat it as many times as it takes — no rewinding by hand.</p>
+        </div>
+        <div class="feature-card reveal reveal-delay-3 visible">
+          <div class="feature-card-icon" aria-hidden="true">🎼</div>
+          <h3 class="feature-card-title">Scrolling Notation</h3>
+          <p class="feature-card-desc">Follow along with synced notation and annotations that move with the recording in real time.</p>
         </div>
       </div>
     </div>
   </section>
 
+
+
   <!-- ═══════════════════════════════════════════
        SEPARATOR
   ═══════════════════════════════════════════ -->
-  <div class="separator" aria-hidden="true">
+  <div class="separator separator-enhanced" aria-hidden="true">
+    <div class="sep-diamond"></div>
     <div class="separator-line"></div>
     <div class="separator-ornament">𝄞</div>
     <div class="separator-line"></div>
+    <div class="sep-diamond"></div>
   </div>
 
   <!-- ═══════════════════════════════════════════
        COURSE OVERVIEW
   ═══════════════════════════════════════════ -->
-  <section class="section" id="course" aria-labelledby="course-title">
+  <section class="section decor-texture decor-corners" id="course" aria-labelledby="course-title" style="position:relative;">
+    <div class="decor-corner tl" aria-hidden="true"></div>
+    <div class="decor-corner tr" aria-hidden="true"></div>
+    <div class="decor-corner bl" aria-hidden="true"></div>
+    <div class="decor-corner br" aria-hidden="true"></div>
+    <span class="decor-note" style="top:8%; left:6%;" aria-hidden="true">♪</span>
+    <span class="decor-note" style="bottom:10%; right:7%; font-size:2.2rem;" aria-hidden="true">♫</span>
     <div class="section-inner">
       <div class="course-intro">
         <div>
@@ -2351,234 +2618,140 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
           </h2>
           <div class="gold-line reveal reveal-delay-2 visible"></div>
           <p class="section-subtitle reveal reveal-delay-2 visible">
-            Everything crafted around one goal: putting you on the All-State roster.</p></div><p class="course-overview-text reveal reveal-delay-1 visible"><span style="font-size: 17.6px;">Armonía Connect is not a general music class. It's a meticulously designed audition-prep program specifically created for the TMEA All-State Armonía etudes, which was created from scratch to meet every technical, rhythmic and stylistic demand the judges assess. Through your very first run-through to the last mock audition, there's everything you need at your fingertips here, at Armonía Connect.&nbsp;</span></p><p class="course-overview-text reveal reveal-delay-1 visible"><span style="font-size: 17.6px;"><br></span></p>
+            Everything included, at a glance.</p>
       </div>
 
-      <div class="feature-grid">
-        <div class="feature-card reveal visible">
-          <div class="feature-card-icon" aria-hidden="true">📖</div>
-          <h3 class="feature-card-title">Etude Breakdowns and Lessons</h3>
-          <p class="feature-card-desc">Measure-by-measure analysis of both etudes. Understand not just what to play. but exactly why, and how to make it musical.</p>
-        </div>
-        <div class="feature-card reveal reveal-delay-1 visible">
-          <div class="feature-card-icon" aria-hidden="true">🎯</div>
-          <h3 class="feature-card-title">Practice Strategies</h3>
-          <p class="feature-card-desc">Targeted daily practice plans that build efficiency, and consistency. Stop wasting time, practice with purpose, like I did, and see real results fast.</p>
-        </div>
-        <div class="feature-card reveal reveal-delay-2 visible">
-          <div class="feature-card-icon" aria-hidden="true">🎵</div>
-          <h3 class="feature-card-title">MIDI Play-Along Tracks</h3>
-          <p class="feature-card-desc">Your purchase of the course also includes MIDI play along files with built in chord, tempo, and dynamic changes. Master these and your etudes will be perfect down to the last minute detail.</p>
-        </div>
-        <div class="feature-card reveal reveal-delay-3 visible">
-          <div class="feature-card-icon" aria-hidden="true"><span style="font-size: 22.4px;">⭐</span><br></div>
-          <h3 class="feature-card-title">Live recordings from yours truly</h3>
-          <p class="feature-card-desc">Professional, and technically precise recordings of each etude, at full tempo with every detail covered.</p>
-        </div>
-        <div class="feature-card reveal reveal-delay-1 visible">
-          <div class="feature-card-icon" aria-hidden="true">🥁</div>
-          <h3 class="feature-card-title">Rhythm Explanations</h3>
-          <p class="feature-card-desc">Deep dives into the stylistic roots of each etude, and how to represent each distinctive style covered in both etudes.</p>
-        </div>
-        <div class="feature-card reveal reveal-delay-2 visible">
-          <div class="feature-card-icon" aria-hidden="true">🎤</div>
-          <h3 class="feature-card-title">Mock Auditions</h3>
-          <p class="feature-card-desc">Simulated auditions paneled by myself which help simulate and overcome performance day nerves, as well as shortcomings in each personal etude.</p>
-        </div>
-        <div class="feature-card reveal reveal-delay-3 visible">
-          <div class="feature-card-icon" aria-hidden="true">⚡</div>
-          <h3 class="feature-card-title">Technique Exercises</h3>
-          <p class="feature-card-desc">Custom exercises targeting the exact technical demands of this year's etudes, as well as videos covering how to build successful habits outside of etude playing.</p>
-        </div>
-        <div class="feature-card reveal reveal-delay-1 visible">
-          <div class="feature-card-icon" aria-hidden="true">💬</div>
-          <h3 class="feature-card-title">Armonía Connect</h3>
-          <p class="feature-card-desc">Real-time community, and personal access for questions, encouragement, and peer support from myself, and students across Texas.</p>
-        </div>
-        <div class="feature-card reveal reveal-delay-2 visible">
-          <div class="feature-card-icon" aria-hidden="true">🎙️</div>
-          <h3 class="feature-card-title">Personalized Feedback</h3>
-          <p class="feature-card-desc">Your purchase also includes personalized feedback from me on your etudes and their progress.</p>
+      <div class="checklist-grid reveal reveal-delay-3 visible">
+        <div class="checklist-row"><span class="checklist-check" aria-hidden="true">✓</span><span class="checklist-label">Etude Breakdowns &amp; Lessons</span></div>
+        <div class="checklist-row"><span class="checklist-check" aria-hidden="true">✓</span><span class="checklist-label">Daily Practice Strategies</span></div>
+        <div class="checklist-row"><span class="checklist-check" aria-hidden="true">✓</span><span class="checklist-label">MIDI Play-Along Tracks</span></div>
+        <div class="checklist-row"><span class="checklist-check" aria-hidden="true">✓</span><span class="checklist-label">Live Recordings, Full Tempo</span></div>
+        <div class="checklist-row"><span class="checklist-check" aria-hidden="true">✓</span><span class="checklist-label">Rhythm &amp; Style Explanations</span></div>
+        <div class="checklist-row"><span class="checklist-check" aria-hidden="true">✓</span><span class="checklist-label">Mock Audition Simulations</span></div>
+        <div class="checklist-row"><span class="checklist-check" aria-hidden="true">✓</span><span class="checklist-label">Targeted Technique Drills</span></div>
+        <div class="checklist-row"><span class="checklist-check" aria-hidden="true">✓</span><span class="checklist-label">Armonía Connect Studio Access</span></div>
+        <div class="checklist-row"><span class="checklist-check" aria-hidden="true">✓</span><span class="checklist-label">Guitarra de Golpe Etudes in Fifths</span></div>
+        <div class="checklist-row"><span class="checklist-check" aria-hidden="true">✓</span><span class="checklist-label">Chord Books, All Instruments</span></div>
+      </div>
+
+      <!-- Instruments Taught -->
+      <div class="instruments-taught reveal reveal-delay-4 visible">
+        <p class="instruments-taught-label">Instruments Covered in This Course</p>
+        <div class="it-grid">
+          <div class="it-card">
+            <svg width="26" height="34" viewBox="0 0 20 26" xmlns="http://www.w3.org/2000/svg"><ellipse cx="10" cy="15.5" rx="5.2" ry="7.3" fill="#C9A84C" opacity="0.28"/><ellipse cx="10" cy="15.5" rx="3.7" ry="5.6" fill="#C9A84C" opacity="0.55"/><ellipse cx="10" cy="15.5" rx="2.2" ry="3.7" fill="#C9A84C"/><line x1="10" y1="8.5" x2="10" y2="3.2" stroke="#E8C97A" stroke-width="1.3" stroke-linecap="round"/></svg>
+            <p class="it-name">Vihuela</p>
+          </div>
+          <div class="it-card">
+            <svg width="28" height="36" viewBox="0 0 20 26" xmlns="http://www.w3.org/2000/svg"><ellipse cx="10" cy="15.5" rx="6" ry="7.9" fill="#C9A84C" opacity="0.28"/><ellipse cx="10" cy="15.5" rx="4.3" ry="6" fill="#C9A84C" opacity="0.55"/><ellipse cx="10" cy="15.5" rx="2.5" ry="4" fill="#C9A84C"/><line x1="10" y1="7.8" x2="10" y2="2.5" stroke="#E8C97A" stroke-width="1.3" stroke-linecap="round"/></svg>
+            <p class="it-name">Guitarra</p>
+          </div>
+          <div class="it-card">
+            <svg width="28" height="36" viewBox="0 0 20 26" xmlns="http://www.w3.org/2000/svg"><ellipse cx="10" cy="15.5" rx="6" ry="7.9" fill="#C9A84C" opacity="0.28"/><ellipse cx="10" cy="15.5" rx="4.3" ry="6" fill="#C9A84C" opacity="0.55"/><ellipse cx="10" cy="15.5" rx="2.5" ry="4" fill="#C9A84C"/><line x1="10" y1="7.8" x2="10" y2="2.5" stroke="#E8C97A" stroke-width="1.3" stroke-linecap="round"/><path d="M17 5.5l1.3 1.3M17 5.5l-1.3 1.3M17 5.5V3.9M17 5.5h1.6" stroke="#E8C97A" stroke-width="1" stroke-linecap="round"/></svg>
+            <p class="it-name">Guitarra de Golpe</p>
+          </div>
+          <div class="it-card">
+            <svg width="32" height="38" viewBox="0 0 20 26" xmlns="http://www.w3.org/2000/svg"><ellipse cx="10" cy="15.5" rx="7.3" ry="8.3" fill="#C9A84C" opacity="0.28"/><ellipse cx="10" cy="15.5" rx="5.3" ry="6.3" fill="#C9A84C" opacity="0.55"/><ellipse cx="10" cy="15.5" rx="3.3" ry="4.2" fill="#C9A84C"/><line x1="10" y1="7.5" x2="10" y2="2.5" stroke="#E8C97A" stroke-width="1.3" stroke-linecap="round"/></svg>
+            <p class="it-name">Guitarrón</p>
+          </div>
         </div>
       </div>
     </div>
   </section>
 
   <!-- ═══════════════════════════════════════════
-       TESTIMONIALS
-  ═══════════════════════════════════════════ -->
-  <div class="testimonials" aria-labelledby="testimonials-title">
-    <div class="testimonials-inner">
-      <div class="testimonials-header">
-        <p class="section-eyebrow reveal visible" style="justify-content:center;">Previous students ---</p><h2 class="section-title reveal reveal-delay-1 visible" style="text-align:center;" id="testimonials-title">
-          What Students <em>Say</em>
-        </h2>
-      </div>
-      <div class="testimonials-grid">
-        <div class="testimonial-card reveal visible">
-          <div class="testimonial-stars" aria-label="5 stars">★★★★★</div>
-          <p class="testimonial-quote">"Being a golpe player and having the etude in fifths already written out was a game changer for me, I was able to learn and excel at etudes I thought were impossible."</p>
-        </div>
-        <div class="testimonial-card reveal reveal-delay-1 visible">
-          <div class="testimonial-stars" aria-label="5 stars">★★★★★</div>
-          <p class="testimonial-quote">"The play-along tracks alone are worth the $100. Having a professional MIDI track to practice with made my preparation completely different this year.</p>
-        </div>
-        <div class="testimonial-card reveal reveal-delay-2 visible">
-          <div class="testimonial-stars" aria-label="5 stars">★★★★★</div>
-          <p class="testimonial-quote">"Isaak's feedback on my recordings brought out things my previous attempts had never expressed . I went in confident and it showed."</p>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ═══════════════════════════════════════════
        ARMONÍA CONNECT SECTION
   ═══════════════════════════════════════════ -->
-  <section class="section" id="armonia-connect" aria-labelledby="armonia-connect-title">
+  <section class="section" id="connect" aria-labelledby="connect-title" style="position:relative;">
+    <span class="decor-note" style="top:12%; right:5%;" aria-hidden="true">♬</span>
     <div class="section-inner">
       <div class="ac-grid">
 
-        <!-- Armonía Connect mockup UI -->
+        <!-- Armonía Connect Studio mockup — modeled on the real student dashboard -->
         <div class="ac-mockup reveal visible" aria-hidden="true" role="presentation">
           <div class="ac-titlebar">
             <span class="d-dot d-red"></span>
             <span class="d-dot d-yellow"></span>
             <span class="d-dot d-green"></span>
+            <span style="margin-left:10px; font-size:0.68rem; color:var(--text-dim); letter-spacing:0.05em;">armoniaconnect.com/course</span>
           </div>
           <div class="ac-body">
-            <div class="ac-sidebar">
-              <div class="d-server-icon active">A</div>
-              <div class="d-divider"></div>
-              <div class="d-server-icon" style="background:rgba(201,168,76,0.2);font-size:1.2rem;">+</div>
-            </div>
-            <div class="ac-channels">
-              <div class="d-category">Armonía</div>
-              <div class="d-channel active">
-                <span class="d-channel-icon">#</span> general
-              </div>
-              <div class="d-channel">
-                <span class="d-channel-icon">#</span> announcements
-              </div>
-              <div class="d-category">Practice</div>
-              <div class="d-channel">
-                <span class="d-channel-icon">#</span> practice-help
-              </div>
-              <div class="d-channel">
-                <span class="d-channel-icon">#</span> recordings
-              </div>
-              <div class="d-channel">
-                <span class="d-channel-icon">#</span> feedback
-              </div>
-              <div class="d-category">Auditions</div>
-              <div class="d-channel">
-                <span class="d-channel-icon">#</span> region-prep
-              </div>
-              <div class="d-channel">
-                <span class="d-channel-icon">#</span> area-prep
-              </div>
-              <div class="d-channel">
-                <span class="d-channel-icon">#</span> all-state-chat
-              </div>
-              <div class="d-category">Support</div>
-              <div class="d-channel">
-                <span class="d-channel-icon">🔒</span> private-help
-              </div>
+            <div class="ac-sidebar-real">
+              <div class="acr-item acr-active"><span class="acr-dot"></span> Announcements</div>
+              <div class="acr-item"><span class="acr-dot"></span> Course Library</div>
+              <div class="acr-item"><span class="acr-dot"></span> Chord Books &amp; MIDI</div>
+              <div class="acr-label">Connect</div>
+              <div class="acr-item"><span class="acr-dot"></span> Community</div>
+              <div class="acr-item"><span class="acr-dot"></span> My Profile</div>
             </div>
             <div class="ac-chat">
               <div class="d-chat-header">
-                <span class="d-channel-icon" style="color:var(--text-dim)">#</span>
-                <span class="d-chat-title">general</span>
+                <span class="d-chat-title">Announcements</span>
               </div>
-              <div class="d-messages">
-                <div class="d-message">
-                  <div class="d-avatar" style="background:linear-gradient(135deg,#C9A84C,#7B1C1C)">IM</div>
-                  <div class="d-msg-content">
-                    <div class="d-msg-header">
-                      <span class="d-username" style="color:#C9A84C">Isaak M.</span>
-                      <span class="d-timestamp">Today at 9:14 AM</span>
-                    </div>
-                    <p class="d-msg-text">Good morning everyone! 🎻 New etude breakdown for measure 47 is uploaded. Pay close attention to the bow distribution — that's where most students lose points.</p>
-                  </div>
-                </div>
-                <div class="d-message">
-                  <div class="d-avatar" style="background:linear-gradient(135deg,#9B2424,#5C1414)">DL</div>
-                  <div class="d-msg-content">
-                    <div class="d-msg-header">
-                      <span class="d-username">Diego</span>
-                      <span class="d-timestamp">Today at 9:22 AM</span>
-                    </div>
-                    <p class="d-msg-text">Just posted my recording in #feedback. any tips on the Son rhythm in etude 2? 🙏</p>
-                  </div>
-                </div>
-                <div class="d-message">
-                  <div class="d-avatar" style="background:#28CA42">SV</div>
-                  <div class="d-msg-content">
-                    <div class="d-msg-header">
-                      <span class="d-username">Sofía</span>
-                      <span class="d-timestamp">Today at 9:31 AM</span>
-                    </div>
-                    <p class="d-msg-text">JUST GOT MY CHAIR!! Area results came in 🥹🎉 Thank you Isaak and everyone here</p>
-                  </div>
-                </div>
+              <div class="acr-portal-row">
+                <div class="acr-portal-card" style="background:linear-gradient(160deg,#3a2a12,#1c1a16);">Vihuela</div>
+                <div class="acr-portal-card" style="background:linear-gradient(160deg,#2a1f38,#1c1a16);">Guitarra</div>
+                <div class="acr-portal-card" style="background:linear-gradient(160deg,#3a1414,#1c1a16);">Guitarra de Golpe</div>
+                <div class="acr-portal-card" style="background:linear-gradient(160deg,#142a24,#1c1a16);">Guitarrón</div>
               </div>
-              <div class="d-input-area">
-                <input class="d-input" type="text" placeholder="Message #general" readonly="" aria-hidden="true" tabindex="-1">
+              <div class="acr-announce-list">
+                <div class="acr-announce">
+                  <p class="acr-announce-title">New Vihuela breakdown posted</p>
+                  <p class="acr-announce-text">Rasgueo consistency in measure 12 — full walkthrough now up.</p>
+                </div>
+                <div class="acr-announce">
+                  <p class="acr-announce-title">Guitarrón backing tracks updated</p>
+                  <p class="acr-announce-text">Etude No. 2 play-along now includes a slow-tempo version.</p>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Armonía Connect content -->
+        <!-- Armonía Connect Studio content -->
         <div class="ac-content">
-          <p class="section-eyebrow reveal visible">Community</p>
-          <h2 class="section-title reveal reveal-delay-1 visible" id="armonia-connect-title">
-            Join<br><em>Armonía Connect</em>
+          <p class="section-eyebrow reveal visible">The App &amp; Website</p>
+          <h2 class="section-title reveal reveal-delay-1 visible" id="connect-title">
+            The<br><em>Armonía Connect Studio</em>
           </h2>
           <div class="gold-line reveal reveal-delay-2 visible"></div>
           <p class="section-subtitle reveal reveal-delay-2 visible" style="margin-bottom:32px;">
-            As part of your enrollment in the Armonía course, you get access to Armonía Connect — our student app and website — which gives you 24/7 support from me on any questions you have about the etudes. It also lets you interact with like-minded students and discuss the etudes alongside me.</p>
+            Every course purchase includes access to the Armonía Connect Studio — the student app and website where your lessons, resources, and messages with me all live in one place. It's also where you connect with other students preparing alongside you.</p>
 
           <div class="ac-channels-list reveal reveal-delay-3 visible">
             <div class="ac-channel-item">
+              <div class="dci-icon" aria-hidden="true">🎬</div>
+              <div class="dci-text">
+                <strong>Your Full Course Library</strong>
+                <span>Every lesson, etude breakdown, and recording, organized by instrument</span>
+              </div>
+            </div>
+            <div class="ac-channel-item">
               <div class="dci-icon" aria-hidden="true">💬</div>
               <div class="dci-text">
-                <strong>Live Student Discussion</strong>
-                <span>Real-time conversations with fellow All-State hopefuls across Texas</span>
+                <strong>Live Student Community</strong>
+                <span>Real conversations with fellow students preparing for the same auditions</span>
               </div>
             </div>
             <div class="ac-channel-item">
-              <div class="dci-icon" aria-hidden="true">🎻</div>
+              <div class="dci-icon" aria-hidden="true">✉️</div>
               <div class="dci-text">
-                <strong>Practice Help Channel</strong>
-                <span>Post your questions and get answers fast — from Isaak and your peers</span>
+                <strong>Message Me Directly</strong>
+                <span>Ask a question about a lesson or your progress right from the site</span>
               </div>
             </div>
             <div class="ac-channel-item">
-              <div class="dci-icon" aria-hidden="true">🎙️</div>
+              <div class="dci-icon" aria-hidden="true">🎧</div>
               <div class="dci-text">
-                <strong>Recording Reviews</strong>
-                <span>Submit clips and receive targeted feedback on exactly what needs fixing</span>
-              </div>
-            </div>
-            <div class="ac-channel-item">
-              <div class="dci-icon" aria-hidden="true">🔒</div>
-              <div class="dci-text">
-                <strong>Private Support Tickets</strong>
-                <span>One-on-one support for sensitive technique questions or personal guidance</span>
-              </div>
-            </div>
-            <div class="ac-channel-item">
-              <div class="dci-icon" aria-hidden="true">🏆</div>
-              <div class="dci-text">
-                <strong>Region &amp; Area Prep Hub</strong>
-                <span>Dedicated channels for each competition stage — focused, organized, elite</span>
+                <strong>Chord Books &amp; MIDI Tracks</strong>
+                <span>Every downloadable resource, available the moment you log in</span>
               </div>
             </div>
           </div>
 
-          <a href="#pricing" class="ac-cta-btn reveal reveal-delay-4 visible">
+          <a href="#pricing" class="ac-cta-btn reveal reveal-delay-4 visible" onclick="openPaywall(event)">
             <span aria-hidden="true">💬</span>
-            Join Armonía Connect
+            Enroll to Get Access
           </a>
         </div>
       </div>
@@ -2588,7 +2761,9 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
   <!-- ═══════════════════════════════════════════
        PRICING / PAYWALL
   ═══════════════════════════════════════════ -->
-  <section class="section" id="pricing" aria-labelledby="pricing-title">
+  <section class="section decor-texture" id="pricing" aria-labelledby="pricing-title" style="position:relative;">
+    <span class="decor-note" style="top:6%; left:8%;" aria-hidden="true">♪</span>
+    <span class="decor-note" style="bottom:6%; right:9%;" aria-hidden="true">♩</span>
     <div class="pricing-bg-glow" aria-hidden="true"></div>
     <div class="section-inner">
 
@@ -2599,7 +2774,7 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
         </h2>
         <div class="gold-line reveal reveal-delay-2 visible" style="margin: 20px auto;"></div>
         <p class="section-subtitle reveal reveal-delay-2 visible" style="margin:0 auto; text-align:center;">
-          One payment. Everything you need to earn your chair.
+          One payment. Full access to this year's course.
         </p>
       </div>
 
@@ -2609,26 +2784,27 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
           <span class="pricing-badge">Most Popular</span>
 
           <div class="pricing-card-header">
-            <p class="pricing-plan-name">TMEA All-State Armonía</p>
+            <p class="pricing-plan-name">All-State Audition Etudes — 2026–27</p>
             <h3 class="pricing-title">Full Course Access</h3>
-            <p class="pricing-desc">The complete Armonía Connect system, every tool, resource, and piece of support you need from your first practice to audition day.</p>
+            <p class="pricing-desc">Your $100 covers full access to this course, built specifically around the 2026–27 All-State Audition Etudes. When new etudes are released for a future season, a new course is created for them as a separate purchase — this keeps every course current to the actual repertoire being judged that year.</p>
             <div class="pricing-price-block">
               <span class="pricing-currency" aria-hidden="true">$</span>
               <span class="pricing-amount">100</span>
               <span class="pricing-once">one-time</span>
             </div>
-            <p style="font-size:0.75rem;color:var(--text-dim);">No subscriptions. No recurring fees. Yours forever.</p>
+            <p style="font-size:0.75rem;color:var(--text-dim);">No subscriptions. No recurring fees. Full access to this course, permanently.</p>
+            <p style="font-size:0.72rem;color:var(--text-dim); margin-top:6px;">Under 18? A parent or guardian should complete checkout on your behalf.</p>
           </div>
 
           <div class="pricing-card-body">
             <ul class="pricing-features" aria-label="Course includes">
               <li class="pf-item">
                 <div class="pf-check" aria-hidden="true">✓</div>
-                <span class="pf-text"><strong>26-27 Lifetime Course Access</strong> — Study at your own pace, forever</span>
+                <span class="pf-text"><strong>2026–27 Course Access</strong> — Study at your own pace, for as long as you need it</span>
               </li>
               <li class="pf-item">
                 <div class="pf-check" aria-hidden="true">✓</div>
-                <span class="pf-text"><strong>24/7 Armonía Connect Access</strong> — Ask me questions any time any day with unlimited support</span>
+                <span class="pf-text"><strong>Armonía Connect Studio Access</strong> — Message me directly with questions about the etudes</span>
               </li>
               <li class="pf-item">
                 <div class="pf-check" aria-hidden="true">✓</div>
@@ -2636,27 +2812,23 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
               </li>
               <li class="pf-item">
                 <div class="pf-check" aria-hidden="true">✓</div>
-                <span class="pf-text"><strong>MIDI / LIVE Play-Along Backing Tracks</strong> — Professional, and MIDI recordings at your disposal</span>
+                <span class="pf-text"><strong>MIDI / Live Play-Along Backing Tracks</strong> — Professional and MIDI recordings at your disposal</span>
               </li>
               <li class="pf-item">
                 <div class="pf-check" aria-hidden="true">✓</div>
-                <span class="pf-text"><strong>Chord books and recommended chord fingerings&nbsp;</strong>— FREE Chord book included&nbsp;</span>
+                <span class="pf-text"><strong>Chord Books &amp; Recommended Fingerings</strong> — Included with your course access</span>
               </li>
               <li class="pf-item">
                 <div class="pf-check" aria-hidden="true">✓</div>
-                <span class="pf-text"><strong>Mock Audition Simulations</strong> — prepare for real-stakes performance before the audition dates for TMEA</span>
+                <span class="pf-text"><strong>Mock Audition Simulations</strong> — Prepare for real-stakes performance before audition day</span>
               </li>
               <li class="pf-item">
                 <div class="pf-check" aria-hidden="true">✓</div>
-                <span class="pf-text"><strong>Personalized Recording Feedback</strong> — Direct private lessons</span>
+                <span class="pf-text"><strong>Guitarra de Golpe Etudes in Fifths</strong> — Fully written out, ready to play</span>
               </li>
               <li class="pf-item">
                 <div class="pf-check" aria-hidden="true">✓</div>
-                <span class="pf-text"><span style="color: rgb(242, 235, 217); font-weight: 700;">Interactive Armonía history lessons&nbsp;</span>— Advise that goes beyond playing well</span>
-              </li>
-              <li class="pf-item">
-                <div class="pf-check" aria-hidden="true">✓</div>
-                <span class="pf-text"><strong>Tips, tricks, and what to avoid</strong>&nbsp;— Audition day tips to secure your best run of the etudes when it counts.</span>
+                <span class="pf-text"><strong>Tips, Tricks, and What to Avoid</strong> — Audition-day guidance to secure your best run when it counts</span>
               </li>
             </ul>
 
@@ -2667,7 +2839,7 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
 
             <p class="pricing-guarantee">
               <span aria-hidden="true">🔒</span>
-              Secure checkout via Stripe·&nbsp; Instant access after payment &nbsp;·&nbsp; Questions? Message me on Armonía Connect
+              Secure checkout via Stripe·&nbsp; Instant access after payment &nbsp;·&nbsp; Questions? Message me on Armonía Connect Studio
             </p>
           </div>
         </div>
@@ -2681,14 +2853,14 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
           <p class="psi-desc">Course materials available immediately after enrollment</p>
         </div>
         <div class="psi-item">
-          <div class="psi-icon" aria-hidden="true">♾️</div>
-          <p class="psi-title">Lifetime Access</p>
-          <p class="psi-desc">Return any time — all future updates included at no extra cost</p>
+          <div class="psi-icon" aria-hidden="true">🎯</div>
+          <p class="psi-title">Full Course Access</p>
+          <p class="psi-desc">Everything in this year's course, included with your one-time payment</p>
         </div>
         <div class="psi-item">
           <div class="psi-icon" aria-hidden="true">💬</div>
           <p class="psi-title">Community Included</p>
-          <p class="psi-desc">Full Armonía Connect access from day one — never prepare alone</p>
+          <p class="psi-desc">Full Armonía Connect Studio access from day one — never prepare alone</p>
         </div>
       </div>
 
@@ -2698,12 +2870,13 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
   <!-- ═══════════════════════════════════════════
        CONTACT / SUPPORT
   ═══════════════════════════════════════════ -->
-  <section class="section" id="contact" aria-labelledby="contact-title">
+  <section class="section" id="faq" aria-labelledby="contact-title" style="position:relative;">
+    <span class="decor-note" style="top:5%; left:4%;" aria-hidden="true">♫</span>
     <div class="section-inner">
       <div style="margin-bottom:60px;">
         <p class="section-eyebrow reveal visible">Get in Touch</p>
         <h2 class="section-title reveal reveal-delay-1 visible" id="contact-title">
-          Support &amp;<br><em>Contact</em>
+          Questions &amp;<br><em>Answers</em>
         </h2>
         <div class="gold-line reveal reveal-delay-2 visible"></div>
       </div>
@@ -2734,8 +2907,6 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
                 <option value="" disabled="" selected="">Select a topic</option>
                 <option value="enrollment">Enrollment Question</option>
                 <option value="course">Course Content</option>
-                <option value="armonia-connect">Armonía Connect Access</option>
-                <option value="feedback">Feedback Request</option>
                 <option value="technical">Technical Support</option>
                 <option value="other">Other</option>
               </select>
@@ -2750,12 +2921,8 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
             ✓ Your message has been sent. We'll respond within 24–48 hours.
           </div>
           <div id="form-error" style="display:none;margin-top:20px;padding:18px 22px;background:rgba(155,36,36,0.1);border:1px solid var(--red-accent);color:#e8a8a8;font-size:0.88rem;"></div>
-        </div>
 
-        <!-- Support info + FAQ -->
-        <div>
-          <p style="font-family:var(--font-serif);font-size:1.5rem;color:var(--cream);margin-bottom:28px;" class="reveal visible">Support Options</p>
-          <div class="support-options reveal reveal-delay-1 visible">
+          <div class="support-options reveal reveal-delay-2 visible" style="margin-top:36px;">
             <div class="support-item">
               <div class="support-item-icon" aria-hidden="true">✉️</div>
               <div class="support-item-text">
@@ -2763,60 +2930,137 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
                 <span>maestro.armoniaconnect@gmail.com · Response within 48 hours</span>
               </div>
             </div>
-            <div class="support-item">
-              <div class="support-item-icon" aria-hidden="true">💬</div>
-              <div class="support-item-text">
-                <strong>Armonía Connect</strong>
-                <span>Fastest response — join and DM Isaak directly</span>
-              </div>
-            </div>
-            <div class="support-item">
-              <div class="support-item-icon" aria-hidden="true">🎫</div>
-              <div class="support-item-text">
-                <strong>Support Tickets</strong>
-                <span>Private channel in Armonía Connect for account &amp; course issues</span>
-              </div>
-            </div>
           </div>
+        </div>
 
+        <!-- FAQ -->
+        <div>
+          <p style="font-family:var(--font-serif);font-size:1.5rem;color:var(--cream);margin-bottom:28px;" class="reveal visible">Frequently Asked Questions</p>
           <div class="reveal reveal-delay-2 visible">
-            <p class="faq-title">Frequently Asked Questions (FAQ):</p>
             <div class="faq-list">
+              <details class="faq-item">
+                <summary class="faq-question">
+                  What exactly do I get for $100?
+                  <span class="faq-icon" aria-hidden="true">+</span>
+                </summary>
+                <p class="faq-answer">Full access to this year's course: every etude breakdown and lesson, MIDI and live play-along tracks, chord books, mock audition simulations, and access to the Armonía Connect Studio to message me directly and connect with other students. It's a one-time payment — no subscription.</p>
+              </details>
               <details class="faq-item">
                 <summary class="faq-question">
                   What instrument(s) does this course cover?
                   <span class="faq-icon" aria-hidden="true">+</span>
                 </summary>
-                <p class="faq-answer">Armonía Connect primarily focuses on preparation for Vihuela, Guitar, Guitarra de Golpe, and Guitarron for the TMEA All-State Mariachi, including a professionally recorded performance of the etude, and 4 lessons for each. Play-along tracks, and MIDI files are included for each of the instruments additionally.</p>
+                <p class="faq-answer">Vihuela, Guitarra, Guitarra de Golpe, and Guitarrón — including a professionally recorded performance of each etude and lessons for each instrument. Play-along tracks and MIDI files are included for every instrument as well.</p>
               </details>
               <details class="faq-item">
                 <summary class="faq-question">
                   When do I get access after purchasing?
                   <span class="faq-icon" aria-hidden="true">+</span>
                 </summary>
-                <p class="faq-answer">Instantly. As soon as your payment is confirmed, you'll receive access to all course materials and an invite to Armonía Connect via email. Your product code is the master key to Armonia connect, you get a single access point.</p>
+                <p class="faq-answer">Instantly. As soon as your payment is confirmed, you'll receive an access code by email that logs you into the Armonía Connect Studio, where all course materials are waiting.</p>
               </details>
               <details class="faq-item">
                 <summary class="faq-question">
-                  Is this course updated each season?
+                  Does this course cover future etude seasons too?
                   <span class="faq-icon" aria-hidden="true">+</span>
                 </summary>
-                <p class="faq-answer">No. When an additional season for the TMEA all state mariachi etudes is released, an additional course will be created opon the same platform.</p>
+                <p class="faq-answer">No — this course is built specifically around the 2026–27 All-State Audition Etudes. When a new season's etudes are released, a new course covering that repertoire will be created as a separate purchase.</p>
               </details>
               <details class="faq-item">
                 <summary class="faq-question">
-                  Do I need prior placement or experience in region?
+                  Can I ask questions after I enroll?
                   <span class="faq-icon" aria-hidden="true">+</span>
                 </summary>
-                <p class="faq-answer">Not at all. Whether you're preparing for your first region audition or aiming for the top chair at All-State, Armonía Connect is designed to meet you where you are and elevate your performance.</p>
+                <p class="faq-answer">Yes. Once you're enrolled, you can message me directly through the Armonía Connect Studio any time you have a question about a lesson or your progress.</p>
               </details>
               <details class="faq-item">
                 <summary class="faq-question">
-                  Is there a refund policy?
+                  How is this different from private lessons?
                   <span class="faq-icon" aria-hidden="true">+</span>
                 </summary>
-                <p class="faq-answer">Due to the digital nature of the course, all sales are final. If you have any questions before purchasing, please reach out via the contact form or Armonía Connect and we're happy to help you decide.</p>
+                <p class="faq-answer">Private lessons are great, but they're expensive and hard to schedule around a full course load. This gives you the same measure-by-measure attention to detail — recorded, structured, and available whenever you have time to practice — at a fraction of the cost.</p>
               </details>
+              <details class="faq-item">
+                <summary class="faq-question">
+                  What device do I need to use this course?
+                  <span class="faq-icon" aria-hidden="true">+</span>
+                </summary>
+                <p class="faq-answer">Any of them. The course works on desktop, phone, tablet, or TV — log in from wherever you're practicing.</p>
+              </details>
+              <details class="faq-item">
+                <summary class="faq-question">
+                  What's your refund policy?
+                  <span class="faq-icon" aria-hidden="true">+</span>
+                </summary>
+                <p class="faq-answer">See our full Refund Policy for details. If you have any questions before purchasing, reach out via the contact form and we're happy to help you decide.</p>
+              </details>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════
+       SEPARATOR
+  ═══════════════════════════════════════════ -->
+  <div class="separator separator-enhanced" aria-hidden="true">
+    <div class="sep-diamond"></div>
+    <div class="separator-line"></div>
+    <div class="separator-ornament">𝄞</div>
+    <div class="separator-line"></div>
+    <div class="sep-diamond"></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       WHO AM I (bottom of page)
+  ═══════════════════════════════════════════ -->
+  <section class="section decor-texture decor-corners" id="about" aria-labelledby="about-title" style="position:relative;">
+    <div class="decor-corner tl" aria-hidden="true"></div>
+    <div class="decor-corner tr" aria-hidden="true"></div>
+    <div class="decor-corner bl" aria-hidden="true"></div>
+    <div class="decor-corner br" aria-hidden="true"></div>
+    <div class="section-inner">
+      <div class="about-grid">
+
+        <!-- Image / Portrait -->
+        <div class="about-image-wrap reveal visible">
+          <div class="about-corner about-corner-tl" aria-hidden="true"></div>
+          <div class="about-corner about-corner-br" aria-hidden="true"><br></div><div class="about-image-frame"><div class="about-image-placeholder"><p class="about-image-role"><img src="/isaak-portrait.jpg" alt="2026 TMEA-94" class="" style="max-width: 100%;">Credits: bynicolephotography</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Content -->
+        <div class="about-content">
+          <p class="section-eyebrow reveal visible">Who Am I?</p>
+          <h2 class="section-title reveal reveal-delay-1 visible" id="about-title">
+            Isaak<br><em>Matovich</em>
+          </h2>
+          <div class="gold-line reveal reveal-delay-2 visible"></div>
+
+          <p class="about-subtext reveal reveal-delay-2 visible">Professional Vihuelista, multi-instrumentalist, and the 2025–2026 TMEA All-State vihuela player.</p>
+
+          <p class="about-bio reveal reveal-delay-2 visible">
+            Having the chance to represent all of Texas as the #1 vihuela player showed me exactly what it takes to reach that level, and I created Armonía Connect to share the specific preparatory steps that got me there. Alongside mariachi, I've played classical violin for seven and a half years, serving as concertmaster of my high school orchestras, and that discipline shapes how I teach — blending authentic mariachi style with real technical foundation. I built Armonía Connect to make instruction like this available to students who might not otherwise have access to it, wherever their audition journey takes them.
+          </p>
+
+          <div class="about-disciplines reveal reveal-delay-4 visible">
+            <div class="ad-item">
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.4" xmlns="http://www.w3.org/2000/svg">
+                <path d="M9 3c1.5 1 1.8 2.6 1.2 4-1 2.3-3.4 2.6-3.6 4.8-.2 2 1.3 2.7 1.3 4.4 0 1.7-1.3 2.8-2.9 2.8S1 17.9 1 16.2" />
+                <circle cx="8.3" cy="7.4" r="1.6" />
+                <circle cx="6" cy="18" r="1.6" />
+                <path d="M15 4l6 6M18.5 4.5l2 2" />
+              </svg>
+              <span>Classical Violin</span>
+              <p>7.5 years, high school concertmaster</p>
+            </div>
+            <div class="ad-divider" aria-hidden="true"></div>
+            <div class="ad-item">
+              <svg width="22" height="30" viewBox="0 0 20 26" xmlns="http://www.w3.org/2000/svg"><ellipse cx="10" cy="15.5" rx="5.6" ry="7.6" fill="#C9A84C" opacity="0.28"/><ellipse cx="10" cy="15.5" rx="4" ry="5.8" fill="#C9A84C" opacity="0.55"/><ellipse cx="10" cy="15.5" rx="2.4" ry="3.9" fill="#C9A84C"/><line x1="10" y1="8" x2="10" y2="2.8" stroke="#E8C97A" stroke-width="1.3" stroke-linecap="round"/></svg>
+              <span>Mariachi Vihuela</span>
+              <p>TMEA All-State, 2025–26</p>
             </div>
           </div>
         </div>
@@ -2837,12 +3081,12 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
       <!-- Header -->
       <div class="paywall-header">
         <div class="paywall-logo">Armonía Connect</div>
-        <p class="paywall-tagline">"Master the audition. Earn your chair."</p>
+        <p class="paywall-tagline">All-State Audition Etudes Course</p>
         <div class="paywall-price-display" aria-label="Price: $100 one-time payment">
           <span class="paywall-price-sym" aria-hidden="true">$</span>
           <span class="paywall-price-num">100</span>
         </div>
-        <span class="paywall-price-note" id="paywallTitle">One-time payment · Lifetime access · No subscriptions</span>
+        <span class="paywall-price-note" id="paywallTitle">One-time payment · Full course access · No subscriptions</span>
       </div>
 
       <!-- Body -->
@@ -2852,11 +3096,11 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
         <div class="paywall-features" role="list">
           <div class="paywall-feat" role="listitem">
             <div class="paywall-feat-check" aria-hidden="true">✓</div>
-            <span>Lifetime 26-27 Course Access</span>
+            <span>2026–27 Course Access</span>
           </div>
           <div class="paywall-feat" role="listitem">
             <div class="paywall-feat-check" aria-hidden="true">✓</div>
-            <span>&nbsp;Armonía Connect Access</span>
+            <span>&nbsp;Armonía Connect Studio Access</span>
           </div>
           <div class="paywall-feat" role="listitem">
             <div class="paywall-feat-check" aria-hidden="true">✓</div>
@@ -2868,7 +3112,7 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
           </div>
           <div class="paywall-feat" role="listitem">
             <div class="paywall-feat-check" aria-hidden="true">✓</div>
-            <span>Chord book</span>
+            <span>Chord Books</span>
           </div>
           <div class="paywall-feat" role="listitem">
             <div class="paywall-feat-check" aria-hidden="true">✓</div>
@@ -2876,7 +3120,7 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
           </div>
           <div class="paywall-feat" role="listitem">
             <div class="paywall-feat-check" aria-hidden="true">✓</div>
-            <span>Personalized Feedback</span>
+            <span>Guitarra de Golpe Etude in Fifths</span>
           </div>
           <div class="paywall-feat" role="listitem">
             <div class="paywall-feat-check" aria-hidden="true">✓</div>
@@ -2915,9 +3159,11 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
             <span aria-hidden="true">⚡</span> Instant Access
           </div>
           <div class="paywall-trust-item" role="listitem">
-            <span aria-hidden="true">♾️</span> Lifetime Access
+            <span aria-hidden="true">🎯</span> Full Access
           </div>
         </div>
+
+        <p style="font-size:0.68rem; color:var(--text-dim); text-align:center; margin-top:14px; line-height:1.6;">By purchasing, you agree to our <a href="/terms.html" style="color:var(--gold-light);">Terms</a>, <a href="/privacy.html" style="color:var(--gold-light);">Privacy Policy</a>, and <a href="/refund-policy.html" style="color:var(--gold-light);">Refund Policy</a>. If you're under 18, a parent or guardian should complete this purchase.</p>
 
       </div>
     </div>
@@ -2926,47 +3172,45 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
   <!-- ═══════════════════════════════════════════
        FOOTER
   ═══════════════════════════════════════════ -->
-  <footer>
+  <footer class="decor-texture" style="position:relative;">
     <div class="footer-inner">
       <div class="footer-top">
         <div class="footer-brand">
           <p class="footer-logo">Armonía Connect</p>
-          <p class="footer-tagline">"Master the audition. Earn your chair."</p>
+          <p class="footer-tagline">All-State Audition Etudes Course</p>
           <div class="footer-social">
-            <a href="#" class="footer-social-icon" aria-label="Instagram">📷</a>
-            <a href="#" class="footer-social-icon" aria-label="TikTok">🎵</a>
-            <a href="#armonia-connect" class="footer-social-icon" aria-label="Armonía Connect">💬</a>
-            <a href="#" class="footer-social-icon" aria-label="YouTube">▶️</a>
+            <a href="https://www.instagram.com/armoniaconnect?igsh=NHdqamoxczVvc2wx&amp;utm_source=qr" target="_blank" rel="noopener noreferrer" class="footer-social-icon" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2.5" y="2.5" width="19" height="19" rx="5"/><circle cx="12" cy="12" r="4.5"/><circle cx="17.3" cy="6.7" r="1.1" fill="currentColor" stroke="none"/></svg></a>
+            <a href="#" class="footer-social-icon" aria-label="YouTube (coming soon)" onclick="return false;" style="cursor:default; opacity:0.45;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="1.5" y="5.5" width="21" height="13" rx="4"/><path d="M10 9.3v5.4l5-2.7-5-2.7Z" fill="currentColor" stroke="none"/></svg></a>
           </div>
         </div>
         <div>
           <p class="footer-col-title">Course</p>
           <ul class="footer-links" role="list">
             <li><a href="#course">What's Inside</a></li>
-            <li><a href="#pricing">Pricing</a></li>
-            <li><a href="#armonia-connect">Armonía Connect</a></li>
-            <li><a href="#contact">FAQ</a></li>
+            <li><a href="#connect">Armonía Connect Studio</a></li>
+            <li><a href="#faq">FAQ</a></li>
           </ul>
         </div>
         <div>
           <p class="footer-col-title">About</p>
           <ul class="footer-links" role="list">
             <li><a href="#about">Isaak Matovich</a></li>
-            <li><a href="#about">Our Mission</a></li>
-            <li><a href="#contact">Contact</a></li>
+            <li><a href="#mission">Our Mission</a></li>
+            <li><a href="#faq">Contact</a></li>
           </ul>
         </div>
         <div>
           <p class="footer-col-title">Legal</p>
           <ul class="footer-links" role="list">
-            <li><a href="#">Terms of Service</a></li>
-            <li><a href="#">Privacy Policy</a></li>
-            <li><a href="#">Refund Policy</a></li>
+            <li><a href="/terms.html">Terms of Service</a></li>
+            <li><a href="/privacy.html">Privacy Policy</a></li>
+            <li><a href="/refund-policy.html">Refund Policy</a></li>
           </ul>
         </div>
       </div>
+      <p class="footer-disclaimer">Armonía Connect is an independently operated course and is not affiliated with, endorsed by, or sponsored by the Texas Music Educators Association (TMEA) or the University Interscholastic League (UIL). "TMEA" and "All-State" are used only to describe the audition repertoire this course prepares students for.</p>
       <div class="footer-bottom">
-        <p class="footer-copy">© 2026&nbsp;<span>Armonía Connect</span>&nbsp;— TMEA All-State Mariachi Course. All rights reserved.</p>
+        <p class="footer-copy">© 2026&nbsp;<span>Armonía Connect</span>&nbsp;— All-State Audition Etudes Course. All rights reserved.</p>
         <p class="footer-copy">Created by <span>Isaak Matovich</span></p>
       </div>
     </div>
