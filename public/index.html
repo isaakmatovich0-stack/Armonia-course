@@ -883,6 +883,12 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
     }
     @media (max-width: 640px) {
       .mission-logo-corner { position: static; justify-content: center; margin-bottom: 24px; }
+      .hero { min-height: 92vh; padding-bottom: 40px; }
+    }
+    @supports (min-height: 100dvh) {
+      @media (max-width: 640px) {
+        .hero { min-height: 92dvh; }
+      }
     }
     .mission-statement {
       font-family: var(--font-serif);
@@ -976,6 +982,7 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
       grid-template-columns: repeat(3, 1fr);
       gap: 16px;
     }
+    .feature-grid-4col { grid-template-columns: repeat(4, 1fr); }
     .feature-card {
       position: relative;
       padding: 32px 24px;
@@ -1985,6 +1992,7 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
       .about-image-wrap { max-width: 400px; margin: 0 auto; }
       .course-intro { grid-template-columns: 1fr; gap: 40px; }
       .feature-grid { grid-template-columns: repeat(2, 1fr); }
+      .feature-grid-4col { grid-template-columns: repeat(2, 1fr); }
       .ac-grid { grid-template-columns: 1fr; gap: 48px; }
       .ac-mockup { display: none; }
       .contact-grid { grid-template-columns: 1fr; gap: 48px; }
@@ -2004,6 +2012,7 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
       .hero-clef { font-size: 14rem; opacity: 0.3; }
 
       .feature-grid { grid-template-columns: 1fr; }
+      .feature-grid-4col { grid-template-columns: 1fr; }
       .pricing-card-header, .pricing-card-body { padding: 32px 28px; }
       .testimonials-grid { grid-template-columns: 1fr; }
       .testimonials { padding: 60px 24px; }
@@ -2561,7 +2570,7 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
           On-demand video lessons you can pick up on your desktop, phone, tablet, or TV — built for how you actually practice.
         </p>
       </div>
-      <div class="feature-grid" style="grid-template-columns:repeat(4,1fr);">
+      <div class="feature-grid feature-grid-4col">
         <div class="feature-card reveal visible">
           <div class="feature-card-icon" aria-hidden="true">📱</div>
           <h3 class="feature-card-title">Any Device</h3>
