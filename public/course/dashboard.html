@@ -154,24 +154,6 @@
   .player-media iframe, .player-media video { width: 100%; height: 100%; border: none; }
   .player-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); font-size: 0.9rem; text-align: center; padding: 20px; }
   .player-desc { padding: 16px 20px; font-size: 0.88rem; color: var(--text-muted); line-height: 1.6; }
-  .player-watermark {
-    position: absolute;
-    top: 12%; left: 12%;
-    padding: 4px 10px;
-    font-family: var(--font-sans);
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    color: rgba(242,235,217,0.55);
-    background: rgba(0,0,0,0.28);
-    border-radius: 3px;
-    pointer-events: none;
-    user-select: none;
-    z-index: 5;
-    transition: top 1.2s ease, left 1.2s ease, right 1.2s ease, bottom 1.2s ease;
-    white-space: nowrap;
-  }
-  .player-watermark-note { padding: 0 20px 16px; font-size: 0.72rem; color: var(--text-muted); opacity: 0.75; text-align: center; }
 
   .announcement { background: var(--charcoal-3); border: 1px solid var(--border-gold); padding: 18px 20px; margin-bottom: 14px; transition: border-color 0.2s, transform 0.2s; }
   .announcement:hover { border-color: var(--gold); transform: translateX(3px); }
@@ -529,12 +511,8 @@
   <div class="player-overlay" id="playerOverlay">
     <div class="player-box" id="playerBox">
       <div class="player-header"><h3 id="playerTitle"></h3><button class="icon-btn player-close" id="playerClose" data-icon="close"><span class="icon-wrap"></span></button></div>
-      <div class="player-media-wrap" style="position:relative;">
-        <div class="player-media" id="playerMedia"></div>
-        <div id="playerWatermark" class="player-watermark" aria-hidden="true"></div>
-      </div>
+      <div class="player-media" id="playerMedia"></div>
       <div class="player-desc" id="playerDesc"></div>
-      <p class="player-watermark-note">This lesson is personally watermarked to your account — recordings can be traced back to the account they came from.</p>
     </div>
   </div>
 
@@ -730,45 +708,16 @@ function mediaFor(item) {
   return `<div class="player-empty">This lesson isn't posted yet — check back soon.</div>`;
 }
 
-let watermarkTimer = null;
-function startWatermark() {
-  const el = document.getElementById('playerWatermark');
-  if (!el) return;
-  el.textContent = myAccessCode ? `Armonía Connect · ${myAccessCode}` : 'Armonía Connect';
-  const positions = [
-    { top: '10%', left: '10%' }, { top: '10%', right: '10%', left: 'auto' },
-    { bottom: '14%', left: '10%', top: 'auto' }, { bottom: '14%', right: '10%', left: 'auto', top: 'auto' },
-    { top: '45%', left: '50%', transform: 'translateX(-50%)' },
-  ];
-  let i = 0;
-  const applyPos = () => {
-    ['top','left','right','bottom'].forEach(p => el.style[p] = 'auto');
-    Object.assign(el.style, positions[i % positions.length]);
-    i++;
-  };
-  applyPos();
-  clearInterval(watermarkTimer);
-  watermarkTimer = setInterval(applyPos, 4500);
-}
-function stopWatermark() {
-  clearInterval(watermarkTimer);
-  watermarkTimer = null;
-}
-document.getElementById('playerBox').addEventListener('contextmenu', (e) => e.preventDefault());
-document.getElementById('playerBox').addEventListener('dragstart', (e) => e.preventDefault());
-document.getElementById('playerBox').addEventListener('selectstart', (e) => e.preventDefault());
 
 function openPlayer(title, media, desc) {
   document.getElementById('playerTitle').textContent = title;
   document.getElementById('playerMedia').innerHTML = media;
   document.getElementById('playerDesc').textContent = desc || '';
   document.getElementById('playerOverlay').classList.add('open');
-  startWatermark();
 }
 document.getElementById('playerClose').addEventListener('click', () => {
   document.getElementById('playerOverlay').classList.remove('open');
   document.getElementById('playerMedia').innerHTML = '';
-  stopWatermark();
 });
 function cardHtml(item, kind) {
   const ready = !!(item.soundsliceId || item.videoUrl);
