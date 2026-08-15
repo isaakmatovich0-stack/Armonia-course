@@ -55,7 +55,7 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       const { data, error } = await supabase.from('student_profiles').select('*').eq('code', session.code).maybeSingle();
       if (error) { console.error('Profile fetch error:', error); return res.status(500).json({ error: 'Could not load your profile.' }); }
-      return res.status(200).json({ profile: data || null, email: session.email });
+      return res.status(200).json({ profile: data || null, email: session.email, code: session.code });
     }
     if (req.method === 'POST') {
       const { name, instrument, experienceLevel, yearsPlaying, bio, photoUrl } = req.body || {};
