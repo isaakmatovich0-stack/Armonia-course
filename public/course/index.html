@@ -189,6 +189,7 @@
         if (!res.ok) throw new Error(data.error || 'Something went wrong.');
 
         localStorage.setItem('armonia_session', data.token);
+        if (data.codeType) localStorage.setItem('armonia_code_type', data.codeType);
         window.location.href = data.needsOnboarding ? '/course/onboarding.html' : '/course/dashboard.html';
       } catch (err) {
         errorBox.textContent = err.message;

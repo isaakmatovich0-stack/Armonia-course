@@ -39,7 +39,7 @@ export default async function handler(req, res) {
 
   const { data: record, error } = await supabase
     .from('access_codes')
-    .select('code, email, revoked, redeemed_count, bound_device_id')
+    .select('code, email, revoked, redeemed_count, bound_device_id, code_type')
     .eq('code', raw)
     .maybeSingle();
 
@@ -56,11 +56,15 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: 'This code is no longer active. Contact maestro.armoniaconnect@gmail.com for help.' });
   }
 
+  const isClassroom = record.code_type === 'classroom';
   const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket?.remoteAddress;
   const ipHash = hashIp(ip);
 
   // ── Device binding check ──
-  if (record.bound_device_id && record.bound_device_id !== deviceId) {
+  // Classroom codes are meant for a shared/big-screen setup and explicitly
+  // support multiple simultaneous logins, so they skip device binding
+  // entirely — no single "owning" device, no approval queue.
+  if (!isClassroom && record.bound_device_id && record.bound_device_id !== deviceId) {
     // Don't spam duplicate pending rows if they keep retrying with the same device.
     const { data: existingPending } = await supabase
       .from('device_change_requests')
@@ -98,13 +102,18 @@ export default async function handler(req, res) {
     redeemed_at: record.redeemed_count === 0 ? new Date().toISOString() : undefined,
     last_login_at: new Date().toISOString(),
     redeemed_count: (record.redeemed_count || 0) + 1,
-    current_session_token: sessionToken,
-    session_started_at: new Date().toISOString(),
   };
-  if (isFirstBinding) {
-    update.bound_device_id = deviceId;
-    update.bound_ip_hash = ipHash;
-    update.bound_at = new Date().toISOString();
+  // Classroom codes never write a single "current" session token — that's
+  // exactly the mechanism that kicks older sessions on a new login, and
+  // classroom codes are supposed to allow many logins at once.
+  if (!isClassroom) {
+    update.current_session_token = sessionToken;
+    update.session_started_at = new Date().toISOString();
+    if (isFirstBinding) {
+      update.bound_device_id = deviceId;
+      update.bound_ip_hash = ipHash;
+      update.bound_at = new Date().toISOString();
+    }
   }
 
   await supabase.from('access_codes').update(update).eq('code', record.code);
@@ -112,19 +121,22 @@ export default async function handler(req, res) {
   // Check whether this student has completed onboarding yet.
   const { data: profile } = await supabase
     .from('student_profiles')
-    .select('code, name')
+    .select('code, name, school_name')
     .eq('code', record.code)
     .maybeSingle();
 
   const token = jwt.sign(
-    { code: record.code, email: record.email, sessionToken },
+    { code: record.code, email: record.email, sessionToken, codeType: record.code_type },
     process.env.SESSION_SECRET,
     { expiresIn: '30d' }
   );
 
+  const needsOnboarding = isClassroom ? !profile?.school_name : !profile;
+
   return res.status(200).json({
     token,
     email: record.email,
-    needsOnboarding: !profile,
+    needsOnboarding,
+    codeType: record.code_type,
   });
 }

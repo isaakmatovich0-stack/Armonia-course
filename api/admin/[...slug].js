@@ -14,7 +14,8 @@
 import { requireAdmin } from '../../lib/requireAdmin.js';
 import { supabase } from '../../lib/supabase.js';
 import { hashPassword, verifyPassword } from '../../lib/password.js';
-import { sendAdminVerificationEmail } from '../../lib/email.js';
+import { sendAdminVerificationEmail, sendGeneratedCodeEmail } from '../../lib/email.js';
+import { generateAccessCode } from '../../lib/generateCode.js';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 
@@ -154,7 +155,7 @@ export default async function handler(req, res) {
   // ── /api/admin/overview ──
   if (route === 'overview') {
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-    const { data: codes, error: codesError } = await supabase.from('access_codes').select('code, email, created_at, redeemed_count, last_login_at, revoked, bound_device_id, bound_at').order('created_at', { ascending: false });
+    const { data: codes, error: codesError } = await supabase.from('access_codes').select('code, email, created_at, redeemed_count, last_login_at, revoked, bound_device_id, bound_at, code_type, source').order('created_at', { ascending: false });
     if (codesError) { console.error('Admin overview codes error:', codesError); return res.status(500).json({ error: 'Could not load students.' }); }
     const { data: profiles } = await supabase.from('student_profiles').select('*');
     const { data: unread } = await supabase.from('messages').select('code').eq('sender', 'student').eq('read_by_maestro', false);
@@ -504,6 +505,38 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // ── /api/admin/generate-code ──
+  // Admin-generated access codes — same access_codes table and same email
+  // delivery real purchases use, just without going through Stripe.
+  if (route === 'generate-code') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    const { email, codeType } = req.body || {};
+    if (!email || !email.includes('@')) return res.status(400).json({ error: 'A valid email is required.' });
+    const type = codeType === 'classroom' ? 'classroom' : 'student';
+
+    let code = generateAccessCode();
+    // guard against the astronomically unlikely collision
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const { data: existing } = await supabase.from('access_codes').select('code').eq('code', code).maybeSingle();
+      if (!existing) break;
+      code = generateAccessCode();
+    }
+
+    const { error } = await supabase.from('access_codes').insert({
+      code, email, code_type: type, source: 'admin', revoked: false,
+    });
+    if (error) { console.error('Admin code generation error:', error); return res.status(500).json({ error: 'Could not generate a code. Please try again.' }); }
+
+    try {
+      await sendGeneratedCodeEmail({ to: email, code, codeType: type });
+    } catch (err) {
+      console.error('Generated-code email send error:', err);
+      // Code was created successfully even if the email failed — surface both facts.
+      return res.status(200).json({ code, email, codeType: type, emailSent: false });
+    }
+    return res.status(200).json({ code, email, codeType: type, emailSent: true });
   }
 
   return res.status(404).json({ error: 'Not found.' });

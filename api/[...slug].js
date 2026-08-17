@@ -55,9 +55,22 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       const { data, error } = await supabase.from('student_profiles').select('*').eq('code', session.code).maybeSingle();
       if (error) { console.error('Profile fetch error:', error); return res.status(500).json({ error: 'Could not load your profile.' }); }
-      return res.status(200).json({ profile: data || null, email: session.email, code: session.code });
+      return res.status(200).json({ profile: data || null, email: session.email, code: session.code, codeType: session.codeType || 'student' });
     }
     if (req.method === 'POST') {
+      const isClassroom = session.codeType === 'classroom';
+      if (isClassroom) {
+        const { schoolName, teacherName } = req.body || {};
+        if (!schoolName || !teacherName) {
+          return res.status(400).json({ error: 'School name and teacher name are both required.' });
+        }
+        const { error } = await supabase.from('student_profiles').upsert({
+          code: session.code, school_name: schoolName, teacher_name: teacherName,
+          name: teacherName, updated_at: new Date().toISOString(),
+        });
+        if (error) { console.error('Classroom profile save error:', error); return res.status(500).json({ error: 'Could not save. Please try again.' }); }
+        return res.status(200).json({ ok: true });
+      }
       const { name, instrument, experienceLevel, yearsPlaying, bio, photoUrl } = req.body || {};
       if (!name || !instrument || !experienceLevel || !yearsPlaying) {
         return res.status(400).json({ error: 'Name, instrument, experience level, and years playing are required.' });

@@ -53,52 +53,68 @@
 <body>
   <div class="wrap">
     <p class="logo">Welcome to Armonía Connect</p>
-    <p class="tagline">A few quick questions before you begin</p>
+    <p class="tagline" id="onboardingTagline">A few quick questions before you begin</p>
 
     <form id="onboardingForm">
-      <div class="field">
-        <label for="name">Your Name</label>
-        <input id="name" name="name" type="text" required autocomplete="name">
+      <!-- Individual student fields -->
+      <div id="studentFields">
+        <div class="field">
+          <label for="name">Your Name</label>
+          <input id="name" name="name" type="text" autocomplete="name">
+        </div>
+
+        <div class="photo-row" style="margin-bottom:24px;">
+          <div class="photo-preview" id="photoPreview"></div>
+          <input type="file" id="photoInput" accept="image/png, image/jpeg, image/webp" style="display:none;">
+          <button type="button" class="photo-btn" id="photoBtn">Add profile photo</button>
+        </div>
+
+        <div class="field">
+          <label for="instrument">Which instrument do you play?</label>
+          <select id="instrument" name="instrument">
+            <option value="" disabled selected>Select one</option>
+            <option value="Vihuela">Vihuela</option>
+            <option value="Guitarra">Guitarra</option>
+            <option value="Guitarra de Golpe">Guitarra de Golpe</option>
+            <option value="Guitarrón">Guitarrón</option>
+            <option value="Other / Multiple">Other / Multiple</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="experience">Your experience level</label>
+          <select id="experience" name="experience">
+            <option value="" disabled selected>Select one</option>
+            <option value="Beginner">Beginner</option>
+            <option value="Intermediate">Intermediate</option>
+            <option value="Advanced">Advanced</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="years">How long have you been playing?</label>
+          <input id="years" name="years" type="text" placeholder="e.g. 2 years, 6 months">
+        </div>
+
+        <div class="field">
+          <label for="bio">A short bio (optional)</label>
+          <textarea id="bio" name="bio" placeholder="Tell us a little about yourself and your musical background."></textarea>
+        </div>
+        <p class="note">Your name and instrument help us tailor guidance for you, and let other Armonía Connect students get to know you if you choose to share your profile.</p>
       </div>
 
-      <div class="photo-row" style="margin-bottom:24px;">
-        <div class="photo-preview" id="photoPreview"></div>
-        <input type="file" id="photoInput" accept="image/png, image/jpeg, image/webp" style="display:none;">
-        <button type="button" class="photo-btn" id="photoBtn">Add profile photo</button>
+      <!-- Classroom (teacher / big-screen) fields -->
+      <div id="classroomFields" style="display:none;">
+        <div class="field">
+          <label for="schoolName">Name of School</label>
+          <input id="schoolName" name="schoolName" type="text" autocomplete="organization">
+        </div>
+        <div class="field">
+          <label for="teacherName">Name of Teacher</label>
+          <input id="teacherName" name="teacherName" type="text" autocomplete="name">
+        </div>
+        <p class="note">This classroom code supports multiple students logging in at once. Community and the Thank You &amp; Credits page are reserved for individual student accounts and won't be available here.</p>
       </div>
-
-      <div class="field">
-        <label for="instrument">Which instrument do you play?</label>
-        <select id="instrument" name="instrument" required>
-          <option value="" disabled selected>Select one</option>
-          <option value="Vihuela">Vihuela</option>
-          <option value="Guitarra">Guitarra</option>
-          <option value="Guitarra de Golpe">Guitarra de Golpe</option>
-          <option value="Guitarrón">Guitarrón</option>
-          <option value="Other / Multiple">Other / Multiple</option>
-        </select>
-      </div>
-
-      <div class="field">
-        <label for="experience">Your experience level</label>
-        <select id="experience" name="experience" required>
-          <option value="" disabled selected>Select one</option>
-          <option value="Beginner">Beginner</option>
-          <option value="Intermediate">Intermediate</option>
-          <option value="Advanced">Advanced</option>
-        </select>
-      </div>
-
-      <div class="field">
-        <label for="years">How long have you been playing?</label>
-        <input id="years" name="years" type="text" placeholder="e.g. 2 years, 6 months" required>
-      </div>
-
-      <div class="field">
-        <label for="bio">A short bio (optional)</label>
-        <textarea id="bio" name="bio" placeholder="Tell us a little about yourself and your musical background."></textarea>
-      </div>
-      <p class="note">Your name and instrument help us tailor guidance for you, and let other Armonía Connect students get to know you if you choose to share your profile.</p>
 
       <button type="submit" id="submitBtn">Enter the Course</button>
       <div class="error" id="errorBox"></div>
@@ -108,6 +124,26 @@
   <script>
     const token = localStorage.getItem('armonia_session');
     if (!token) window.location.href = '/course/';
+
+    const codeType = localStorage.getItem('armonia_code_type') || 'student';
+    const isClassroom = codeType === 'classroom';
+
+    if (isClassroom) {
+      document.getElementById('studentFields').style.display = 'none';
+      document.getElementById('classroomFields').style.display = 'block';
+      document.getElementById('onboardingTagline').textContent = 'Just the school and teacher name to get started';
+      document.getElementById('name').removeAttribute('required');
+      document.getElementById('instrument').removeAttribute('required');
+      document.getElementById('experience').removeAttribute('required');
+      document.getElementById('years').removeAttribute('required');
+      document.getElementById('schoolName').setAttribute('required', '');
+      document.getElementById('teacherName').setAttribute('required', '');
+    } else {
+      document.getElementById('name').setAttribute('required', '');
+      document.getElementById('instrument').setAttribute('required', '');
+      document.getElementById('experience').setAttribute('required', '');
+      document.getElementById('years').setAttribute('required', '');
+    }
 
     let photoBase64 = null;
     let photoContentType = null;
@@ -177,6 +213,21 @@
       submitBtn.textContent = 'Saving…';
 
       try {
+        if (isClassroom) {
+          const res = await fetch('/api/profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              schoolName: document.getElementById('schoolName').value.trim(),
+              teacherName: document.getElementById('teacherName').value.trim(),
+            }),
+          });
+          const data = await safeJsonParse(res);
+          if (!res.ok) throw new Error(data.error || 'Something went wrong.');
+          window.location.href = '/course/dashboard.html';
+          return;
+        }
+
         let photoUrl = null;
         if (photoBase64) {
           const uploadRes = await fetch('/api/upload-photo', {

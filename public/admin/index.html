@@ -45,6 +45,11 @@
   .panel { display: none; }
   .panel.active { display: block; }
 
+  .stf-btn { background: var(--charcoal-3); border: 1px solid var(--border-gold); color: var(--text-muted); padding: 8px 16px; font-size: 0.8rem; cursor: pointer; }
+  .stf-btn.active { background: var(--gold); color: var(--charcoal); border-color: var(--gold); font-weight: 600; }
+  .type-badge { font-size: 0.68rem; padding: 3px 8px; letter-spacing: 0.05em; text-transform: uppercase; border: 1px solid var(--border-gold); }
+  .type-badge.classroom { color: var(--gold-light); border-color: var(--gold); }
+  .type-badge.student { color: var(--text-muted); }
   table { width: 100%; border-collapse: collapse; font-size: 0.87rem; }
   th { text-align: left; padding: 10px 12px; color: var(--text-muted); font-size: 0.75rem; letter-spacing: 0.5px; text-transform: uppercase; border-bottom: 1px solid var(--border-gold); }
   td { padding: 12px; border-bottom: 1px solid rgba(201,168,76,0.1); vertical-align: top; }
@@ -110,9 +115,17 @@
     </div>
     <main>
       <section class="panel active" id="panel-students">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:10px;">
+          <div class="student-type-filter" id="studentTypeFilter" style="display:flex; gap:8px;">
+            <button type="button" class="stf-btn active" data-filter="all">All</button>
+            <button type="button" class="stf-btn" data-filter="student">Students</button>
+            <button type="button" class="stf-btn" data-filter="classroom">Classrooms</button>
+          </div>
+          <button type="button" id="openGenerateCodeBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:9px 18px; font-weight:600; cursor:pointer;">+ Generate Access Code</button>
+        </div>
         <table>
           <thead>
-            <tr><th>Student</th><th>Instrument</th><th>Code</th><th>Logins</th><th>Device</th><th>Status</th><th></th></tr>
+            <tr><th>Student</th><th>Type</th><th>Instrument</th><th>Code</th><th>Logins</th><th>Device</th><th>Status</th><th></th></tr>
           </thead>
           <tbody id="studentsTableBody"></tbody>
         </table>
@@ -399,6 +412,44 @@
         </div>
         <div style="display:flex; justify-content:flex-end;">
           <button id="auditionSaveBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:9px 22px; font-weight:600; cursor:pointer;">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Generate Access Code modal -->
+  <div class="modal-overlay" id="generateCodeModal">
+    <div class="modal-box" style="max-width:460px;">
+      <div class="modal-header">
+        <h3>Generate Access Code</h3>
+        <button class="modal-close" id="generateCodeModalClose">✕</button>
+      </div>
+      <div style="padding:20px;" id="generateCodeForm">
+        <div style="margin-bottom:16px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:8px;">Code Type</label>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="gc-type-btn active" data-type="student" style="flex:1; background:var(--gold); color:var(--charcoal); border:1px solid var(--gold); padding:10px; font-weight:600; cursor:pointer;">Individual (Free)</button>
+            <button type="button" class="gc-type-btn" data-type="classroom" style="flex:1; background:var(--charcoal-3); color:var(--cream); border:1px solid var(--border-gold); padding:10px; font-weight:600; cursor:pointer;">Classroom</button>
+          </div>
+          <p style="font-size:0.72rem; color:var(--text-muted); margin-top:8px;" id="gcTypeNote">A normal single-session student code — full course access, no charge.</p>
+        </div>
+        <div style="margin-bottom:18px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Recipient Email</label>
+          <input type="email" id="gcEmail" placeholder="teacher@school.edu" style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
+          <p style="font-size:0.72rem; color:var(--text-muted); margin-top:6px;">The code is emailed automatically, the same way a real purchase confirmation works.</p>
+        </div>
+        <div style="display:flex; justify-content:flex-end;">
+          <button id="gcGenerateBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:9px 22px; font-weight:600; cursor:pointer;">Generate &amp; Send</button>
+        </div>
+        <div id="gcError" style="display:none; margin-top:14px; padding:10px 14px; background:rgba(155,36,36,0.1); border:1px solid var(--red-accent); color:#e8a8a8; font-size:0.82rem;"></div>
+      </div>
+      <div style="padding:20px; display:none;" id="generateCodeResult">
+        <p style="font-size:0.78rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">Code Generated</p>
+        <p id="gcResultCode" style="font-family:monospace; font-size:1.3rem; color:var(--gold-light); background:rgba(201,168,76,0.08); border:1px solid var(--border-gold); padding:16px; text-align:center; margin-bottom:14px;"></p>
+        <p id="gcResultStatus" style="font-size:0.82rem; color:var(--text-muted); margin-bottom:18px;"></p>
+        <div style="display:flex; justify-content:flex-end; gap:10px;">
+          <button id="gcCopyBtn" style="background:var(--charcoal-3); color:var(--cream); border:1px solid var(--border-gold); padding:9px 18px; cursor:pointer;">Copy Code</button>
+          <button id="gcDoneBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:9px 18px; font-weight:600; cursor:pointer;">Done</button>
         </div>
       </div>
     </div>
@@ -898,43 +949,133 @@
       } catch (err) { alert(err.message); }
     });
 
+    let allStudents = [];
+    let studentTypeFilter = 'all';
+
     async function loadStudents() {
       try {
         const data = await adminFetch('/api/admin/overview');
-        const body = document.getElementById('studentsTableBody');
-        if (!data.students.length) {
-          body.innerHTML = '<tr><td colspan="6" class="empty-state">No enrollments yet.</td></tr>';
-          return;
-        }
-        body.innerHTML = data.students.map(s => `
+        allStudents = data.students;
+        renderStudentsTable();
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function renderStudentsTable() {
+      const body = document.getElementById('studentsTableBody');
+      const filtered = studentTypeFilter === 'all' ? allStudents : allStudents.filter(s => (s.code_type || 'student') === studentTypeFilter);
+      if (!filtered.length) {
+        body.innerHTML = '<tr><td colspan="8" class="empty-state">No enrollments yet.</td></tr>';
+        return;
+      }
+      body.innerHTML = filtered.map(s => {
+        const isClassroom = s.code_type === 'classroom';
+        const displayName = isClassroom
+          ? (s.profile?.teacher_name || s.profile?.name || '(no profile yet)')
+          : (s.profile?.name || '(no profile yet)');
+        const secondCol = isClassroom
+          ? (s.profile?.school_name ? `<strong>${s.profile.school_name}</strong>` : '—')
+          : (s.profile?.instrument || '—') + (s.profile ? `<br><span style="color:var(--text-muted); font-size:0.8rem;">${s.profile.experience_level}, ${s.profile.years_playing}</span>` : '');
+        const deviceCol = isClassroom
+          ? '<span style="color:var(--text-muted); font-size:0.8rem;">Multi-session (classroom)</span>'
+          : (s.bound_device_id
+              ? `<span class="pill" style="border-color:var(--gold); color:var(--gold-light);">Bound</span><br><span style="color:var(--text-muted); font-size:0.72rem;">since ${new Date(s.bound_at).toLocaleDateString()}</span>`
+              : '<span style="color:var(--text-muted); font-size:0.8rem;">Not yet used</span>');
+        return `
           <tr>
             <td>
-              <strong>${s.profile?.name || '(no profile yet)'}</strong><br>
+              <strong>${displayName}</strong><br>
               <span style="color:var(--text-muted); font-size:0.8rem;">${s.email}</span>
             </td>
-            <td>${s.profile?.instrument || '—'}${s.profile ? `<br><span style="color:var(--text-muted); font-size:0.8rem;">${s.profile.experience_level}, ${s.profile.years_playing}</span>` : ''}</td>
+            <td><span class="type-badge ${isClassroom ? 'classroom' : 'student'}">${isClassroom ? 'Classroom' : 'Student'}</span>${s.source === 'admin' ? '<br><span style="color:var(--text-muted); font-size:0.68rem;">Comp</span>' : ''}</td>
+            <td>${secondCol}</td>
             <td style="font-family:monospace; font-size:0.8rem;">${s.code}</td>
             <td>${s.redeemed_count}</td>
-            <td>
-              ${s.bound_device_id
-                ? `<span class="pill" style="border-color:var(--gold); color:var(--gold-light);">Bound</span><br><span style="color:var(--text-muted); font-size:0.72rem;">since ${new Date(s.bound_at).toLocaleDateString()}</span>`
-                : '<span style="color:var(--text-muted); font-size:0.8rem;">Not yet used</span>'}
-            </td>
+            <td>${deviceCol}</td>
             <td>
               ${s.revoked ? '<span class="pill revoked">Revoked</span>' : '<span class="pill">Active</span>'}
               ${s.unreadCount > 0 ? `<span class="pill unread">${s.unreadCount} new</span>` : ''}
             </td>
             <td class="row-actions">
-              <button onclick="openChat('${s.code}', '${(s.profile?.name || s.email).replace(/'/g, "\\'")}')">Message</button>
+              <button onclick="openChat('${s.code}', '${displayName.replace(/'/g, "\\'")}')">Message</button>
               <button onclick="toggleRevoke('${s.code}', ${!s.revoked})">${s.revoked ? 'Restore' : 'Revoke'}</button>
-              ${s.bound_device_id ? `<button onclick="resetDevice('${s.code}')">Reset Device</button>` : ''}
+              ${!isClassroom && s.bound_device_id ? `<button onclick="resetDevice('${s.code}')">Reset Device</button>` : ''}
             </td>
           </tr>
-        `).join('');
-      } catch (err) {
-        console.error(err);
-      }
+        `;
+      }).join('');
     }
+
+    document.querySelectorAll('.stf-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.stf-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        studentTypeFilter = btn.dataset.filter;
+        renderStudentsTable();
+      });
+    });
+
+    // ── Generate Access Code ──
+    let gcSelectedType = 'student';
+    const gcTypeNotes = {
+      student: 'A normal single-session student code — full course access, no charge.',
+      classroom: 'Supports multiple simultaneous logins for a shared/big-screen setup. Skips device binding, Community, and Credits. Onboarding only asks for school and teacher name.',
+    };
+    document.getElementById('openGenerateCodeBtn').addEventListener('click', () => {
+      document.getElementById('generateCodeModal').classList.add('open');
+      document.getElementById('generateCodeForm').style.display = 'block';
+      document.getElementById('generateCodeResult').style.display = 'none';
+      document.getElementById('gcError').style.display = 'none';
+      document.getElementById('gcEmail').value = '';
+    });
+    document.getElementById('generateCodeModalClose').addEventListener('click', () => {
+      document.getElementById('generateCodeModal').classList.remove('open');
+    });
+    document.querySelectorAll('.gc-type-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.gc-type-btn').forEach(b => {
+          b.classList.remove('active');
+          b.style.background = 'var(--charcoal-3)'; b.style.color = 'var(--cream)'; b.style.borderColor = 'var(--border-gold)';
+        });
+        btn.classList.add('active');
+        btn.style.background = 'var(--gold)'; btn.style.color = 'var(--charcoal)'; btn.style.borderColor = 'var(--gold)';
+        gcSelectedType = btn.dataset.type;
+        document.getElementById('gcTypeNote').textContent = gcTypeNotes[gcSelectedType];
+      });
+    });
+    document.getElementById('gcGenerateBtn').addEventListener('click', async () => {
+      const email = document.getElementById('gcEmail').value.trim();
+      const errBox = document.getElementById('gcError');
+      errBox.style.display = 'none';
+      if (!email || !email.includes('@')) { errBox.textContent = 'Enter a valid email address.'; errBox.style.display = 'block'; return; }
+      const btn = document.getElementById('gcGenerateBtn');
+      btn.disabled = true; btn.textContent = 'Generating…';
+      try {
+        const data = await adminFetch('/api/admin/generate-code', { method: 'POST', body: JSON.stringify({ email, codeType: gcSelectedType }) });
+        document.getElementById('generateCodeForm').style.display = 'none';
+        document.getElementById('generateCodeResult').style.display = 'block';
+        document.getElementById('gcResultCode').textContent = data.code;
+        document.getElementById('gcResultStatus').textContent = data.emailSent
+          ? `Sent to ${data.email}. It'll also show up in the Students table${data.codeType === 'classroom' ? ' under Classrooms' : ''}.`
+          : `Code created, but the email failed to send — copy it and deliver it manually.`;
+        loadStudents();
+      } catch (err) {
+        errBox.textContent = err.message;
+        errBox.style.display = 'block';
+      } finally {
+        btn.disabled = false; btn.textContent = 'Generate & Send';
+      }
+    });
+    document.getElementById('gcCopyBtn').addEventListener('click', () => {
+      navigator.clipboard.writeText(document.getElementById('gcResultCode').textContent);
+      const btn = document.getElementById('gcCopyBtn');
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = 'Copy Code'; }, 1500);
+    });
+    document.getElementById('gcDoneBtn').addEventListener('click', () => {
+      document.getElementById('generateCodeModal').classList.remove('open');
+    });
 
     async function resetDevice(code) {
       if (!confirm(`Reset the device binding for ${code}?\n\nThis lets the code be used on a new device next login. Only do this if you've confirmed it's a legitimate device change (new phone, etc.) — not someone trying to share the code.`)) return;
