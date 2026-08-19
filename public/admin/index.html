@@ -146,6 +146,10 @@
             <option value="guitarron">Guitarrón</option>
           </select>
         </div>
+        <div style="margin-bottom:24px; padding:16px; background:var(--charcoal-3); border:1px solid var(--border-gold);">
+          <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:10px;">Practice Technique lesson — one per instrument, shown to students on every instrument's page. Lessons with no title below don't have one yet:</p>
+          <div id="practiceTechniqueStatus" style="display:flex; flex-wrap:wrap; gap:10px;"></div>
+        </div>
         <table>
           <thead>
             <tr><th>Instrument</th><th>Section</th><th>Title</th><th>Media</th><th>Cover</th><th></th></tr>
@@ -568,6 +572,7 @@
         const data = await adminFetch('/api/admin/lessons');
         allLessons = data.lessons;
         renderLessonsTable();
+        renderPracticeTechniqueStatus();
       } catch (err) { console.error(err); }
     }
 
@@ -638,6 +643,37 @@
       document.getElementById('lessonCoverPreview').style.backgroundImage = '';
       openLessonModal();
     });
+
+    const INSTRUMENT_LABELS = { vihuela: 'Vihuela', guitarra: 'Guitarra', 'guitarra-de-golpe': 'Guitarra de Golpe', guitarron: 'Guitarrón' };
+    function renderPracticeTechniqueStatus() {
+      const host = document.getElementById('practiceTechniqueStatus');
+      host.innerHTML = Object.keys(INSTRUMENT_LABELS).map(key => {
+        const existing = allLessons.find(l => l.instrument_key === key && l.section === 'practice_technique');
+        if (existing) {
+          return `<div style="padding:8px 12px; border:1px solid var(--border-gold); background:rgba(201,168,76,0.08); font-size:0.8rem; cursor:pointer;" onclick="editLesson('${existing.id}')">
+            <strong style="color:var(--gold-light);">${INSTRUMENT_LABELS[key]}</strong> — ${existing.title}
+          </div>`;
+        }
+        return `<div style="padding:8px 12px; border:1px dashed var(--border-gold); font-size:0.8rem;">
+          <strong>${INSTRUMENT_LABELS[key]}</strong> — <span style="color:var(--text-muted);">not set</span>
+          <button onclick="quickAddPracticeTechnique('${key}')" style="background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:3px 9px; font-size:0.72rem; cursor:pointer; margin-left:6px;">+ Add</button>
+        </div>`;
+      }).join('');
+    }
+    window.quickAddPracticeTechnique = function(instrumentKey) {
+      document.getElementById('lessonModalTitle').textContent = 'Add Lesson';
+      document.getElementById('lessonId').value = '';
+      document.getElementById('lessonInstrument').value = instrumentKey;
+      document.getElementById('lessonSection').value = 'practice_technique';
+      document.getElementById('lessonTitle').value = `${INSTRUMENT_LABELS[instrumentKey]} — Practice Techniques`;
+      document.getElementById('lessonDescription').value = '';
+      document.getElementById('lessonSoundslice').value = '';
+      document.getElementById('lessonVideoUrl').value = '';
+      document.getElementById('lessonDeleteBtn').style.display = 'none';
+      currentLessonCoverUrl = null;
+      document.getElementById('lessonCoverPreview').style.backgroundImage = '';
+      openLessonModal();
+    };
 
     window.editLesson = function(id) {
       const l = allLessons.find(x => x.id === id);
