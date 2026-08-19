@@ -24,8 +24,8 @@ export default async function handler(req, res) {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: 'Armonía — TMEA All-State Mariachi Course',
-              description: 'Full course access with Isaak Matovich, plus Armonía Connect.',
+              name: 'Armonía Connect — All-State Audition Etudes Course',
+              description: 'Full course access with Isaak Matovich, plus the Armonía Connect Studio.',
             },
             unit_amount: 10000, // $100.00 — change here AND in the flyer page copy if price changes
           },
