@@ -161,6 +161,16 @@
           <thead><tr><th>Kind</th><th>Title</th><th>File</th><th></th></tr></thead>
           <tbody id="resourcesTableBody"></tbody>
         </table>
+
+        <h2 style="font-family:var(--font-display); font-size:1.2rem; margin:36px 0 16px;">Sheet Music</h2>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:14px;">PDF notation for etudes and exercises. Include the instrument in the title (e.g. "Vihuela — Etude No. 1") since there's no separate instrument field here.</p>
+        <div style="display:flex; justify-content:flex-end; margin-bottom:14px;">
+          <button id="newSheetMusicBtn" style="background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:8px 16px; cursor:pointer;">+ Add Sheet Music</button>
+        </div>
+        <table>
+          <thead><tr><th>Title</th><th>File</th><th></th></tr></thead>
+          <tbody id="sheetMusicTableBody"></tbody>
+        </table>
       </section>
 
       <section class="panel" id="panel-content">
@@ -359,6 +369,7 @@
           <select id="resourceKind" style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
             <option value="chord_book">Chord Book</option>
             <option value="midi_track">MIDI Track</option>
+            <option value="sheet_music">Sheet Music</option>
           </select>
         </div>
         <div style="margin-bottom:14px;">
@@ -656,42 +667,58 @@
       } catch (err) { alert(err.message); }
     });
 
-    // ── Resources CMS ──
+    // ── Resources CMS (Chord Books, MIDI, Sheet Music) ──
     let allResources = [];
+    const KIND_LABELS = { chord_book: 'Chord Book', midi_track: 'MIDI Track', sheet_music: 'Sheet Music' };
     async function loadResources() {
       try {
         const data = await adminFetch('/api/admin/resources');
         allResources = data.resources;
+
+        const chordAndMidi = allResources.filter(r => r.kind !== 'sheet_music');
         const body = document.getElementById('resourcesTableBody');
-        body.innerHTML = allResources.length ? allResources.map(r => `
+        body.innerHTML = chordAndMidi.length ? chordAndMidi.map(r => `
           <tr>
-            <td>${r.kind === 'chord_book' ? 'Chord Book' : 'MIDI Track'}</td>
+            <td>${KIND_LABELS[r.kind] || r.kind}</td>
             <td>${r.title}</td>
             <td>${r.file_url ? 'Set' : '<span style="color:var(--text-muted);">Not set</span>'}</td>
             <td class="row-actions"><button onclick="editResource('${r.id}')">Edit</button></td>
           </tr>`).join('') : '<tr><td colspan="4" class="empty-state">No resources yet.</td></tr>';
+
+        const sheetMusic = allResources.filter(r => r.kind === 'sheet_music');
+        const smBody = document.getElementById('sheetMusicTableBody');
+        smBody.innerHTML = sheetMusic.length ? sheetMusic.map(r => `
+          <tr>
+            <td>${r.title}</td>
+            <td>${r.file_url ? 'Set' : '<span style="color:var(--text-muted);">Not set</span>'}</td>
+            <td class="row-actions"><button onclick="editResource('${r.id}')">Edit</button></td>
+          </tr>`).join('') : '<tr><td colspan="3" class="empty-state">No sheet music uploaded yet.</td></tr>';
       } catch (err) { console.error(err); }
     }
 
-    document.getElementById('newResourceBtn').addEventListener('click', () => {
-      document.getElementById('resourceModalTitle').textContent = 'Add Resource';
+    function openNewResourceModal(defaultKind) {
+      document.getElementById('resourceModalTitle').textContent = defaultKind === 'sheet_music' ? 'Add Sheet Music' : 'Add Resource';
       document.getElementById('resourceId').value = '';
-      document.getElementById('resourceKind').value = 'chord_book';
+      document.getElementById('resourceKind').value = defaultKind;
       document.getElementById('resourceTitle').value = '';
+      document.getElementById('resourceTitle').placeholder = defaultKind === 'sheet_music' ? 'e.g. Vihuela — Etude No. 1' : '';
       document.getElementById('resourceFileUrl').value = '';
       document.getElementById('resourceDeleteBtn').style.display = 'none';
       document.getElementById('resourceUploadStatus').style.display = 'none';
       document.getElementById('resourceFileInput').value = '';
       document.getElementById('resourceModal').classList.add('open');
-    });
+    }
+    document.getElementById('newResourceBtn').addEventListener('click', () => openNewResourceModal('chord_book'));
+    document.getElementById('newSheetMusicBtn').addEventListener('click', () => openNewResourceModal('sheet_music'));
 
     window.editResource = function(id) {
       const r = allResources.find(x => x.id === id);
       if (!r) return;
-      document.getElementById('resourceModalTitle').textContent = 'Edit Resource';
+      document.getElementById('resourceModalTitle').textContent = r.kind === 'sheet_music' ? 'Edit Sheet Music' : 'Edit Resource';
       document.getElementById('resourceId').value = r.id;
       document.getElementById('resourceKind').value = r.kind;
       document.getElementById('resourceTitle').value = r.title;
+      document.getElementById('resourceTitle').placeholder = '';
       document.getElementById('resourceFileUrl').value = r.file_url || '';
       document.getElementById('resourceDeleteBtn').style.display = 'inline-block';
       document.getElementById('resourceUploadStatus').style.display = 'none';

@@ -360,7 +360,7 @@
   <div class="shell">
     <nav class="sidebar" id="sidebar">
       <div class="sidebar-toggle"><button id="collapseBtn">«</button></div>
-      <div class="nav-item active" data-view="announcements" data-icon="bell"><span class="ic icon-wrap"></span><span class="lbl">Announcements</span></div>
+      <div class="nav-item active" id="navAnnouncements" data-view="announcements" data-icon="bell"><span class="ic icon-wrap"></span><span class="lbl">Announcements</span></div>
       <div class="nav-item" data-view="library" data-icon="library"><span class="ic icon-wrap"></span><span class="lbl">Course Library</span></div>
       <div class="nav-item" data-view="resources" data-icon="book"><span class="ic icon-wrap"></span><span class="lbl">Chord Books &amp; MIDI</span></div>
       <div class="nav-group-label">Connect</div>
@@ -398,6 +398,8 @@
       <section class="view" id="view-resources">
         <h1>Chord Books &amp; MIDI Tracks</h1>
         <p class="subhead">Reference material for every instrument.</p>
+        <p class="row-label">Sheet Music</p>
+        <div id="sheetMusicList"><p class="empty-state">Coming soon.</p></div>
         <p class="row-label">Chord Books</p>
         <div id="chordBooksList"><p class="empty-state">Coming soon.</p></div>
         <p class="row-label">MIDI Tracks</p>
@@ -698,7 +700,7 @@ function showRestrictedMessage() {
 }
 
 function switchView(key) {
-  if (isClassroomAccount && key === 'community') { showRestrictedMessage(); return; }
+  if (isClassroomAccount && (key === 'community' || key === 'announcements')) { showRestrictedMessage(); return; }
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-item[data-view]').forEach(n => n.classList.remove('active'));
   const el = document.getElementById(`view-${key}`);
@@ -796,6 +798,10 @@ Promise.all([apiGet('/api/library'), siteContentPromise]).then(([data]) => {
 
   const cb = data.resources.chordBooks || [];
   const midi = data.resources.midiTracks || [];
+  const sheetMusic = data.resources.sheetMusic || [];
+  document.getElementById('sheetMusicList').innerHTML = sheetMusic.length
+    ? sheetMusic.map(r => `<div class="resource-row"><span>${r.title}</span>${r.fileUrl ? `<a href="${r.fileUrl}" target="_blank">Open ↗</a>` : '<span style="color:var(--text-muted);font-size:0.8rem;">Coming soon</span>'}</div>`).join('')
+    : '<p class="empty-state">Coming soon.</p>';
   document.getElementById('chordBooksList').innerHTML = cb.length
     ? cb.map(r => `<div class="resource-row"><span>${r.title}</span>${r.fileUrl ? `<a href="${r.fileUrl}" target="_blank">Open ↗</a>` : '<span style="color:var(--text-muted);font-size:0.8rem;">Coming soon</span>'}</div>`).join('')
     : '<p class="empty-state">Coming soon.</p>';
@@ -1081,12 +1087,20 @@ apiGet('/api/profile').then(data => {
   document.getElementById('avatarBtn').textContent = (p?.name || data.email || 'A').charAt(0).toUpperCase();
 
   if (isClassroomAccount) {
-    ['navCommunity', 'navCredits'].forEach(id => {
+    ['navCommunity', 'navCredits', 'navAnnouncements'].forEach(id => {
       const el = document.getElementById(id);
       el.style.opacity = '0.4';
       el.style.cursor = 'not-allowed';
       el.title = 'Only available in the individual student version of the course';
     });
+    // Announcements is the default landing view — move a classroom account
+    // off it and onto Course Library instead, since it's restricted here.
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.nav-item[data-view]').forEach(n => n.classList.remove('active'));
+    document.getElementById('view-library').classList.add('active');
+    document.getElementById('navAnnouncements').classList.remove('active');
+    const libraryNav = document.querySelector('.nav-item[data-view="library"]');
+    if (libraryNav) libraryNav.classList.add('active');
   }
 
   if (!p) return;

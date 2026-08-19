@@ -240,7 +240,7 @@ export default async function handler(req, res) {
     }
     if (req.method === 'POST') {
       const { kind, title, fileUrl, sortOrder } = req.body || {};
-      if (!['chord_book', 'midi_track'].includes(kind)) return res.status(400).json({ error: 'Invalid kind.' });
+      if (!['chord_book', 'midi_track', 'sheet_music'].includes(kind)) return res.status(400).json({ error: 'Invalid kind.' });
       if (!title) return res.status(400).json({ error: 'Title is required.' });
       const { data, error } = await supabase.from('resources').insert({ kind, title, file_url: fileUrl || null, sort_order: sortOrder || 0 }).select().single();
       if (error) { console.error(error); return res.status(500).json({ error: 'Could not create resource.' }); }

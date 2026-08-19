@@ -109,6 +109,7 @@ export default async function handler(req, res) {
     const resources = {
       chordBooks: resourceRows.filter(r => r.kind === 'chord_book').map(r => ({ id: r.id, title: r.title, fileUrl: r.file_url })),
       midiTracks: resourceRows.filter(r => r.kind === 'midi_track').map(r => ({ id: r.id, title: r.title, fileUrl: r.file_url })),
+      sheetMusic: resourceRows.filter(r => r.kind === 'sheet_music').map(r => ({ id: r.id, title: r.title, fileUrl: r.file_url })),
     };
     return res.status(200).json({ instruments, resources });
   }
