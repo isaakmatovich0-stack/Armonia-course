@@ -134,6 +134,8 @@
   .row-label:first-child { margin-top: 0; }
   .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 16px; }
   .card { background: var(--charcoal-3); border: 1px solid var(--border-gold); cursor: pointer; transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s; overflow: hidden; }
+  .card.not-ready { cursor: default; }
+  .card.not-ready:hover { transform: none; box-shadow: none; }
   .card:hover { transform: translateY(-4px); border-color: var(--gold); box-shadow: 0 10px 26px rgba(0,0,0,0.4); }
   .card-thumb { aspect-ratio: 16/9; background: var(--charcoal-4); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 1.5rem; position: relative; overflow: hidden; }
   .card-thumb.ready::after { content: '▶'; position: absolute; color: var(--gold-light); font-size: 1.4rem; }
@@ -144,16 +146,6 @@
   .status-pill.pending { color: var(--text-muted); border-color: var(--text-muted); }
   .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--gold-light); font-size: 0.85rem; cursor: pointer; margin-bottom: 18px; transition: gap 0.2s; }
   .back-link:hover { gap: 10px; }
-
-  .player-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.78); z-index: 60; align-items: center; justify-content: center; padding: 24px; }
-  .player-overlay.open { display: flex; }
-  .player-box { background: var(--charcoal-2); border: 1px solid var(--border-gold); max-width: 800px; width: 100%; animation: modalIn 0.28s ease; user-select: none; -webkit-user-select: none; }
-  .player-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border-gold); }
-  .player-header h3 { font-family: var(--font-serif); font-size: 1.2rem; color: var(--gold-light); }
-  .player-media { aspect-ratio: 16/9; background: var(--charcoal-4); }
-  .player-media iframe, .player-media video { width: 100%; height: 100%; border: none; }
-  .player-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); font-size: 0.9rem; text-align: center; padding: 20px; }
-  .player-desc { padding: 16px 20px; font-size: 0.88rem; color: var(--text-muted); line-height: 1.6; }
 
   .announcement { background: var(--charcoal-3); border: 1px solid var(--border-gold); padding: 18px 20px; margin-bottom: 14px; transition: border-color 0.2s, transform 0.2s; }
   .announcement:hover { border-color: var(--gold); transform: translateX(3px); }
@@ -510,14 +502,6 @@
     </main>
   </div>
 
-  <div class="player-overlay" id="playerOverlay">
-    <div class="player-box" id="playerBox">
-      <div class="player-header"><h3 id="playerTitle"></h3><button class="icon-btn player-close" id="playerClose" data-icon="close"><span class="icon-wrap"></span></button></div>
-      <div class="player-media" id="playerMedia"></div>
-      <div class="player-desc" id="playerDesc"></div>
-    </div>
-  </div>
-
   <div class="modal-overlay" id="profileModal">
     <div class="profile-modal-box">
       <div class="profile-modal-banner">
@@ -723,28 +707,11 @@ document.getElementById('navCreditsLink').addEventListener('click', (e) => {
   if (isClassroomAccount) { e.preventDefault(); showRestrictedMessage(); }
 });
 
-function mediaFor(item) {
-  if (item.soundsliceId) return `<iframe src="https://www.soundslice.com/slices/${item.soundsliceId}/embed/" allowfullscreen oncontextmenu="return false;"></iframe>`;
-  if (item.videoUrl) return `<video controls controlsList="nodownload noremoteplayback" disablePictureInPicture oncontextmenu="return false;" ondragstart="return false;" src="${item.videoUrl}"></video>`;
-  return `<div class="player-empty">This lesson isn't posted yet — check back soon.</div>`;
-}
-
-
-function openPlayer(title, media, desc) {
-  document.getElementById('playerTitle').textContent = title;
-  document.getElementById('playerMedia').innerHTML = media;
-  document.getElementById('playerDesc').textContent = desc || '';
-  document.getElementById('playerOverlay').classList.add('open');
-}
-document.getElementById('playerClose').addEventListener('click', () => {
-  document.getElementById('playerOverlay').classList.remove('open');
-  document.getElementById('playerMedia').innerHTML = '';
-});
 function cardHtml(item, kind) {
   const ready = !!(item.soundsliceId || item.videoUrl);
   const coverStyle = item.coverImageUrl ? `style="background-image:url('${item.coverImageUrl}'); background-size:cover; background-position:center;"` : '';
   return `
-    <div class="card" data-title="${item.title}" data-soundslice="${item.soundsliceId || ''}" data-video="${item.videoUrl || ''}" data-desc="${(item.description || '').replace(/"/g,'&quot;')}">
+    <div class="card ${ready ? '' : 'not-ready'}" data-id="${item.id || ''}">
       <div class="card-thumb ${ready ? 'ready' : ''}" ${coverStyle}>${(ready || item.coverImageUrl) ? '' : '♪'}</div>
       <div class="card-body">
         <div class="card-title">${item.title}</div>
@@ -755,8 +722,8 @@ function cardHtml(item, kind) {
 }
 document.addEventListener('click', (e) => {
   const card = e.target.closest('.card');
-  if (!card) return;
-  openPlayer(card.dataset.title, mediaFor({ soundsliceId: card.dataset.soundslice, videoUrl: card.dataset.video }), card.dataset.desc);
+  if (!card || card.classList.contains('not-ready') || !card.dataset.id) return;
+  window.location.href = `/course/lesson.html?id=${encodeURIComponent(card.dataset.id)}`;
 });
 
 const INSTRUMENT_COLORS = {

@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Armonía Connect</title>
+<link rel="icon" href="/armonia-connect-logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold: #C9A84C; --gold-light: #E8C97A; --gold-bright: #F4D98A; --cream: #F2EBD9;
+    --charcoal: #0E0D0B; --charcoal-2: #141310; --charcoal-3: #1C1A16; --charcoal-4: #242019; --charcoal-5: #2E2A20;
+    --text-muted: #8A8275; --border-gold: rgba(201,168,76,0.28); --border-gold-strong: rgba(201,168,76,0.55); --red-accent: #9B2424;
+    --font-display: 'Playfair Display', Georgia, serif;
+    --font-serif: 'Cormorant Garamond', Georgia, serif;
+    --font-sans: 'Inter', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--charcoal); color: var(--cream); font-family: var(--font-sans); min-height: 100vh; }
+
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 28px; border-bottom: 1px solid var(--border-gold); background: var(--charcoal-2);
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand img { width: 34px; height: 34px; }
+  .brand-text .l1 { font-family: var(--font-display); font-size: 1.05rem; color: var(--gold-light); line-height: 1.1; }
+  .brand-text .l2 { font-family: var(--font-sans); font-size: 0.6rem; letter-spacing: 2px; color: var(--text-muted); }
+  .back-link {
+    display: flex; align-items: center; gap: 8px; color: var(--gold-light); text-decoration: none;
+    font-size: 0.85rem; font-family: var(--font-sans); font-weight: 500; transition: gap 0.2s;
+  }
+  .back-link:hover { gap: 11px; }
+
+  .layout { display: flex; align-items: flex-start; max-width: 1500px; margin: 0 auto; }
+  .main-col { flex: 1; min-width: 0; padding: 28px; }
+  .sidebar-col {
+    width: 340px; flex-shrink: 0; border-left: 1px solid var(--border-gold);
+    background: var(--charcoal-2); min-height: calc(100vh - 63px); padding: 20px 0;
+  }
+  @media (max-width: 980px) {
+    .layout { flex-direction: column; }
+    .sidebar-col { width: 100%; border-left: none; border-top: 1px solid var(--border-gold); min-height: 0; }
+  }
+
+  .breadcrumb { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 14px; }
+  .breadcrumb a { color: var(--gold-light); text-decoration: none; }
+  .breadcrumb a:hover { text-decoration: underline; }
+
+  .lesson-title { font-family: var(--font-display); font-size: 1.7rem; color: var(--cream); margin-bottom: 4px; }
+  .lesson-kind { font-size: 0.75rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gold); margin-bottom: 18px; }
+
+  .player-frame {
+    aspect-ratio: 16/9; background: var(--charcoal-4); border: 1px solid var(--border-gold);
+    margin-bottom: 20px; position: relative;
+  }
+  .player-frame iframe, .player-frame video { width: 100%; height: 100%; border: none; display: block; }
+  .player-empty {
+    display: flex; align-items: center; justify-content: center; height: 100%;
+    color: var(--text-muted); font-size: 0.9rem; text-align: center; padding: 20px;
+  }
+
+  .lesson-desc { font-family: var(--font-serif); font-size: 1.08rem; line-height: 1.8; color: var(--cream); max-width: 760px; }
+  .lesson-desc:empty { display: none; }
+
+  .sb-heading { font-size: 0.7rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); padding: 0 20px 14px; }
+  .sb-item {
+    display: flex; align-items: center; gap: 14px; padding: 13px 20px; text-decoration: none; color: inherit;
+    border-left: 3px solid transparent; transition: background 0.15s, border-color 0.15s;
+  }
+  .sb-item:hover { background: rgba(201,168,76,0.06); }
+  .sb-item.active { background: rgba(201,168,76,0.1); border-left-color: var(--gold); }
+  .sb-item.disabled { opacity: 0.45; cursor: default; pointer-events: none; }
+  .sb-num {
+    width: 30px; height: 30px; flex-shrink: 0; border-radius: 50%; background: var(--charcoal-4);
+    border: 1px solid var(--border-gold); display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-serif); font-size: 0.92rem; color: var(--gold-light);
+  }
+  .sb-item.active .sb-num { background: var(--gold); color: var(--charcoal); border-color: var(--gold); }
+  .sb-text { min-width: 0; }
+  .sb-item-title { font-size: 0.9rem; font-weight: 500; color: var(--cream); line-height: 1.3; }
+  .sb-item.active .sb-item-title { color: var(--gold-light); }
+  .sb-item-kind { font-size: 0.72rem; color: var(--text-muted); text-transform: capitalize; }
+
+  .kicked-banner {
+    display: none; position: fixed; top: 0; left: 0; right: 0; background: var(--red-accent);
+    color: #fff; padding: 12px 20px; text-align: center; font-size: 0.85rem; z-index: 200;
+  }
+  .kicked-banner.show { display: block; }
+</style>
+</head>
+<body>
+
+  <div class="kicked-banner" id="kickedBanner">Your session ended because this code was used to log in somewhere else. <a href="/course/" style="color:#fff; text-decoration:underline;">Log in again</a></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <img src="/armonia-connect-logo.png" alt="Armonía Connect">
+      <div class="brand-text"><div class="l1">Armonía Connect</div><div class="l2">ALL-STATE ETUDE STUDIES</div></div>
+    </div>
+    <a class="back-link" href="/course/dashboard.html">← Back to Course Library</a>
+  </header>
+
+  <div class="layout">
+    <div class="main-col">
+      <p class="breadcrumb" id="breadcrumb"></p>
+      <h1 class="lesson-title" id="lessonTitle">Loading…</h1>
+      <p class="lesson-kind" id="lessonKind"></p>
+      <div class="player-frame" id="playerFrame"></div>
+      <p class="lesson-desc" id="lessonDesc"></p>
+    </div>
+    <div class="sidebar-col">
+      <p class="sb-heading" id="sbHeading">Lessons</p>
+      <div id="sbList"></div>
+    </div>
+  </div>
+
+<script>
+const token = localStorage.getItem('armonia_session');
+if (!token) window.location.href = '/course/';
+const authHeaders = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+
+function showKicked() {
+  localStorage.removeItem('armonia_session');
+  document.getElementById('kickedBanner').classList.add('show');
+}
+async function safeJson(res) {
+  try { return await res.json(); }
+  catch (err) { throw new Error('Something went wrong. Please try again.'); }
+}
+async function apiGet(url) {
+  const res = await fetch(url, { headers: authHeaders });
+  const data = await safeJson(res);
+  if (res.status === 401 && data.kicked) { showKicked(); throw new Error('kicked'); }
+  if (!res.ok) throw new Error(data.error || 'Request failed.');
+  return data;
+}
+
+const INSTRUMENT_NAMES = { vihuela: 'Vihuela', guitarra: 'Guitarra', 'guitarra-de-golpe': 'Guitarra de Golpe', guitarron: 'Guitarrón' };
+
+// Soundslice embed, tuned to match this site:
+// - dark=1: real dark-mode notation (light notes on dark bg) instead of the
+//   default neutral-but-still-light embed, so it actually fits a charcoal page
+// - branding=2: moves "Powered by Soundslice" out of the control bar into a
+//   small overlay on the notation, keeping the control bar compact
+// - top_controls=1: controls sit above the notation, pairs well with branding=2
+// - defer=1: don't preload audio until the student actually presses play —
+//   this page can have several embeds' worth of state in one sitting via the
+//   sidebar, so this avoids loading audio for lessons nobody's opened yet
+// - u=<access code>: reports unique users explicitly and accurately (no PII)
+//   instead of Soundslice's default IP-based counting, which both over- and
+//   under-counts (e.g. a whole classroom on one wifi connection)
+function mediaFor(item, accessCode) {
+  if (item.soundsliceId) {
+    const params = new URLSearchParams({
+      u: accessCode || 'anonymous',
+      dark: '1',
+      branding: '2',
+      top_controls: '1',
+      defer: '1',
+    });
+    return `<iframe src="https://www.soundslice.com/slices/${item.soundsliceId}/embed/?${params.toString()}" allowfullscreen oncontextmenu="return false;"></iframe>`;
+  }
+  if (item.videoUrl) return `<video controls controlsList="nodownload noremoteplayback" disablePictureInPicture oncontextmenu="return false;" ondragstart="return false;" src="${item.videoUrl}"></video>`;
+  return `<div class="player-empty">This lesson isn't posted yet — check back soon.</div>`;
+}
+
+function buildOrderedList(inst) {
+  const list = [];
+  inst.etudes.forEach(e => list.push({ ...e, kind: 'Etude' }));
+  if (inst.practiceTechnique) list.push({ ...inst.practiceTechnique, kind: 'Practice Technique' });
+  if (inst.etudesInFifths) inst.etudesInFifths.forEach(e => list.push({ ...e, kind: 'Etude in Fifths' }));
+  inst.performanceTracks.forEach(t => list.push({ ...t, kind: 'Performance Track' }));
+  return list;
+}
+
+(async function init() {
+  const params = new URLSearchParams(window.location.search);
+  const lessonId = params.get('id');
+  if (!lessonId) { window.location.href = '/course/dashboard.html'; return; }
+
+  try {
+    const [libData, profileData] = await Promise.all([apiGet('/api/library'), apiGet('/api/profile')]);
+    const accessCode = profileData.code;
+
+    let foundInst = null;
+    let foundItem = null;
+    for (const inst of libData.instruments) {
+      const list = buildOrderedList(inst);
+      const match = list.find(l => l.id === lessonId);
+      if (match) { foundInst = inst; foundItem = match; break; }
+    }
+
+    if (!foundInst || !foundItem) {
+      document.getElementById('lessonTitle').textContent = 'Lesson not found';
+      document.getElementById('lessonKind').textContent = '';
+      document.getElementById('playerFrame').innerHTML = '<div class="player-empty">This lesson may have been removed or renamed. Head back to Course Library to find it.</div>';
+      return;
+    }
+
+    document.title = `${foundItem.title} — Armonía Connect`;
+    document.getElementById('breadcrumb').innerHTML = `<a href="/course/dashboard.html">Course Library</a> / ${INSTRUMENT_NAMES[foundInst.key] || foundInst.name}`;
+    document.getElementById('lessonTitle').textContent = foundItem.title;
+    document.getElementById('lessonKind').textContent = foundItem.kind;
+    document.getElementById('playerFrame').innerHTML = mediaFor(foundItem, accessCode);
+    document.getElementById('lessonDesc').textContent = foundItem.description || '';
+    document.getElementById('sbHeading').textContent = `${INSTRUMENT_NAMES[foundInst.key] || foundInst.name} Lessons`;
+
+    const orderedList = buildOrderedList(foundInst);
+    document.getElementById('sbList').innerHTML = orderedList.map((item, i) => {
+      const ready = !!(item.soundsliceId || item.videoUrl);
+      const isActive = item.id === lessonId;
+      const tag = ready ? 'a' : 'div';
+      const href = ready ? `href="/course/lesson.html?id=${encodeURIComponent(item.id)}"` : '';
+      return `
+        <${tag} class="sb-item ${isActive ? 'active' : ''} ${ready ? '' : 'disabled'}" ${href}>
+          <div class="sb-num">${i + 1}</div>
+          <div class="sb-text">
+            <div class="sb-item-title">${item.title}</div>
+            <div class="sb-item-kind">${item.kind}${ready ? '' : ' — Coming Soon'}</div>
+          </div>
+        </${tag}>`;
+    }).join('');
+  } catch (err) {
+    if (err.message !== 'kicked') {
+      document.getElementById('lessonTitle').textContent = 'Something went wrong';
+      document.getElementById('playerFrame').innerHTML = '<div class="player-empty">Could not load this lesson. Please try again.</div>';
+      console.error(err);
+    }
+  }
+})();
+
+setInterval(() => { apiGet('/api/session-check').catch(() => {}); }, 15000);
+</script>
+</body>
+</html>
