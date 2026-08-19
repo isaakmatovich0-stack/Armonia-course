@@ -34,10 +34,10 @@
     <h1 data-content-key="credits.title">Thank You</h1>
     <p class="subhead" data-content-key="credits.subtitle">A word from Isaak, and everyone who made Armonía Connect possible.</p>
 
-    <div class="video-placeholder">
+    <div class="video-placeholder" id="creditsVideoBlock">
       <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="5" width="18" height="14" rx="1.5"/><path d="M8 5v14M16 5v14M3 10h5M16 10h5M3 15h5M16 15h5"/></svg>
       <p>Closing thank-you video goes here</p>
-      <span>Replace this block with your video embed (e.g. a Vimeo or direct video URL) once it's recorded — ask Claude to wire it in when you're ready.</span>
+      <span>This will be replaced automatically once a video is added in the admin panel.</span>
     </div>
 
     <div class="body-text" data-content-key="credits.body">
@@ -46,17 +46,23 @@
     </div>
 
     <p class="row-label">Credits</p>
-    <div class="credits-row"><span class="credits-role">Instruction &amp; Course Content</span><span class="credits-name">Isaak Matovich</span></div>
-    <div class="credits-row"><span class="credits-role">Photography</span><span class="credits-name">bynicolephotography</span></div>
-    <div class="credits-row"><span class="credits-role">Platform Design &amp; Development</span><span class="credits-name">Armonía Connect</span></div>
+    <div class="credits-row"><span class="credits-role" data-content-key="credits.row1_role">Instruction &amp; Course Content</span><span class="credits-name" data-content-key="credits.row1_name">Isaak Matovich</span></div>
+    <div class="credits-row"><span class="credits-role" data-content-key="credits.row2_role">Photography</span><span class="credits-name" data-content-key="credits.row2_name">bynicolephotography</span></div>
+    <div class="credits-row"><span class="credits-role" data-content-key="credits.row3_role">Platform Design &amp; Development</span><span class="credits-name" data-content-key="credits.row3_name">Armonía Connect</span></div>
   </div>
 
   <script>
     fetch('/api/site-content').then(r => r.json()).then(data => {
+      const content = data.content || {};
       document.querySelectorAll('[data-content-key]').forEach(el => {
-        const val = data.content && data.content[el.dataset.contentKey];
+        const val = content[el.dataset.contentKey];
         if (val) el.textContent = val;
       });
+      const videoUrl = content['credits.video_url'];
+      if (videoUrl) {
+        const block = document.getElementById('creditsVideoBlock');
+        block.outerHTML = `<video controls style="width:100%; aspect-ratio:16/9; background:#000; margin-bottom:32px; border:1px solid var(--border-gold);" controlsList="nodownload" src="${videoUrl}"></video>`;
+      }
     }).catch(() => {});
   </script>
 </body>

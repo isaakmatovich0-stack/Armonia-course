@@ -148,10 +148,11 @@
         </div>
         <table>
           <thead>
-            <tr><th>Instrument</th><th>Section</th><th>Title</th><th>Media</th><th></th></tr>
+            <tr><th>Instrument</th><th>Section</th><th>Title</th><th>Media</th><th>Cover</th><th></th></tr>
           </thead>
           <tbody id="lessonsTableBody"></tbody>
         </table>
+        <input type="file" id="inlineCoverInput" accept="image/png, image/jpeg, image/webp" style="display:none;">
 
         <h2 style="font-family:var(--font-display); font-size:1.2rem; margin:36px 0 16px;">Resources (Chord Books &amp; MIDI)</h2>
         <div style="display:flex; justify-content:flex-end; margin-bottom:14px;">
@@ -574,17 +575,40 @@
       const filter = document.getElementById('lessonInstrumentFilter').value;
       const rows = filter ? allLessons.filter(l => l.instrument_key === filter) : allLessons;
       const body = document.getElementById('lessonsTableBody');
-      if (!rows.length) { body.innerHTML = '<tr><td colspan="5" class="empty-state">No lessons yet — add your first one.</td></tr>'; return; }
+      if (!rows.length) { body.innerHTML = '<tr><td colspan="6" class="empty-state">No lessons yet — add your first one.</td></tr>'; return; }
       body.innerHTML = rows.map(l => `
         <tr>
           <td>${l.instrument_key}</td>
           <td>${SECTION_LABELS[l.section] || l.section}</td>
           <td>${l.title}</td>
           <td>${l.soundslice_id ? 'Soundslice' : (l.video_url ? 'Video' : '<span style="color:var(--text-muted);">Not set</span>')}</td>
+          <td>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <div style="width:52px; height:30px; background:var(--charcoal-3); border:1px solid var(--border-gold); background-size:cover; background-position:center; flex-shrink:0; ${l.cover_image_url ? `background-image:url('${l.cover_image_url}');` : ''}"></div>
+              <button onclick="inlineCoverUpload('${l.id}')" style="background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:5px 10px; font-size:0.72rem; cursor:pointer;">${l.cover_image_url ? 'Change' : 'Upload'}</button>
+            </div>
+          </td>
           <td class="row-actions"><button onclick="editLesson('${l.id}')">Edit</button></td>
         </tr>`).join('');
     }
     document.getElementById('lessonInstrumentFilter').addEventListener('change', renderLessonsTable);
+
+    let inlineCoverTargetId = null;
+    window.inlineCoverUpload = function(lessonId) {
+      inlineCoverTargetId = lessonId;
+      document.getElementById('inlineCoverInput').click();
+    };
+    document.getElementById('inlineCoverInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      e.target.value = '';
+      if (!file || !inlineCoverTargetId) return;
+      try {
+        const { dataUrl, contentType } = await resizeImageFile(file, 500, 0.82);
+        const uploadData = await adminFetch('/api/admin/upload-image', { method: 'POST', body: JSON.stringify({ imageBase64: dataUrl, contentType }) });
+        await adminFetch(`/api/admin/lessons?id=${inlineCoverTargetId}`, { method: 'PATCH', body: JSON.stringify({ coverImageUrl: uploadData.url }) });
+        loadLessons();
+      } catch (err) { alert(err.message); }
+    });
 
     function openLessonModal() { document.getElementById('lessonModal').classList.add('open'); }
     let currentLessonCoverUrl = null;
@@ -790,7 +814,14 @@
       { key: 'announcements.subtitle', label: 'Announcements — Subtitle', default: 'The latest updates from Isaak.' },
       { key: 'credits.title', label: 'Thank You Page — Title', default: 'Thank You' },
       { key: 'credits.subtitle', label: 'Thank You Page — Subtitle', default: 'A word from Isaak, and everyone who made Armonía Connect possible.' },
+      { key: 'credits.video_url', label: 'Thank You Page — Video URL (direct .mp4 link, e.g. from Supabase Storage)', default: '' },
       { key: 'credits.body', label: 'Thank You Page — Message', default: "To every student who trusted me with their preparation this season — thank you." },
+      { key: 'credits.row1_role', label: 'Credits — Row 1 Role', default: 'Instruction & Course Content' },
+      { key: 'credits.row1_name', label: 'Credits — Row 1 Name', default: 'Isaak Matovich' },
+      { key: 'credits.row2_role', label: 'Credits — Row 2 Role', default: 'Photography' },
+      { key: 'credits.row2_name', label: 'Credits — Row 2 Name', default: 'bynicolephotography' },
+      { key: 'credits.row3_role', label: 'Credits — Row 3 Role', default: 'Platform Design & Development' },
+      { key: 'credits.row3_name', label: 'Credits — Row 3 Name', default: 'Armonía Connect' },
       { key: 'maestro.name', label: 'Your Name (shown in Community)', default: 'Isaak Matovich' },
       { key: 'maestro.bio', label: 'Your Bio (shown in Community)', default: 'Founder of Armonía Connect. TMEA All-State clinician and mariachi director.' },
     ];
