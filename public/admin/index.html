@@ -41,12 +41,27 @@
   .tabs { display: flex; gap: 4px; padding: 0 24px; border-bottom: 1px solid var(--border-gold); background: var(--charcoal-2); }
   .tab { padding: 12px 18px; font-size: 0.87rem; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; }
   .tab.active { color: var(--gold-light); border-bottom-color: var(--gold); }
+  .tab-badge { display: inline-block; background: var(--red-accent); color: #fff; font-size: 0.68rem; font-weight: 700; padding: 1px 6px; border-radius: 10px; margin-left: 4px; vertical-align: 2px; }
   main { padding: 28px 24px; max-width: 1100px; margin: 0 auto; }
   .panel { display: none; }
   .panel.active { display: block; }
 
+  .inbox-row { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-bottom: 1px solid var(--border-gold); cursor: pointer; transition: background 0.15s; }
+  .inbox-row:hover { background: rgba(201,168,76,0.05); }
+  .inbox-row.unread { background: rgba(201,168,76,0.06); }
+  .inbox-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--charcoal-4); border: 1px solid var(--border-gold); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); color: var(--gold-light); }
+  .inbox-body { flex: 1; min-width: 0; }
+  .inbox-name { font-size: 0.9rem; color: var(--cream); }
+  .inbox-row.unread .inbox-name { font-weight: 700; color: var(--gold-light); }
+  .inbox-preview { font-size: 0.82rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 480px; }
+  .inbox-row.unread .inbox-preview { color: var(--cream); }
+  .inbox-meta { flex-shrink: 0; text-align: right; font-size: 0.72rem; color: var(--text-muted); }
+  .inbox-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); flex-shrink: 0; margin-top: 4px; }
+
   .stf-btn { background: var(--charcoal-3); border: 1px solid var(--border-gold); color: var(--text-muted); padding: 8px 16px; font-size: 0.8rem; cursor: pointer; }
   .stf-btn.active { background: var(--gold); color: var(--charcoal); border-color: var(--gold); font-weight: 600; }
+  .msg-filter-btn { background: var(--charcoal-3); border: 1px solid var(--border-gold); color: var(--text-muted); padding: 8px 16px; font-size: 0.8rem; cursor: pointer; }
+  .msg-filter-btn.active { background: var(--gold); color: var(--charcoal); border-color: var(--gold); font-weight: 600; }
   .type-badge { font-size: 0.68rem; padding: 3px 8px; letter-spacing: 0.05em; text-transform: uppercase; border: 1px solid var(--border-gold); }
   .type-badge.classroom { color: var(--gold-light); border-color: var(--gold); }
   .type-badge.student { color: var(--text-muted); }
@@ -105,6 +120,7 @@
     </header>
     <div class="tabs">
       <div class="tab active" data-panel="students">Students</div>
+      <div class="tab" data-panel="messages">Messages <span id="messagesTabBadge" class="tab-badge" style="display:none;"></span></div>
       <div class="tab" data-panel="lessons">Lessons</div>
       <div class="tab" data-panel="content">Site Text</div>
       <div class="tab" data-panel="devices">Device Requests</div>
@@ -129,6 +145,31 @@
           </thead>
           <tbody id="studentsTableBody"></tbody>
         </table>
+
+        <div id="archiveSection" style="margin-top:24px; display:none;">
+          <button type="button" id="archiveToggle" style="background:transparent; border:none; color:var(--text-muted); font-size:0.82rem; cursor:pointer; padding:8px 0; text-align:left;">▸ Terminated / Archived (0)</button>
+          <div id="archiveTableWrap" style="display:none;">
+            <p style="font-size:0.78rem; color:var(--text-muted); margin-bottom:12px;">Terminated codes are hidden from the main list to keep it clean, but nothing is deleted — restore any of these any time.</p>
+            <table>
+              <thead>
+                <tr><th>Student</th><th>Type</th><th>Instrument</th><th>Code</th><th>Logins</th><th>Device</th><th>Status</th><th></th></tr>
+              </thead>
+              <tbody id="archivedTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-messages">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+          <h2 style="font-family:var(--font-display); font-size:1.3rem;">Messages</h2>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="msg-filter-btn active" data-msgfilter="all">All</button>
+            <button type="button" class="msg-filter-btn" data-msgfilter="unread">Unread</button>
+          </div>
+        </div>
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:18px;">Every conversation with a student or classroom account, most recent first. Click any to open and reply.</p>
+        <div id="inboxList" style="border:1px solid var(--border-gold);"></div>
       </section>
 
       <section class="panel" id="panel-lessons">
@@ -560,6 +601,7 @@
         if (tab.dataset.panel === 'account') { loadAccount(); }
         if (tab.dataset.panel === 'community') { loadCommunityMod(); }
         if (tab.dataset.panel === 'auditions') { loadAuditions(); }
+        if (tab.dataset.panel === 'messages') { renderInbox(); }
       });
     });
 
@@ -1051,55 +1093,142 @@
         const data = await adminFetch('/api/admin/overview');
         allStudents = data.students;
         renderStudentsTable();
+        renderInbox();
+        updateMessagesBadge();
       } catch (err) {
         console.error(err);
       }
     }
 
+    // ── Message hub (inbox of every conversation, across all students) ──
+    let inboxFilter = 'all';
+    function timeAgo(iso) {
+      const diffMs = Date.now() - new Date(iso).getTime();
+      const mins = Math.floor(diffMs / 60000);
+      if (mins < 1) return 'just now';
+      if (mins < 60) return `${mins}m ago`;
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return `${hrs}h ago`;
+      const days = Math.floor(hrs / 24);
+      if (days < 7) return `${days}d ago`;
+      return new Date(iso).toLocaleDateString();
+    }
+    function renderInbox() {
+      const host = document.getElementById('inboxList');
+      let conversations = allStudents.filter(s => s.lastMessage);
+      if (inboxFilter === 'unread') conversations = conversations.filter(s => s.unreadCount > 0);
+      conversations.sort((a, b) => new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt));
+
+      if (!conversations.length) {
+        host.innerHTML = `<div class="empty-state" style="padding:40px 20px; text-align:center;">${inboxFilter === 'unread' ? 'No unread messages.' : 'No conversations yet — messages from students will show up here.'}</div>`;
+        return;
+      }
+      host.innerHTML = conversations.map(s => {
+        const isClassroom = s.code_type === 'classroom';
+        const displayName = isClassroom
+          ? (s.profile?.teacher_name || s.profile?.name || s.email)
+          : (s.profile?.name || s.email);
+        const initial = displayName.charAt(0).toUpperCase();
+        const isUnread = s.unreadCount > 0;
+        const prefix = s.lastMessage.sender === 'maestro' ? 'You: ' : '';
+        return `
+          <div class="inbox-row ${isUnread ? 'unread' : ''}" onclick="openChat('${s.code}', '${displayName.replace(/'/g, "\\'")}')">
+            <div class="inbox-avatar">${initial}</div>
+            <div class="inbox-body">
+              <div class="inbox-name">${displayName}${isClassroom ? ' <span class="type-badge classroom" style="margin-left:6px;">Classroom</span>' : ''}</div>
+              <div class="inbox-preview">${prefix}${(s.lastMessage.body || '').replace(/</g,'&lt;')}</div>
+            </div>
+            <div class="inbox-meta">
+              <div>${timeAgo(s.lastMessage.createdAt)}</div>
+              ${isUnread ? `<div style="display:flex; align-items:center; justify-content:flex-end; gap:5px; margin-top:4px;"><span class="inbox-dot"></span> ${s.unreadCount}</div>` : ''}
+            </div>
+          </div>`;
+      }).join('');
+    }
+    document.querySelectorAll('.msg-filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.msg-filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        inboxFilter = btn.dataset.msgfilter;
+        renderInbox();
+      });
+    });
+    function updateMessagesBadge() {
+      const total = allStudents.reduce((sum, s) => sum + (s.unreadCount || 0), 0);
+      const badge = document.getElementById('messagesTabBadge');
+      if (total > 0) {
+        badge.textContent = total >= 4 ? '4+' : String(total);
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    function studentRowHtml(s) {
+      const isClassroom = s.code_type === 'classroom';
+      const displayName = isClassroom
+        ? (s.profile?.teacher_name || s.profile?.name || '(no profile yet)')
+        : (s.profile?.name || '(no profile yet)');
+      const secondCol = isClassroom
+        ? (s.profile?.school_name ? `<strong>${s.profile.school_name}</strong>` : '—')
+        : (s.profile?.instrument || '—') + (s.profile ? `<br><span style="color:var(--text-muted); font-size:0.8rem;">${s.profile.experience_level}, ${s.profile.years_playing}</span>` : '');
+      const deviceCol = isClassroom
+        ? '<span style="color:var(--text-muted); font-size:0.8rem;">Multi-session (classroom)</span>'
+        : (s.bound_device_id
+            ? `<span class="pill" style="border-color:var(--gold); color:var(--gold-light);">Bound</span><br><span style="color:var(--text-muted); font-size:0.72rem;">since ${new Date(s.bound_at).toLocaleDateString()}</span>`
+            : '<span style="color:var(--text-muted); font-size:0.8rem;">Not yet used</span>');
+      return `
+        <tr>
+          <td>
+            <strong>${displayName}</strong><br>
+            <span style="color:var(--text-muted); font-size:0.8rem;">${s.email}</span>
+          </td>
+          <td><span class="type-badge ${isClassroom ? 'classroom' : 'student'}">${isClassroom ? 'Classroom' : 'Student'}</span>${s.source === 'admin' ? '<br><span style="color:var(--text-muted); font-size:0.68rem;">Comp</span>' : ''}</td>
+          <td>${secondCol}</td>
+          <td style="font-family:monospace; font-size:0.8rem;">${s.code}</td>
+          <td>${s.redeemed_count}</td>
+          <td>${deviceCol}</td>
+          <td>
+            ${s.revoked ? '<span class="pill revoked">Terminated</span>' : '<span class="pill">Active</span>'}
+            ${s.unreadCount > 0 ? `<span class="pill unread">${s.unreadCount} new</span>` : ''}
+          </td>
+          <td class="row-actions">
+            <button onclick="openChat('${s.code}', '${displayName.replace(/'/g, "\\'")}')">Message</button>
+            <button onclick="toggleRevoke('${s.code}', ${!s.revoked})">${s.revoked ? 'Restore' : 'Terminate'}</button>
+            ${!isClassroom && s.bound_device_id ? `<button onclick="resetDevice('${s.code}')">Reset Device</button>` : ''}
+          </td>
+        </tr>
+      `;
+    }
+
     function renderStudentsTable() {
       const body = document.getElementById('studentsTableBody');
       const filtered = studentTypeFilter === 'all' ? allStudents : allStudents.filter(s => (s.code_type || 'student') === studentTypeFilter);
-      if (!filtered.length) {
-        body.innerHTML = '<tr><td colspan="8" class="empty-state">No enrollments yet.</td></tr>';
-        return;
+      const active = filtered.filter(s => !s.revoked);
+      const archived = filtered.filter(s => s.revoked);
+
+      body.innerHTML = active.length
+        ? active.map(studentRowHtml).join('')
+        : '<tr><td colspan="8" class="empty-state">No active enrollments.</td></tr>';
+
+      const archiveToggle = document.getElementById('archiveToggle');
+      const archiveBody = document.getElementById('archivedTableBody');
+      const archiveSection = document.getElementById('archiveSection');
+      archiveToggle.textContent = `▸ Terminated / Archived (${archived.length})`;
+      if (!archived.length) {
+        archiveSection.style.display = 'none';
+      } else {
+        archiveSection.style.display = 'block';
+        archiveBody.innerHTML = archived.map(studentRowHtml).join('');
       }
-      body.innerHTML = filtered.map(s => {
-        const isClassroom = s.code_type === 'classroom';
-        const displayName = isClassroom
-          ? (s.profile?.teacher_name || s.profile?.name || '(no profile yet)')
-          : (s.profile?.name || '(no profile yet)');
-        const secondCol = isClassroom
-          ? (s.profile?.school_name ? `<strong>${s.profile.school_name}</strong>` : '—')
-          : (s.profile?.instrument || '—') + (s.profile ? `<br><span style="color:var(--text-muted); font-size:0.8rem;">${s.profile.experience_level}, ${s.profile.years_playing}</span>` : '');
-        const deviceCol = isClassroom
-          ? '<span style="color:var(--text-muted); font-size:0.8rem;">Multi-session (classroom)</span>'
-          : (s.bound_device_id
-              ? `<span class="pill" style="border-color:var(--gold); color:var(--gold-light);">Bound</span><br><span style="color:var(--text-muted); font-size:0.72rem;">since ${new Date(s.bound_at).toLocaleDateString()}</span>`
-              : '<span style="color:var(--text-muted); font-size:0.8rem;">Not yet used</span>');
-        return `
-          <tr>
-            <td>
-              <strong>${displayName}</strong><br>
-              <span style="color:var(--text-muted); font-size:0.8rem;">${s.email}</span>
-            </td>
-            <td><span class="type-badge ${isClassroom ? 'classroom' : 'student'}">${isClassroom ? 'Classroom' : 'Student'}</span>${s.source === 'admin' ? '<br><span style="color:var(--text-muted); font-size:0.68rem;">Comp</span>' : ''}</td>
-            <td>${secondCol}</td>
-            <td style="font-family:monospace; font-size:0.8rem;">${s.code}</td>
-            <td>${s.redeemed_count}</td>
-            <td>${deviceCol}</td>
-            <td>
-              ${s.revoked ? '<span class="pill revoked">Revoked</span>' : '<span class="pill">Active</span>'}
-              ${s.unreadCount > 0 ? `<span class="pill unread">${s.unreadCount} new</span>` : ''}
-            </td>
-            <td class="row-actions">
-              <button onclick="openChat('${s.code}', '${displayName.replace(/'/g, "\\'")}')">Message</button>
-              <button onclick="toggleRevoke('${s.code}', ${!s.revoked})">${s.revoked ? 'Restore' : 'Revoke'}</button>
-              ${!isClassroom && s.bound_device_id ? `<button onclick="resetDevice('${s.code}')">Reset Device</button>` : ''}
-            </td>
-          </tr>
-        `;
-      }).join('');
     }
+    document.getElementById('archiveToggle').addEventListener('click', function() {
+      const wrap = document.getElementById('archiveTableWrap');
+      const open = wrap.style.display === 'block';
+      wrap.style.display = open ? 'none' : 'block';
+      const archivedCount = allStudents.filter(s => s.revoked && (studentTypeFilter === 'all' || (s.code_type || 'student') === studentTypeFilter)).length;
+      this.textContent = `${open ? '▸' : '▾'} Terminated / Archived (${archivedCount})`;
+    });
 
     document.querySelectorAll('.stf-btn').forEach(btn => {
       btn.addEventListener('click', () => {

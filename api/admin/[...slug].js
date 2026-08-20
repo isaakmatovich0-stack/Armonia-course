@@ -161,9 +161,22 @@ export default async function handler(req, res) {
     const { data: unread } = await supabase.from('messages').select('code').eq('sender', 'student').eq('read_by_maestro', false);
     const unreadCounts = {};
     (unread || []).forEach((m) => { unreadCounts[m.code] = (unreadCounts[m.code] || 0) + 1; });
+    // Latest message per conversation, for the admin message hub. Ordering
+    // desc + keeping only the first hit per code gives us "most recent" cheaply
+    // without a separate query per student.
+    const { data: recentMessages } = await supabase.from('messages').select('code, sender, body, created_at').order('created_at', { ascending: false }).limit(500);
+    const lastMessageByCode = {};
+    (recentMessages || []).forEach((m) => { if (!lastMessageByCode[m.code]) lastMessageByCode[m.code] = m; });
     const profileByCode = {};
     (profiles || []).forEach((p) => { profileByCode[p.code] = p; });
-    const students = codes.map((c) => ({ ...c, profile: profileByCode[c.code] || null, unreadCount: unreadCounts[c.code] || 0 }));
+    const students = codes.map((c) => ({
+      ...c,
+      profile: profileByCode[c.code] || null,
+      unreadCount: unreadCounts[c.code] || 0,
+      lastMessage: lastMessageByCode[c.code]
+        ? { body: lastMessageByCode[c.code].body, sender: lastMessageByCode[c.code].sender, createdAt: lastMessageByCode[c.code].created_at }
+        : null,
+    }));
     return res.status(200).json({ students });
   }
 

@@ -143,7 +143,8 @@ export default async function handler(req, res) {
 
   // ── /api/session-check ──
   if (route === 'session-check') {
-    return res.status(200).json({ ok: true, email: session.email });
+    const { count } = await supabase.from('messages').select('id', { count: 'exact', head: true }).eq('code', session.code).eq('sender', 'maestro').eq('read_by_student', false);
+    return res.status(200).json({ ok: true, email: session.email, unreadCount: count || 0 });
   }
 
   // ── /api/upload-photo ──

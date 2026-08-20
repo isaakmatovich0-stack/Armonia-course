@@ -83,6 +83,7 @@
   .inst-icon { display: inline-flex; transition: transform 0.2s ease; cursor: default; }
   .inst-icon:hover { transform: scale(1.35) rotate(-4deg); filter: drop-shadow(0 0 4px rgba(201,168,76,0.5)); }
   .strum-count { position: absolute; bottom: -3px; right: -3px; background: var(--gold); color: var(--charcoal); font-size: 0.62rem; font-weight: 700; min-width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; padding: 0 3px; line-height: 1; border: 2px solid var(--charcoal-2); pointer-events: none; }
+  .msg-badge { position: absolute; top: -3px; right: -3px; background: var(--red-accent); color: #fff; font-size: 0.62rem; font-weight: 700; min-width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; padding: 0 3px; line-height: 1; border: 2px solid var(--charcoal-2); pointer-events: none; }
   @keyframes strumBounce { 0% { transform: scale(1); } 40% { transform: scale(1.3) rotate(-8deg); } 70% { transform: scale(0.95) rotate(4deg); } 100% { transform: scale(1) rotate(0); } }
   #strumBtn.strummed .icon-wrap { animation: strumBounce 0.4s ease; }
   @keyframes strumIdleBreathe { 0%,100% { transform: scale(1); opacity: 0.92; } 50% { transform: scale(1.05); opacity: 1; } }
@@ -297,7 +298,23 @@
     .sidebar { position: fixed; top: 65px; bottom: 0; left: -280px; z-index: 40; transition: left 0.2s; box-shadow: 4px 0 24px rgba(0,0,0,0.4); width: 246px !important; }
     .sidebar.mobile-open { left: 0; }
     main { padding: 22px 16px; }
+    .mobile-menu-btn { display: flex; }
+    .sidebar-toggle { display: none; }
+    .portal-scroll { flex-wrap: wrap; overflow-x: visible; gap: 12px; }
+    .portal-card { flex: 0 0 calc(50% - 6px); height: 210px; }
   }
+  @media (max-width: 480px) {
+    .portal-card { flex: 0 0 100%; height: 190px; }
+  }
+  .mobile-menu-btn {
+    display: none; flex-direction: column; justify-content: center; gap: 4px;
+    width: 34px; height: 34px; background: none; border: none; cursor: pointer; margin-right: 4px;
+  }
+  .mobile-menu-btn span { display: block; width: 20px; height: 2px; background: var(--gold-light); }
+  .sidebar-mobile-overlay {
+    display: none; position: fixed; inset: 0; top: 65px; background: rgba(0,0,0,0.55); z-index: 35;
+  }
+  .sidebar-mobile-overlay.show { display: block; }
 </style>
 </head>
 <body>
@@ -334,6 +351,9 @@
 
   <header class="topbar">
     <div class="brand">
+      <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open menu">
+        <span></span><span></span><span></span>
+      </button>
       <div class="logo-ring-wrap"><img src="/armonia-connect-logo.png" alt="Armonía Connect"></div>
       <div class="brand-text"><div class="l1">Armonía Connect</div><div class="l2">ALL-STATE ETUDE STUDIES</div></div>
     </div>
@@ -344,10 +364,16 @@
         </button>
         <span id="strumCount" class="strum-count">0</span>
       </div>
+      <div class="msg-wrap" title="Messages" style="position:relative;">
+        <button class="icon-btn" id="topMessagesBtn"></button>
+        <span id="topMessagesBadge" class="msg-badge" style="display:none;"></span>
+      </div>
       <button class="icon-btn" id="topCommunityBtn" title="Community"></button>
       <div class="avatar-btn" id="avatarBtn" title="My Profile">A</div>
     </div>
   </header>
+
+  <div class="sidebar-mobile-overlay" id="sidebarMobileOverlay"></div>
 
   <div class="shell">
     <nav class="sidebar" id="sidebar">
@@ -570,6 +596,8 @@ document.querySelectorAll('[data-icon]').forEach(el => {
 });
 document.getElementById('topCommunityBtn').innerHTML = icon('community');
 document.getElementById('topCommunityBtn').addEventListener('click', () => switchView('community'));
+document.getElementById('topMessagesBtn').innerHTML = icon('message');
+document.getElementById('topMessagesBtn').addEventListener('click', () => switchView('messages'));
 
 // A little pointless fun: strum a random string, count how many times you have.
 (function() {
@@ -667,12 +695,38 @@ async function apiPost(url, body, method = 'POST') {
   if (!res.ok) throw new Error(data.error || 'Request failed.');
   return data;
 }
-setInterval(() => { apiGet('/api/session-check').catch(() => {}); }, 15000);
+function updateMessagesBadge(count) {
+  const badge = document.getElementById('topMessagesBadge');
+  if (count > 0) {
+    badge.textContent = count >= 4 ? '4+' : String(count);
+    badge.style.display = 'flex';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+setInterval(() => {
+  apiGet('/api/session-check').then(data => updateMessagesBadge(data.unreadCount || 0)).catch(() => {});
+}, 15000);
+apiGet('/api/session-check').then(data => updateMessagesBadge(data.unreadCount || 0)).catch(() => {});
 
 const sidebar = document.getElementById('sidebar');
 document.getElementById('collapseBtn').addEventListener('click', () => {
   sidebar.classList.toggle('collapsed');
   document.getElementById('collapseBtn').textContent = sidebar.classList.contains('collapsed') ? '»' : '«';
+});
+const sidebarOverlay = document.getElementById('sidebarMobileOverlay');
+function openMobileSidebar() {
+  sidebar.classList.add('mobile-open');
+  sidebarOverlay.classList.add('show');
+}
+function closeMobileSidebar() {
+  sidebar.classList.remove('mobile-open');
+  sidebarOverlay.classList.remove('show');
+}
+document.getElementById('mobileMenuBtn').addEventListener('click', openMobileSidebar);
+sidebarOverlay.addEventListener('click', closeMobileSidebar);
+sidebar.addEventListener('click', (e) => {
+  if (e.target.closest('.nav-item')) closeMobileSidebar();
 });
 document.getElementById('avatarBtn').addEventListener('click', () => switchView('profile'));
 document.getElementById('logoutBtn').addEventListener('click', () => {
@@ -699,7 +753,7 @@ function switchView(key) {
   el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
   const navEl = document.querySelector(`.nav-item[data-view="${key}"]`);
   if (navEl) navEl.classList.add('active');
-  if (key === 'messages') { loadMessages(); loadMockAuditions(); }
+  if (key === 'messages') { loadMessages(); loadMockAuditions(); updateMessagesBadge(0); }
   if (key === 'community') loadCommunity();
 }
 document.querySelectorAll('.nav-item[data-view]').forEach(item => item.addEventListener('click', () => switchView(item.dataset.view)));
