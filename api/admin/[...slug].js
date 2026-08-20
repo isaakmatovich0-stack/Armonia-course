@@ -25,6 +25,8 @@ export const config = {
 
 const VALID_INSTRUMENTS = ['vihuela', 'guitarra', 'guitarra-de-golpe', 'guitarron'];
 const VALID_SECTIONS = ['etude', 'practice_technique', 'performance', 'etude_fifths'];
+const INSTRUMENT_DISPLAY = { vihuela: 'Vihuela', guitarra: 'Guitarra', 'guitarra-de-golpe': 'Guitarra de Golpe', guitarron: 'Guitarrón' };
+const SECTION_DISPLAY = { etude: 'etude', practice_technique: 'practice technique lesson', performance: 'performance track', etude_fifths: 'etude in fifths' };
 
 export default async function handler(req, res) {
   // Derive the route from the URL path (e.g. /api/admin/lessons -> "lessons")
@@ -215,6 +217,13 @@ export default async function handler(req, res) {
       if (!title) return res.status(400).json({ error: 'Title is required.' });
       const { data, error } = await supabase.from('lessons').insert({ instrument_key: instrumentKey, section, title, description: description || null, video_url: videoUrl || null, soundslice_id: soundsliceId || null, sort_order: sortOrder || 0, cover_image_url: coverImageUrl || null }).select().single();
       if (error) { console.error(error); return res.status(500).json({ error: 'Could not create lesson.' }); }
+
+      // Auto-draft a course update. It sits as 'pending' until an admin
+      // reviews and publishes it — students never see it until then.
+      const autoTitle = `New ${SECTION_DISPLAY[section]} added: ${INSTRUMENT_DISPLAY[instrumentKey]}`;
+      const autoBody = `"${title}" was just added to the ${INSTRUMENT_DISPLAY[instrumentKey]} course library.`;
+      await supabase.from('course_updates').insert({ title: autoTitle, body: autoBody, status: 'pending', source: 'auto', related_lesson_id: data.id });
+
       return res.status(200).json({ lesson: data });
     }
     if (req.method === 'PATCH') {
@@ -550,6 +559,45 @@ export default async function handler(req, res) {
       return res.status(200).json({ code, email, codeType: type, emailSent: false });
     }
     return res.status(200).json({ code, email, codeType: type, emailSent: true });
+  }
+
+  // ── /api/admin/course-updates ── (review, edit, publish, or discard drafts) ──
+  if (route === 'course-updates') {
+    if (req.method === 'GET') {
+      const { data, error } = await supabase.from('course_updates').select('*').order('created_at', { ascending: false }).limit(100);
+      if (error) { console.error('Admin course-updates fetch error:', error); return res.status(500).json({ error: 'Could not load updates.' }); }
+      return res.status(200).json({ updates: data });
+    }
+    if (req.method === 'POST') {
+      // Manual update, written directly by admin (not auto-generated from a lesson).
+      const { title, body, publishNow } = req.body || {};
+      if (!title) return res.status(400).json({ error: 'Title is required.' });
+      const insert = { title, body: body || null, source: 'manual', status: publishNow ? 'published' : 'pending' };
+      if (publishNow) insert.published_at = new Date().toISOString();
+      const { data, error } = await supabase.from('course_updates').insert(insert).select().single();
+      if (error) { console.error('Admin course-update create error:', error); return res.status(500).json({ error: 'Could not create update.' }); }
+      return res.status(200).json({ update: data });
+    }
+    if (req.method === 'PATCH') {
+      const id = req.query.id;
+      if (!id) return res.status(400).json({ error: 'id query param required.' });
+      const { title, body, publish } = req.body || {};
+      const update = {};
+      if (title !== undefined) update.title = title;
+      if (body !== undefined) update.body = body;
+      if (publish) { update.status = 'published'; update.published_at = new Date().toISOString(); }
+      const { error } = await supabase.from('course_updates').update(update).eq('id', id);
+      if (error) { console.error('Admin course-update patch error:', error); return res.status(500).json({ error: 'Could not save changes.' }); }
+      return res.status(200).json({ ok: true });
+    }
+    if (req.method === 'DELETE') {
+      const id = req.query.id;
+      if (!id) return res.status(400).json({ error: 'id query param required.' });
+      const { error } = await supabase.from('course_updates').delete().eq('id', id);
+      if (error) { console.error('Admin course-update delete error:', error); return res.status(500).json({ error: 'Could not discard this update.' }); }
+      return res.status(200).json({ ok: true });
+    }
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   return res.status(404).json({ error: 'Not found.' });

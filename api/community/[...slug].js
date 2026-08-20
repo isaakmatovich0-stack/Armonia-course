@@ -141,5 +141,32 @@ export default async function handler(req, res) {
     }
   }
 
+  // ── /api/community/members ── (search, for starting a new DM) ──
+  if (route === 'members') {
+    if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+    const search = (req.query.search || '').trim();
+    if (search.length < 2) return res.status(200).json({ members: [] });
+
+    const { data: profiles, error } = await supabase
+      .from('student_profiles')
+      .select('code, name, photo_url, instrument, public_id')
+      .ilike('name', `%${search}%`)
+      .not('public_id', 'is', null)
+      .limit(20);
+    if (error) { console.error('Member search error:', error); return res.status(500).json({ error: 'Search failed.' }); }
+
+    const candidates = (profiles || []).filter(p => p.code !== session.code && p.name);
+    if (!candidates.length) return res.status(200).json({ members: [] });
+
+    // Exclude revoked accounts from search results.
+    const { data: codeRows } = await supabase.from('access_codes').select('code, revoked').in('code', candidates.map(c => c.code));
+    const revokedSet = new Set((codeRows || []).filter(c => c.revoked).map(c => c.code));
+
+    const members = candidates
+      .filter(p => !revokedSet.has(p.code))
+      .map(p => ({ publicId: p.public_id, name: p.name, photoUrl: p.photo_url, instrument: p.instrument }));
+    return res.status(200).json({ members });
+  }
+
   return res.status(404).json({ error: 'Not found.' });
 }

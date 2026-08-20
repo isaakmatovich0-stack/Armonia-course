@@ -84,11 +84,26 @@
   .inst-icon:hover { transform: scale(1.35) rotate(-4deg); filter: drop-shadow(0 0 4px rgba(201,168,76,0.5)); }
   .strum-count { position: absolute; bottom: -3px; right: -3px; background: var(--gold); color: var(--charcoal); font-size: 0.62rem; font-weight: 700; min-width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; padding: 0 3px; line-height: 1; border: 2px solid var(--charcoal-2); pointer-events: none; }
   .msg-badge { position: absolute; top: -3px; right: -3px; background: var(--red-accent); color: #fff; font-size: 0.62rem; font-weight: 700; min-width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; padding: 0 3px; line-height: 1; border: 2px solid var(--charcoal-2); pointer-events: none; }
-  @keyframes strumBounce { 0% { transform: scale(1); } 40% { transform: scale(1.3) rotate(-8deg); } 70% { transform: scale(0.95) rotate(4deg); } 100% { transform: scale(1) rotate(0); } }
-  #strumBtn.strummed .icon-wrap { animation: strumBounce 0.4s ease; }
-  @keyframes strumIdleBreathe { 0%,100% { transform: scale(1); opacity: 0.92; } 50% { transform: scale(1.05); opacity: 1; } }
-  #strumIcon svg { width: 20px; height: 26px; animation: strumIdleBreathe 3.2s ease-in-out infinite; }
-  #strumIcon .strum-string { transition: opacity 0.15s; }
+  .dropdown-menu { display: none; position: absolute; top: calc(100% + 12px); right: 0; width: 300px; background: var(--charcoal-2); border: 1px solid var(--border-gold); box-shadow: 0 12px 32px rgba(0,0,0,0.5); z-index: 80; }
+  .dropdown-menu.open { display: block; }
+  .dropdown-item { display: block; padding: 12px 18px; font-size: 0.86rem; color: var(--cream); text-decoration: none; transition: background 0.15s; }
+  .dropdown-item:hover { background: rgba(201,168,76,0.08); color: var(--gold-light); }
+  .dropdown-divider { border: none; border-top: 1px solid var(--border-gold); margin: 4px 0; }
+  .dropdown-tabs { display: flex; border-bottom: 1px solid var(--border-gold); }
+  .dropdown-tab { flex: 1; background: none; border: none; color: var(--text-muted); font-size: 0.8rem; padding: 12px; cursor: pointer; border-bottom: 2px solid transparent; }
+  .dropdown-tab.active { color: var(--gold-light); border-bottom-color: var(--gold); }
+  .dropdown-scroll { max-height: 320px; overflow-y: auto; }
+  .dropdown-empty { padding: 24px 18px; text-align: center; color: var(--text-muted); font-size: 0.82rem; }
+  .dropdown-notif-row { display: flex; gap: 10px; padding: 12px 18px; border-bottom: 1px solid rgba(201,168,76,0.08); cursor: pointer; }
+  .dropdown-notif-row:hover { background: rgba(201,168,76,0.05); }
+  .dropdown-notif-row.unread .dnr-title { color: var(--gold-light); font-weight: 700; }
+  .dnr-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--charcoal-4); border: 1px solid var(--border-gold); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); color: var(--gold-light); font-size: 0.8rem; background-size: cover; background-position: center; }
+  .dnr-body { min-width: 0; flex: 1; }
+  .dnr-title { font-size: 0.84rem; color: var(--cream); }
+  .dnr-preview { font-size: 0.76rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dnr-time { font-size: 0.7rem; color: var(--text-muted); flex-shrink: 0; }
+  .dropdown-footer-link { display: block; text-align: center; padding: 12px; font-size: 0.8rem; color: var(--gold-light); text-decoration: none; border-top: 1px solid var(--border-gold); }
+  .dropdown-footer-link:hover { background: rgba(201,168,76,0.06); }
 
   .shell { display: flex; min-height: calc(100vh - 65px); }
 
@@ -216,8 +231,27 @@
   .message-btn:hover { background: var(--gold-light); }
   .message-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  .dm-wrap { max-width: 620px; border: 1px solid var(--border-gold); background: var(--charcoal-3); display: flex; flex-direction: column; height: calc(100vh - 220px); min-height: 360px; flex: 1; }
-  .messages-layout { display: flex; gap: 20px; align-items: flex-start; }
+  .dm-wrap { border: 1px solid var(--border-gold); background: var(--charcoal-3); display: flex; flex-direction: column; height: calc(100vh - 220px); min-height: 360px; flex: 1; min-width: 0; }
+  .messages-layout-v2 { display: flex; gap: 16px; align-items: flex-start; }
+  .conv-col { width: 260px; flex-shrink: 0; border: 1px solid var(--border-gold); background: var(--charcoal-3); height: calc(100vh - 220px); min-height: 360px; display: flex; flex-direction: column; }
+  .new-message-btn { margin: 12px; background: transparent; border: 1px solid var(--border-gold); color: var(--gold-light); padding: 10px; font-size: 0.82rem; cursor: pointer; transition: border-color 0.2s; }
+  .new-message-btn:hover { border-color: var(--gold); }
+  #newMessageSearchWrap { padding: 0 12px 10px; border-bottom: 1px solid var(--border-gold); }
+  #newMessageSearch { width: 100%; background: var(--charcoal-4); border: 1px solid var(--border-gold); color: var(--cream); padding: 9px 11px; font-size: 0.85rem; margin-bottom: 8px; }
+  #newMessageResults { max-height: 220px; overflow-y: auto; }
+  .nm-result { display: flex; align-items: center; gap: 10px; padding: 8px; cursor: pointer; font-size: 0.85rem; }
+  .nm-result:hover { background: rgba(201,168,76,0.08); }
+  .nm-result .conv-avatar { width: 28px; height: 28px; font-size: 0.75rem; }
+  #conversationsList { flex: 1; overflow-y: auto; }
+  .conv-row { display: flex; align-items: center; gap: 10px; padding: 12px; cursor: pointer; border-left: 3px solid transparent; transition: background 0.15s; }
+  .conv-row:hover { background: rgba(201,168,76,0.06); }
+  .conv-row.active { background: rgba(201,168,76,0.1); border-left-color: var(--gold); }
+  .conv-row.unread .conv-name { font-weight: 700; color: var(--gold-light); }
+  .conv-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--charcoal-4); border: 1px solid var(--border-gold); background-size: cover; background-position: center; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); color: var(--gold-light); font-size: 0.9rem; }
+  .conv-body { min-width: 0; flex: 1; }
+  .conv-name { font-size: 0.85rem; color: var(--cream); }
+  .conv-preview { font-size: 0.76rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .conv-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gold); flex-shrink: 0; }
   .mock-audition-panel { width: 260px; flex-shrink: 0; border: 1px solid var(--border-gold); background: var(--charcoal-3); }
   .mock-audition-panel-head { display: flex; align-items: center; gap: 8px; padding: 14px 16px; border-bottom: 1px solid var(--border-gold); font-family: var(--font-serif); font-size: 1.05rem; color: var(--gold-light); }
   .mock-audition-card { padding: 14px 16px; border-bottom: 1px solid rgba(201,168,76,0.12); }
@@ -228,10 +262,15 @@
   .mock-audition-card .ma-enter-btn:hover { background: var(--gold-light); }
   .mock-audition-card .ma-entered { font-size: 0.8rem; color: var(--gold-light); }
   .mock-audition-card .ma-entered a { color: var(--gold-light); }
-  @media (max-width: 860px) {
-    .messages-layout { flex-direction: column; }
-    .mock-audition-panel { width: 100%; }
+  @media (max-width: 980px) {
+    .messages-layout-v2 { flex-direction: column; }
+    .conv-col, .mock-audition-panel { width: 100%; height: auto; max-height: 320px; }
+    .dm-wrap { width: 100%; }
+    .messages-layout-v2.chat-open .conv-col, .messages-layout-v2.chat-open .mock-audition-panel { display: none; }
+    .messages-layout-v2:not(.chat-open) .dm-wrap { display: none; }
+    .dm-back-btn { display: inline-flex !important; }
   }
+  .dm-back-btn { display: none; background: none; border: none; color: var(--gold-light); font-size: 0.85rem; cursor: pointer; margin-right: 4px; align-items: center; }
   .dm-header { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--border-gold); background: var(--charcoal-2); }
   .dm-header .dm-avatar { width: 42px; height: 42px; border-radius: 50%; background: var(--charcoal-4); border: 1px solid var(--border-gold); background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); color: var(--gold-light); position: relative; }
   .dm-header .dm-avatar .status-dot { position: absolute; bottom: -1px; right: -1px; width: 10px; height: 10px; border-radius: 50%; background: #4caf6b; border: 2px solid var(--charcoal-2); animation: glowPulse 2s ease-in-out infinite; }
@@ -249,7 +288,16 @@
   .dm-input-row input:focus { outline: none; border-color: var(--gold); }
   .dm-input-row button { background: none; border: none; color: var(--gold-light); font-weight: 600; cursor: pointer; font-size: 0.88rem; }
 
-  .profile-banner { height: 128px; background: linear-gradient(120deg, var(--charcoal-4), var(--charcoal-3) 60%, rgba(201,168,76,0.2)); border: 1px solid var(--border-gold); border-bottom: none; position: relative; }
+  .profile-banner { height: 128px; background: linear-gradient(120deg, var(--charcoal-4), var(--charcoal-3) 60%, rgba(201,168,76,0.2)); border: 1px solid var(--border-gold); border-bottom: none; position: relative; background-size: cover; background-position: center; }
+  .banner-edit-btn { position: absolute; bottom: 10px; right: 14px; background: rgba(14,13,11,0.7); border: 1px solid var(--border-gold); color: var(--gold-light); padding: 7px 14px; font-size: 0.76rem; cursor: pointer; backdrop-filter: blur(4px); }
+  .banner-edit-btn:hover { background: rgba(14,13,11,0.9); border-color: var(--gold); }
+  .account-settings-block { max-width: 620px; margin: 40px 0 0; padding-top: 32px; border-top: 1px solid var(--border-gold); }
+  .as-heading { font-family: var(--font-serif); font-size: 1.15rem; color: var(--gold-light); margin-bottom: 14px; }
+  .as-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(201,168,76,0.1); gap: 16px; }
+  .as-label { font-size: 0.85rem; color: var(--text-muted); }
+  .as-value { font-size: 0.88rem; color: var(--cream); font-family: monospace; }
+  .as-contact-btn { background: transparent; border: 1px solid var(--border-gold); color: var(--gold-light); padding: 7px 16px; font-size: 0.8rem; text-decoration: none; white-space: nowrap; }
+  .as-contact-btn:hover { border-color: var(--gold); background: rgba(201,168,76,0.06); }
   .profile-head { display: flex; align-items: flex-end; gap: 18px; padding: 0 24px 20px; border: 1px solid var(--border-gold); border-top: none; background: var(--charcoal-3); position: relative; }
   .profile-head-inner { display: flex; align-items: flex-end; gap: 18px; padding-top: 16px; width: 100%; flex-wrap: wrap; }
   .profile-avatar-lg { width: 92px; height: 92px; border-radius: 50%; border: 4px solid var(--charcoal-3); background: var(--charcoal-4); background-size: cover; background-position: center; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 1.6rem; color: var(--gold-light); position: relative; top: -46px; margin-bottom: -46px; z-index: 2; box-shadow: 0 2px 10px rgba(0,0,0,0.35); }
@@ -294,18 +342,6 @@
   .al-progress-track { width:220px; height:3px; background:rgba(201,168,76,0.15); position:relative; overflow:hidden; }
   .al-progress-fill { height:100%; width:0%; background:linear-gradient(90deg, #C9A84C, #E8C97A); transition:width 0.1s linear; }
 
-  @media (max-width: 860px) {
-    .sidebar { position: fixed; top: 65px; bottom: 0; left: -280px; z-index: 40; transition: left 0.2s; box-shadow: 4px 0 24px rgba(0,0,0,0.4); width: 246px !important; }
-    .sidebar.mobile-open { left: 0; }
-    main { padding: 22px 16px; }
-    .mobile-menu-btn { display: flex; }
-    .sidebar-toggle { display: none; }
-    .portal-scroll { flex-wrap: wrap; overflow-x: visible; gap: 12px; }
-    .portal-card { flex: 0 0 calc(50% - 6px); height: 210px; }
-  }
-  @media (max-width: 480px) {
-    .portal-card { flex: 0 0 100%; height: 190px; }
-  }
   .mobile-menu-btn {
     display: none; flex-direction: column; justify-content: center; gap: 4px;
     width: 34px; height: 34px; background: none; border: none; cursor: pointer; margin-right: 4px;
@@ -315,6 +351,19 @@
     display: none; position: fixed; inset: 0; top: 65px; background: rgba(0,0,0,0.55); z-index: 35;
   }
   .sidebar-mobile-overlay.show { display: block; }
+
+  @media (max-width: 860px) {
+    .sidebar { position: fixed; top: 65px; bottom: 0; left: -280px; z-index: 40; transition: left 0.2s; box-shadow: 4px 0 24px rgba(0,0,0,0.4); width: 246px !important; }
+    .sidebar.mobile-open { left: 0; }
+    main { padding: 22px 16px; }
+    .mobile-menu-btn { display: flex !important; }
+    .sidebar-toggle { display: none; }
+    .portal-scroll { flex-wrap: wrap; overflow-x: visible; gap: 12px; }
+    .portal-card { flex: 0 0 calc(50% - 6px); height: 210px; }
+  }
+  @media (max-width: 480px) {
+    .portal-card { flex: 0 0 100%; height: 190px; }
+  }
 </style>
 </head>
 <body>
@@ -350,7 +399,7 @@
   </div>
 
   <header class="topbar">
-    <div class="brand">
+    <div class="brand" id="homeLogoBtn" style="cursor:pointer;">
       <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open menu">
         <span></span><span></span><span></span>
       </button>
@@ -358,18 +407,31 @@
       <div class="brand-text"><div class="l1">Armonía Connect</div><div class="l2">ALL-STATE ETUDE STUDIES</div></div>
     </div>
     <div class="topbar-right">
-      <div class="strum-wrap" title="Strum a string (pointless, but fun)">
-        <button class="icon-btn" id="strumBtn">
-          <span class="icon-wrap" id="strumIcon"></span>
-        </button>
-        <span id="strumCount" class="strum-count">0</span>
+      <div class="notif-wrap" style="position:relative;">
+        <button class="icon-btn" id="notifBtn" title="Notifications"></button>
+        <span id="notifBadge" class="msg-badge" style="display:none;"></span>
+        <div class="dropdown-menu" id="notifDropdown">
+          <div class="dropdown-tabs">
+            <button type="button" class="dropdown-tab active" data-notiftab="messages">Messages</button>
+            <button type="button" class="dropdown-tab" data-notiftab="updates">Updates</button>
+          </div>
+          <div id="notifMessagesList" class="dropdown-scroll"></div>
+          <div id="notifUpdatesList" class="dropdown-scroll" style="display:none;"></div>
+          <a href="/course/updates.html" class="dropdown-footer-link">See all course updates →</a>
+        </div>
       </div>
-      <div class="msg-wrap" title="Messages" style="position:relative;">
-        <button class="icon-btn" id="topMessagesBtn"></button>
-        <span id="topMessagesBadge" class="msg-badge" style="display:none;"></span>
+      <button class="icon-btn" id="homeBtn" title="Home"></button>
+      <div class="profile-wrap" style="position:relative;">
+        <button class="avatar-btn" id="avatarBtn" title="My Profile">A</button>
+        <div class="dropdown-menu" id="profileDropdown" style="right:0; min-width:220px;">
+          <a href="#" class="dropdown-item" id="profileDropdownSettings">Profile / Account Settings</a>
+          <hr class="dropdown-divider">
+          <a href="/privacy.html" target="_blank" class="dropdown-item">Privacy Policy</a>
+          <a href="/terms.html" target="_blank" class="dropdown-item">Terms of Service</a>
+          <hr class="dropdown-divider">
+          <a href="#" class="dropdown-item" id="logoutBtn">Log Out</a>
+        </div>
       </div>
-      <button class="icon-btn" id="topCommunityBtn" title="Community"></button>
-      <div class="avatar-btn" id="avatarBtn" title="My Profile">A</div>
     </div>
   </header>
 
@@ -389,8 +451,6 @@
       <div class="nav-group-label">Legal</div>
       <div class="nav-item"><a href="/course/terms.html" style="color:inherit; text-decoration:none; display:flex; align-items:center; gap:13px; width:100%;"><span class="ic icon-wrap" data-icon="document"></span><span class="lbl">Terms &amp; Conditions</span></a></div>
       <div class="nav-item"><a href="/course/privacy.html" style="color:inherit; text-decoration:none; display:flex; align-items:center; gap:13px; width:100%;"><span class="ic icon-wrap" data-icon="shield"></span><span class="lbl">Privacy Policy</span></a></div>
-      <div class="nav-group-label"></div>
-      <div class="nav-item" id="logoutBtn" data-icon="logout"><span class="ic icon-wrap"></span><span class="lbl">Log out</span></div>
     </nav>
 
     <main>
@@ -450,13 +510,22 @@
       </section>
 
       <section class="view" id="view-messages">
-        <h1>Message the Maestro</h1>
-        <p class="subhead">Questions about a lesson or your progress — Isaak sees these directly.</p>
-        <div class="messages-layout">
+        <h1>Messages</h1>
+        <p class="subhead">The Maestro, plus any student you're preparing alongside.</p>
+        <div class="messages-layout-v2">
+          <div class="conv-col">
+            <button type="button" id="newMessageBtn" class="new-message-btn">+ New Message</button>
+            <div id="newMessageSearchWrap" style="display:none;">
+              <input type="text" id="newMessageSearch" placeholder="Search students by name…" autocomplete="off">
+              <div id="newMessageResults"></div>
+            </div>
+            <div id="conversationsList"></div>
+          </div>
           <div class="dm-wrap">
             <div class="dm-header">
+              <button type="button" class="dm-back-btn" id="dmBackBtn">← Back</button>
               <div class="dm-avatar" id="dmAvatar"><span class="status-dot"></span></div>
-              <div><div class="dm-name" id="dmName">Isaak Matovich</div><div class="dm-status">Usually replies within a day</div></div>
+              <div><div class="dm-name" id="dmName">Isaak Matovich</div><div class="dm-status" id="dmStatus">Usually replies within a day</div></div>
             </div>
             <div class="dm-messages" id="dmMessages"></div>
             <form class="dm-input-row" id="dmForm">
@@ -472,7 +541,10 @@
       </section>
 
       <section class="view" id="view-profile">
-        <div class="profile-banner"></div>
+        <div class="profile-banner" id="profileBanner">
+          <button type="button" class="banner-edit-btn" id="changeBannerBtn">Change Banner</button>
+          <input type="file" id="bannerPhotoInput" accept="image/png, image/jpeg, image/webp" style="display:none;">
+        </div>
         <div class="profile-head">
           <div class="profile-head-inner">
             <div class="profile-avatar-lg" id="profileAvatarLg">A</div>
@@ -524,6 +596,19 @@
             <span class="saved-note" id="savedNote">✓ Saved</span>
           </div>
         </form>
+
+        <div class="account-settings-block">
+          <h3 class="as-heading">Course Access</h3>
+          <div class="as-row"><span class="as-label">Login Email</span><span class="as-value" id="asEmail">—</span></div>
+          <div class="as-row"><span class="as-label">Access Code</span><span class="as-value" id="asCode">—</span></div>
+          <div class="as-row"><span class="as-label">Course</span><span class="as-value">All-State Audition Etudes — 2026–27</span></div>
+
+          <h3 class="as-heading" style="margin-top:28px;">Support</h3>
+          <div class="as-row">
+            <span class="as-label">Questions about your account or the course?</span>
+            <a href="mailto:maestro.armoniaconnect@gmail.com" class="as-contact-btn">Contact</a>
+          </div>
+        </div>
       </section>
     </main>
   </div>
@@ -552,6 +637,8 @@
   </div>
 
 <script>
+window._profileReadyResolve = null;
+window._profileReadyPromise = new Promise(resolve => { window._profileReadyResolve = resolve; });
 const ICONS = {
   bell: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>',
   library: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.2"/><circle cx="12" cy="12" r="2.6"/><path d="M12 2.8v3.4M12 17.8v3.4M21.2 12h-3.4M6.2 12H2.8"/></svg>',
@@ -561,6 +648,7 @@ const ICONS = {
   logout: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 8V5.5A1.5 1.5 0 0 0 12.5 4h-6A1.5 1.5 0 0 0 5 5.5v13A1.5 1.5 0 0 0 6.5 20h6a1.5 1.5 0 0 0 1.5-1.5V16"/><path d="M10 12h11m0 0-3.2-3.2M21 12l-3.2 3.2"/></svg>',
   close: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 5l14 14M19 5 5 19"/></svg>',
   message: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8 8 0 0 1-8.7 8 9 9 0 0 1-2.8-.4L3 21l1.9-4.5A8 8 0 1 1 21 11.5Z"/></svg>',
+  home: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5a1 1 0 0 0 1 1H9.5v-6.5h5V20.5H17.5a1 1 0 0 0 1-1V10"/></svg>',
   send: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7Z"/></svg>',
   heart: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7.5-4.7-10-9.3C.5 8 2.3 4.5 6 4c2-.3 3.7.7 6 3 2.3-2.3 4-3.3 6-3 3.7.5 5.5 4 4 7.7-2.5 4.6-10 9.3-10 9.3Z"/></svg>',
   document: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3.5h7.5L19 8v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"/><path d="M14 3.5V8h4.7"/><path d="M9 13h6M9 16.5h6"/></svg>',
@@ -594,34 +682,85 @@ document.querySelectorAll('[data-icon]').forEach(el => {
     wrap.classList.remove('pop'); void wrap.offsetWidth; wrap.classList.add('pop');
   });
 });
-document.getElementById('topCommunityBtn').innerHTML = icon('community');
-document.getElementById('topCommunityBtn').addEventListener('click', () => switchView('community'));
-document.getElementById('topMessagesBtn').innerHTML = icon('message');
-document.getElementById('topMessagesBtn').addEventListener('click', () => switchView('messages'));
+document.getElementById('homeLogoBtn').addEventListener('click', () => switchView('announcements'));
+document.getElementById('homeBtn').innerHTML = icon('home');
+document.getElementById('homeBtn').addEventListener('click', () => switchView('announcements'));
+document.getElementById('notifBtn').innerHTML = icon('bell');
 
-// A little pointless fun: strum a random string, count how many times you have.
-(function() {
-  const btn = document.getElementById('strumBtn');
-  const strumIcon = document.getElementById('strumIcon');
-  const countEl = document.getElementById('strumCount');
-  strumIcon.innerHTML = icon('strumBig');
-
-  const noteFiles = [1, 2, 3, 4, 5].map(n => `/sounds/vihuela-note-${n}.mp3`);
-  const noteAudios = noteFiles.map(src => { const a = new Audio(src); a.preload = 'auto'; return a; });
-
-  let count = parseInt(localStorage.getItem('armonia_strum_count') || '0', 10);
-  countEl.textContent = count;
-
-  btn.addEventListener('click', () => {
-    const note = noteAudios[Math.floor(Math.random() * noteAudios.length)];
-    note.currentTime = 0;
-    note.play().catch(() => {});
-    count += 1;
-    localStorage.setItem('armonia_strum_count', String(count));
-    countEl.textContent = count;
-    btn.classList.remove('strummed'); void btn.offsetWidth; btn.classList.add('strummed');
+// ── Notification bell dropdown (messages + course updates) ──
+document.getElementById('notifBtn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  document.getElementById('profileDropdown').classList.remove('open');
+  document.getElementById('notifDropdown').classList.toggle('open');
+  loadNotifDropdown();
+});
+document.querySelectorAll('.dropdown-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.dropdown-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('notifMessagesList').style.display = tab.dataset.notiftab === 'messages' ? 'block' : 'none';
+    document.getElementById('notifUpdatesList').style.display = tab.dataset.notiftab === 'updates' ? 'block' : 'none';
+    if (tab.dataset.notiftab === 'updates') markUpdatesSeen();
   });
-})();
+});
+
+async function loadNotifDropdown() {
+  try {
+    const data = await apiGet('/api/conversations');
+    const host = document.getElementById('notifMessagesList');
+    const withMessages = data.conversations.filter(c => c.lastMessage).slice(0, 6);
+    host.innerHTML = withMessages.length ? withMessages.map(c => `
+      <div class="dropdown-notif-row ${c.unreadCount > 0 ? 'unread' : ''}" onclick="document.getElementById('notifDropdown').classList.remove('open'); switchView('messages'); openConversation('${c.id}', '${c.name.replace(/'/g,"\\'")}', ${c.photoUrl ? `'${c.photoUrl}'` : 'null'});">
+        <div class="dnr-avatar" ${c.photoUrl ? `style="background-image:url('${c.photoUrl}');"` : ''}>${c.photoUrl ? '' : c.name.charAt(0)}</div>
+        <div class="dnr-body">
+          <div class="dnr-title">${c.name}</div>
+          <div class="dnr-preview">${c.lastMessage.fromMe ? 'You: ' : ''}${c.lastMessage.body}</div>
+        </div>
+        <div class="dnr-time">${timeAgo(c.lastMessage.createdAt)}</div>
+      </div>`).join('') : '<div class="dropdown-empty">No messages yet.</div>';
+  } catch (err) { if (err.message !== 'kicked') console.error(err); }
+
+  try {
+    const data = await apiGet('/api/course-updates');
+    const host = document.getElementById('notifUpdatesList');
+    host.innerHTML = data.updates.length ? data.updates.slice(0, 6).map(u => `
+      <div class="dropdown-notif-row" onclick="window.location.href='/course/updates.html';">
+        <div class="dnr-avatar">🎵</div>
+        <div class="dnr-body">
+          <div class="dnr-title">${u.title}</div>
+          <div class="dnr-preview">${u.body || ''}</div>
+        </div>
+        <div class="dnr-time">${timeAgo(u.published_at)}</div>
+      </div>`).join('') : '<div class="dropdown-empty">No updates yet.</div>';
+  } catch (err) { console.error(err); }
+}
+function markUpdatesSeen() {
+  apiPost('/api/course-updates', {}).catch(() => {});
+  window._unreadUpdateCount = 0;
+  refreshNotifBadge();
+}
+
+// ── Profile dropdown ──
+document.getElementById('avatarBtn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  document.getElementById('notifDropdown').classList.remove('open');
+  document.getElementById('profileDropdown').classList.toggle('open');
+});
+document.getElementById('profileDropdownSettings').addEventListener('click', (e) => {
+  e.preventDefault();
+  document.getElementById('profileDropdown').classList.remove('open');
+  switchView('profile');
+});
+document.getElementById('logoutBtn').addEventListener('click', (e) => {
+  e.preventDefault();
+  localStorage.removeItem('armonia_session');
+  localStorage.removeItem('armonia_code_type');
+  window.location.href = '/course/';
+});
+document.addEventListener('click', () => {
+  document.getElementById('notifDropdown').classList.remove('open');
+  document.getElementById('profileDropdown').classList.remove('open');
+});
 
 const ARMONIA_FACTS = [
   "The Harp originated as the first bass instrument of the Mariachi ensemble, eventually being replaced by the Guitarrón.",
@@ -648,19 +787,38 @@ const ARMONIA_FACTS = [
   const factEl = document.getElementById('armoniaLoadFact');
   const progressEl = document.getElementById('armoniaLoadProgress');
   if (factEl) factEl.textContent = ARMONIA_FACTS[Math.floor(Math.random() * ARMONIA_FACTS.length)];
-  const duration = 4500;
+
+  // The progress bar animates for a minimum of 1.8s so it doesn't feel like
+  // a flicker on fast connections — but the screen itself only hides once
+  // the actual profile data has loaded (or 8s passes, as a safety net, so a
+  // slow/failed request never leaves someone stuck on this screen forever).
+  // Previously this ran on a flat 4.5s timer regardless of whether real data
+  // had arrived — on a slow mobile connection, that meant the loading screen
+  // could disappear before the page underneath had anything to show.
+  const minDuration = 1800;
+  const maxDuration = 8000;
   const start = Date.now();
   function tick() {
     const elapsed = Date.now() - start;
-    const pct = Math.min(100, (elapsed / duration) * 100);
+    const pct = Math.min(100, (elapsed / minDuration) * 100);
     if (progressEl) progressEl.style.width = pct + '%';
-    if (pct < 100) requestAnimationFrame(tick);
-    else setTimeout(() => {
-      overlay.style.opacity = '0';
-      setTimeout(() => overlay.remove(), 520);
-    }, 100);
+    if (elapsed < minDuration) requestAnimationFrame(tick);
   }
   tick();
+
+  function hide() {
+    if (!overlay || overlay._hidden) return;
+    overlay._hidden = true;
+    overlay.style.opacity = '0';
+    setTimeout(() => overlay.remove(), 520);
+  }
+
+  const minWait = new Promise(resolve => setTimeout(resolve, minDuration));
+  const maxWait = new Promise(resolve => setTimeout(resolve, maxDuration));
+  Promise.race([
+    Promise.all([window._profileReadyPromise, minWait]),
+    maxWait,
+  ]).then(hide);
 })();
 
 const token = localStorage.getItem('armonia_session');
@@ -696,18 +854,28 @@ async function apiPost(url, body, method = 'POST') {
   return data;
 }
 function updateMessagesBadge(count) {
-  const badge = document.getElementById('topMessagesBadge');
-  if (count > 0) {
-    badge.textContent = count >= 4 ? '4+' : String(count);
+  window._unreadMessageCount = count;
+  refreshNotifBadge();
+}
+function refreshNotifBadge() {
+  const total = (window._unreadMessageCount || 0) + (window._unreadUpdateCount || 0);
+  const badge = document.getElementById('notifBadge');
+  if (total > 0) {
+    badge.textContent = total >= 4 ? '4+' : String(total);
     badge.style.display = 'flex';
   } else {
     badge.style.display = 'none';
   }
 }
+function handleSessionCheck(data) {
+  window._unreadMessageCount = data.unreadCount || 0;
+  window._unreadUpdateCount = data.unreadUpdateCount || 0;
+  refreshNotifBadge();
+}
 setInterval(() => {
-  apiGet('/api/session-check').then(data => updateMessagesBadge(data.unreadCount || 0)).catch(() => {});
+  apiGet('/api/session-check').then(handleSessionCheck).catch(() => {});
 }, 15000);
-apiGet('/api/session-check').then(data => updateMessagesBadge(data.unreadCount || 0)).catch(() => {});
+apiGet('/api/session-check').then(handleSessionCheck).catch(() => {});
 
 const sidebar = document.getElementById('sidebar');
 document.getElementById('collapseBtn').addEventListener('click', () => {
@@ -727,11 +895,6 @@ document.getElementById('mobileMenuBtn').addEventListener('click', openMobileSid
 sidebarOverlay.addEventListener('click', closeMobileSidebar);
 sidebar.addEventListener('click', (e) => {
   if (e.target.closest('.nav-item')) closeMobileSidebar();
-});
-document.getElementById('avatarBtn').addEventListener('click', () => switchView('profile'));
-document.getElementById('logoutBtn').addEventListener('click', () => {
-  localStorage.removeItem('armonia_session');
-  window.location.href = '/course/';
 });
 
 let isClassroomAccount = false;
@@ -753,7 +916,17 @@ function switchView(key) {
   el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
   const navEl = document.querySelector(`.nav-item[data-view="${key}"]`);
   if (navEl) navEl.classList.add('active');
-  if (key === 'messages') { loadMessages(); loadMockAuditions(); updateMessagesBadge(0); }
+  if (key === 'messages') {
+    loadConversations();
+    if (!window._messagesOpenedOnce) {
+      window._messagesOpenedOnce = true;
+      const name = SITE_CONTENT['maestro.name'] || 'Isaak Matovich';
+      const photo = SITE_CONTENT['maestro.photo_url'] || null;
+      openConversation('maestro', name, photo);
+    }
+    loadMockAuditions();
+    updateMessagesBadge(0);
+  }
   if (key === 'community') loadCommunity();
 }
 document.querySelectorAll('.nav-item[data-view]').forEach(item => item.addEventListener('click', () => switchView(item.dataset.view)));
@@ -1014,7 +1187,7 @@ function loadMaestroCard() {
   card.innerHTML = `
     <div class="member-avatar-sm" style="${photo ? `background-image:url(${photo});` : ''}">${photo ? '' : name.charAt(0)}</div>
     <div><div class="post-name">${name}</div><div class="post-meta">${bio}</div></div>`;
-  card.onclick = () => switchView('messages');
+  card.onclick = () => { switchView('messages'); openConversation('maestro', name, photo || null); };
 }
 
 function loadCommunity() {
@@ -1054,24 +1227,71 @@ document.getElementById('mockAuditionsList').addEventListener('click', async (e)
   } catch (err) { if (err.message !== 'kicked') alert(err.message); }
 });
 
-async function loadMessages() {
-  const name = SITE_CONTENT['maestro.name'] || 'Isaak Matovich';
-  document.getElementById('dmName').textContent = name;
-  const photo = SITE_CONTENT['maestro.photo_url'];
-  const dmAvatar = document.getElementById('dmAvatar');
-  if (photo) { dmAvatar.style.backgroundImage = `url(${photo})`; dmAvatar.innerHTML = '<span class="status-dot"></span>'; }
-  else { dmAvatar.textContent = name.charAt(0); dmAvatar.innerHTML += '<span class="status-dot"></span>'; }
+let currentConversationId = 'maestro';
+let currentConversationName = 'Isaak Matovich';
 
+async function loadConversations() {
   try {
-    const data = await apiGet('/api/messages');
-    renderMessages(data.messages);
+    const data = await apiGet('/api/conversations');
+    renderConversationsList(data.conversations);
   } catch (err) { if (err.message !== 'kicked') console.error(err); }
-  clearInterval(loadMessages._t);
-  loadMessages._t = setInterval(async () => {
+}
+
+function renderConversationsList(conversations) {
+  const host = document.getElementById('conversationsList');
+  host.innerHTML = conversations.map(c => {
+    const initial = c.name.charAt(0).toUpperCase();
+    const avatarStyle = c.photoUrl ? `style="background-image:url('${c.photoUrl}');"` : '';
+    const preview = c.lastMessage ? `${c.lastMessage.fromMe ? 'You: ' : ''}${c.lastMessage.body}` : 'Say hello 👋';
+    const isActive = c.id === currentConversationId;
+    return `
+      <div class="conv-row ${isActive ? 'active' : ''} ${c.unreadCount > 0 ? 'unread' : ''}" onclick="openConversation('${c.id}', '${c.name.replace(/'/g,"\\'")}', ${c.photoUrl ? `'${c.photoUrl}'` : 'null'})">
+        <div class="conv-avatar" ${avatarStyle}>${c.photoUrl ? '' : initial}</div>
+        <div class="conv-body">
+          <div class="conv-name">${c.name}${c.pinned ? ' <span style="color:var(--text-muted); font-weight:400; font-size:0.72rem;">(Maestro)</span>' : ''}</div>
+          <div class="conv-preview">${preview}</div>
+        </div>
+        ${c.unreadCount > 0 ? '<div class="conv-dot"></div>' : ''}
+      </div>`;
+  }).join('');
+}
+
+function openConversation(id, name, photoUrl) {
+  currentConversationId = id;
+  currentConversationName = name;
+  document.getElementById('dmName').textContent = name;
+  document.getElementById('dmStatus').textContent = id === 'maestro' ? 'Usually replies within a day' : 'Fellow Armonía Connect student';
+  const dmAvatar = document.getElementById('dmAvatar');
+  if (photoUrl) { dmAvatar.style.backgroundImage = `url(${photoUrl})`; dmAvatar.innerHTML = '<span class="status-dot"></span>'; }
+  else { dmAvatar.style.backgroundImage = ''; dmAvatar.textContent = name.charAt(0); dmAvatar.innerHTML += '<span class="status-dot"></span>'; }
+
+  document.getElementById('newMessageSearchWrap').style.display = 'none';
+  document.getElementById('newMessageSearch').value = '';
+  document.querySelector('.messages-layout-v2').classList.add('chat-open');
+  document.querySelectorAll('.conv-row').forEach(r => r.classList.remove('active'));
+
+  renderMessages._lastSignature = null;
+  loadThread();
+  clearInterval(loadThread._t);
+  loadThread._t = setInterval(() => {
     if (!document.getElementById('view-messages').classList.contains('active')) return;
-    try { const data = await apiGet('/api/messages'); renderMessages(data.messages); } catch (err) {}
+    loadThread();
   }, 4000);
 }
+
+async function loadThread() {
+  try {
+    if (currentConversationId === 'maestro') {
+      const data = await apiGet('/api/messages');
+      renderMessages(data.messages.map(m => ({ id: m.id || m.created_at, mine: m.sender === 'student', body: m.body })));
+    } else {
+      const data = await apiGet(`/api/dm?with=${encodeURIComponent(currentConversationId)}`);
+      renderMessages(data.messages.map(m => ({ id: m.id, mine: m.fromMe, body: m.body })));
+    }
+    loadConversations(); // refresh unread dots/previews now that this thread's been marked read
+  } catch (err) { if (err.message !== 'kicked') console.error(err); }
+}
+
 function renderMessages(messages) {
   // Skip the re-render entirely if nothing actually changed — this is what
   // was causing the visible "jitter": every 4-second poll was replacing
@@ -1083,20 +1303,59 @@ function renderMessages(messages) {
 
   const host = document.getElementById('dmMessages');
   host.innerHTML = messages.map(m => `
-    <div class="dm-row ${m.sender === 'student' ? 'mine' : 'theirs'}">
-      ${m.sender === 'maestro' ? '<div class="dm-msg-avatar"></div>' : ''}
+    <div class="dm-row ${m.mine ? 'mine' : 'theirs'}">
+      ${!m.mine ? '<div class="dm-msg-avatar"></div>' : ''}
       <div class="msg"></div>
     </div>`).join('');
   host.querySelectorAll('.msg').forEach((el, i) => { el.textContent = messages[i].body; });
   host.scrollTop = host.scrollHeight;
 }
+
 document.getElementById('dmForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const input = document.getElementById('dmInput');
   const body = input.value.trim();
   if (!body) return;
   input.value = '';
-  try { await apiPost('/api/messages', { body }); loadMessages(); } catch (err) { if (err.message !== 'kicked') alert(err.message); }
+  try {
+    if (currentConversationId === 'maestro') {
+      await apiPost('/api/messages', { body });
+    } else {
+      await apiPost('/api/dm', { to: currentConversationId, body });
+    }
+    loadThread();
+  } catch (err) { if (err.message !== 'kicked') alert(err.message); }
+});
+
+document.getElementById('dmBackBtn').addEventListener('click', () => {
+  document.querySelector('.messages-layout-v2').classList.remove('chat-open');
+  clearInterval(loadThread._t);
+});
+
+// New Message: search students by name (via Community), start or resume a DM.
+document.getElementById('newMessageBtn').addEventListener('click', () => {
+  const wrap = document.getElementById('newMessageSearchWrap');
+  wrap.style.display = wrap.style.display === 'none' ? 'block' : 'none';
+  if (wrap.style.display === 'block') document.getElementById('newMessageSearch').focus();
+});
+let nmSearchTimer = null;
+document.getElementById('newMessageSearch').addEventListener('input', (e) => {
+  clearTimeout(nmSearchTimer);
+  const q = e.target.value.trim();
+  const results = document.getElementById('newMessageResults');
+  if (q.length < 2) { results.innerHTML = ''; return; }
+  nmSearchTimer = setTimeout(async () => {
+    try {
+      const data = await apiGet(`/api/community/members?search=${encodeURIComponent(q)}`);
+      results.innerHTML = data.members.length
+        ? data.members.map(m => `
+            <div class="nm-result" onclick="openConversation('${m.publicId}', '${m.name.replace(/'/g,"\\'")}', ${m.photoUrl ? `'${m.photoUrl}'` : 'null'})">
+              <div class="conv-avatar" ${m.photoUrl ? `style="background-image:url('${m.photoUrl}');"` : ''}>${m.photoUrl ? '' : m.name.charAt(0)}</div>
+              <span>${m.name}</span>
+            </div>`).join('')
+        : '<p class="empty-state" style="padding:10px;">No students found.</p>';
+    } catch (err) { if (err.message !== 'kicked') console.error(err); }
+  }, 300);
 });
 
 document.getElementById('profileModalClose').addEventListener('click', () => document.getElementById('profileModal').classList.remove('open'));
@@ -1108,10 +1367,18 @@ document.getElementById('pmMessageBtn').addEventListener('click', () => {
 let currentPhotoUrl = null;
 let myAccessCode = null;
 apiGet('/api/profile').then(data => {
+  window._profileReadyResolve();
   const p = data.profile;
   myAccessCode = data.code || null;
   isClassroomAccount = data.codeType === 'classroom';
   document.getElementById('avatarBtn').textContent = (p?.name || data.email || 'A').charAt(0).toUpperCase();
+
+  document.getElementById('asEmail').textContent = data.email || '—';
+  if (myAccessCode) {
+    const parts = myAccessCode.split('-');
+    document.getElementById('asCode').textContent = parts.length === 3 ? `${parts[0]}-••••-${parts[2]}` : myAccessCode;
+  }
+  if (p?.banner_url) document.getElementById('profileBanner').style.backgroundImage = `url(${p.banner_url})`;
 
   if (isClassroomAccount) {
     ['navCommunity', 'navCredits', 'navAnnouncements'].forEach(id => {
@@ -1159,7 +1426,7 @@ apiGet('/api/profile').then(data => {
     document.getElementById('avatarBtn').style.backgroundImage = `url(${currentPhotoUrl})`;
     document.getElementById('avatarBtn').textContent = '';
   }
-}).catch(err => { if (err.message !== 'kicked') console.error(err); });
+}).catch(err => { window._profileReadyResolve(); if (err.message !== 'kicked') console.error(err); });
 
 document.getElementById('editProfileBtn').addEventListener('click', () => {
   const form = document.getElementById('profileForm');
@@ -1177,6 +1444,23 @@ document.getElementById('profilePhotoInput').addEventListener('change', async (e
     document.getElementById('profileAvatarLg').style.backgroundImage = `url(${currentPhotoUrl})`;
     document.getElementById('profileAvatarLg').textContent = '';
   } catch (err) { if (err.message !== 'kicked') alert(err.message); }
+});
+document.getElementById('changeBannerBtn').addEventListener('click', () => document.getElementById('bannerPhotoInput').click());
+document.getElementById('bannerPhotoInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const btn = document.getElementById('changeBannerBtn');
+  const originalText = btn.textContent;
+  btn.textContent = 'Uploading…';
+  btn.disabled = true;
+  try {
+    const { dataUrl, contentType } = await resizeImageFile(file, 1400, 0.82);
+    const data = await apiPost('/api/upload-photo', { imageBase64: dataUrl, contentType });
+    await apiPost('/api/profile', { bannerUrl: data.url });
+    document.getElementById('profileBanner').style.backgroundImage = `url(${data.url})`;
+  } catch (err) { if (err.message !== 'kicked') alert(err.message); }
+  btn.textContent = originalText;
+  btn.disabled = false;
 });
 document.getElementById('profileForm').addEventListener('submit', async (e) => {
   e.preventDefault();
