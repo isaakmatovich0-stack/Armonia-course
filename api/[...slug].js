@@ -20,7 +20,7 @@ export const config = {
 const INSTRUMENT_META = [
   { key: 'vihuela', name: 'Vihuela', teacher: 'Isaak Matovich' },
   { key: 'guitarra', name: 'Guitarra', teacher: 'Isaak Matovich' },
-  { key: 'guitarra-de-golpe', name: 'Guitarra de Golpe', teacher: 'Isaak Matovich', hasFifths: true },
+  { key: 'guitarra-de-golpe', name: 'Guitarra de Golpe', teacher: 'Isaak Matovich' },
   { key: 'guitarron', name: 'Guitarrón', teacher: 'Isaak Matovich' },
 ];
 
@@ -111,7 +111,6 @@ export default async function handler(req, res) {
         practiceTechnique: practiceTechniqueRows[0] || { title: `${meta.name} — Practice Techniques`, description: null, videoUrl: null, soundsliceId: null },
         performanceTracks: rowsFor('performance'),
       };
-      if (meta.hasFifths) inst.etudesInFifths = rowsFor('etude_fifths');
       return inst;
     });
     const resources = {

@@ -182,7 +182,6 @@ function buildOrderedList(inst) {
   const list = [];
   inst.etudes.forEach(e => list.push({ ...e, kind: 'Etude' }));
   if (inst.practiceTechnique) list.push({ ...inst.practiceTechnique, kind: 'Practice Technique' });
-  if (inst.etudesInFifths) inst.etudesInFifths.forEach(e => list.push({ ...e, kind: 'Etude in Fifths' }));
   inst.performanceTracks.forEach(t => list.push({ ...t, kind: 'Performance Track' }));
   return list;
 }

@@ -24,9 +24,9 @@ export const config = {
 };
 
 const VALID_INSTRUMENTS = ['vihuela', 'guitarra', 'guitarra-de-golpe', 'guitarron'];
-const VALID_SECTIONS = ['etude', 'practice_technique', 'performance', 'etude_fifths'];
+const VALID_SECTIONS = ['etude', 'practice_technique', 'performance'];
 const INSTRUMENT_DISPLAY = { vihuela: 'Vihuela', guitarra: 'Guitarra', 'guitarra-de-golpe': 'Guitarra de Golpe', guitarron: 'Guitarrón' };
-const SECTION_DISPLAY = { etude: 'etude', practice_technique: 'practice technique lesson', performance: 'performance track', etude_fifths: 'etude in fifths' };
+const SECTION_DISPLAY = { etude: 'etude', practice_technique: 'practice technique lesson', performance: 'performance track' };
 
 export default async function handler(req, res) {
   // Derive the route from the URL path (e.g. /api/admin/lessons -> "lessons")

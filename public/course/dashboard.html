@@ -964,12 +964,11 @@ function openInstrument(inst) {
   document.getElementById('instrumentDetail').style.display = 'block';
   const etudesHtml = inst.etudes.length ? `<div class="card-grid">${inst.etudes.map(e => cardHtml(e,'Etude')).join('')}</div>` : '<p class="empty-state">Etudes coming soon.</p>';
   const perfHtml = inst.performanceTracks.length ? `<div class="card-grid">${inst.performanceTracks.map(t => cardHtml(t,'Performance Track')).join('')}</div>` : '<p class="empty-state">Performance tracks coming soon.</p>';
-  const fifthsHtml = inst.etudesInFifths ? (inst.etudesInFifths.length ? `<p class="row-label">Etudes in Fifths</p><div class="card-grid">${inst.etudesInFifths.map(e => cardHtml(e,'Etude in Fifths')).join('')}</div>` : '<p class="row-label">Etudes in Fifths</p><p class="empty-state">Coming soon.</p>') : '';
   document.getElementById('instrumentDetailBody').innerHTML = `
     <h1>${inst.name}</h1><p class="subhead">Etudes, practice technique, and performance tracks for ${inst.name}.</p>
     <p class="row-label">Etudes</p>${etudesHtml}
     <p class="row-label">Practice Techniques</p><div class="card-grid">${cardHtml(inst.practiceTechnique,'Practice Technique')}</div>
-    ${fifthsHtml}<p class="row-label">Performance Tracks</p>${perfHtml}`;
+    <p class="row-label">Performance Tracks</p>${perfHtml}`;
 }
 document.getElementById('backToLibrary').addEventListener('click', () => {
   document.getElementById('instrumentDetail').style.display = 'none';
