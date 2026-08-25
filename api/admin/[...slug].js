@@ -565,6 +565,26 @@ export default async function handler(req, res) {
     return res.status(200).json({ codes, email, codeType: type, emailSent: true });
   }
 
+  // ── /api/admin/batch-message ── (message every student studying a given instrument) ──
+  if (route === 'batch-message') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    const { instrument, body } = req.body || {};
+    if (!instrument || !body || !body.trim()) return res.status(400).json({ error: 'Instrument and message body are required.' });
+
+    const { data: profiles, error: profileErr } = await supabase.from('student_profiles').select('code').eq('instrument', instrument);
+    if (profileErr) { console.error('Batch message profile lookup error:', profileErr); return res.status(500).json({ error: 'Could not look up students.' }); }
+    if (!profiles || !profiles.length) return res.status(200).json({ sent: 0 });
+
+    const { data: activeCodes } = await supabase.from('access_codes').select('code').in('code', profiles.map(p => p.code)).eq('revoked', false);
+    const codes = (activeCodes || []).map(c => c.code);
+    if (!codes.length) return res.status(200).json({ sent: 0 });
+
+    const { error } = await supabase.from('messages').insert(codes.map(code => ({ code, sender: 'maestro', body: body.trim() })));
+    if (error) { console.error('Batch message insert error:', error); return res.status(500).json({ error: 'Could not send the message.' }); }
+
+    return res.status(200).json({ sent: codes.length });
+  }
+
   // ── /api/admin/course-updates ── (review, edit, publish, or discard drafts) ──
   if (route === 'course-updates') {
     if (req.method === 'GET') {

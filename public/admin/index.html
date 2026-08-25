@@ -138,7 +138,10 @@
             <button type="button" class="stf-btn" data-filter="student">Students</button>
             <button type="button" class="stf-btn" data-filter="classroom">Classrooms</button>
           </div>
-          <button type="button" id="openGenerateCodeBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:9px 18px; font-weight:600; cursor:pointer;">+ Generate Access Code</button>
+          <div style="display:flex; gap:8px;">
+            <button type="button" id="exportCsvBtn" style="background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:9px 18px; cursor:pointer;">Export CSV</button>
+            <button type="button" id="openGenerateCodeBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:9px 18px; font-weight:600; cursor:pointer;">+ Generate Access Code</button>
+          </div>
         </div>
         <table>
           <thead>
@@ -162,9 +165,11 @@
       </section>
 
       <section class="panel" id="panel-messages">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:10px;">
           <h2 style="font-family:var(--font-display); font-size:1.3rem;">Messages</h2>
-          <div style="display:flex; gap:8px;">
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button type="button" id="openBatchMessageBtn" style="background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:8px 16px; font-size:0.82rem; cursor:pointer;">Message by Instrument</button>
+            <div style="width:1px; height:20px; background:var(--border-gold);"></div>
             <button type="button" class="msg-filter-btn active" data-msgfilter="all">All</button>
             <button type="button" class="msg-filter-btn" data-msgfilter="unread">Unread</button>
           </div>
@@ -551,6 +556,41 @@
           <button id="nuPublishBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:9px 18px; font-weight:600; cursor:pointer;">Publish Now</button>
         </div>
         <div id="nuError" style="display:none; margin-top:14px; padding:10px 14px; background:rgba(155,36,36,0.1); border:1px solid var(--red-accent); color:#e8a8a8; font-size:0.82rem;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="batchMessageModal">
+    <div class="modal-box" style="max-width:460px;">
+      <div class="modal-header">
+        <h3>Message by Instrument</h3>
+        <button class="modal-close" id="batchMessageModalClose">✕</button>
+      </div>
+      <div style="padding:20px;" id="batchMessageForm">
+        <div style="margin-bottom:14px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Instrument</label>
+          <select id="bmInstrument" style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
+            <option value="Vihuela">Vihuela</option>
+            <option value="Guitarra">Guitarra</option>
+            <option value="Guitarra de Golpe">Guitarra de Golpe</option>
+            <option value="Guitarrón">Guitarrón</option>
+          </select>
+        </div>
+        <div style="margin-bottom:18px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Message</label>
+          <textarea id="bmBody" rows="4" placeholder="e.g. New Guitarrón backing tracks are up in Chord Books & MIDI." style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px; resize:vertical;"></textarea>
+          <p style="font-size:0.72rem; color:var(--text-muted); margin-top:6px;">Sent as a direct message from you to every active student who selected this instrument during onboarding.</p>
+        </div>
+        <div style="display:flex; justify-content:flex-end;">
+          <button id="bmSendBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:9px 22px; font-weight:600; cursor:pointer;">Send to Instrument</button>
+        </div>
+        <div id="bmError" style="display:none; margin-top:14px; padding:10px 14px; background:rgba(155,36,36,0.1); border:1px solid var(--red-accent); color:#e8a8a8; font-size:0.82rem;"></div>
+      </div>
+      <div style="padding:20px; display:none;" id="batchMessageResult">
+        <p style="font-size:0.9rem; color:var(--gold-light); margin-bottom:18px;" id="bmResultText"></p>
+        <div style="display:flex; justify-content:flex-end;">
+          <button id="bmDoneBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:9px 18px; font-weight:600; cursor:pointer;">Done</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1145,6 +1185,41 @@
       }
     }
 
+    function csvEscape(value) {
+      const s = String(value ?? '');
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    }
+    document.getElementById('exportCsvBtn').addEventListener('click', () => {
+      const filtered = studentTypeFilter === 'all' ? allStudents : allStudents.filter(s => (s.code_type || 'student') === studentTypeFilter);
+      const headers = ['Name', 'Email', 'Type', 'Instrument', 'School', 'Code', 'Redeemed Count', 'Last Login', 'Joined', 'Status', 'Source'];
+      const rows = filtered.map(s => {
+        const isClassroom = s.code_type === 'classroom';
+        return [
+          isClassroom ? (s.profile?.teacher_name || s.profile?.name || '') : (s.profile?.name || ''),
+          s.email,
+          isClassroom ? 'Classroom' : 'Student',
+          s.profile?.instrument || '',
+          s.profile?.school_name || '',
+          s.code,
+          s.redeemed_count,
+          s.last_login_at ? new Date(s.last_login_at).toLocaleString() : '',
+          s.created_at ? new Date(s.created_at).toLocaleDateString() : '',
+          s.revoked ? 'Terminated' : 'Active',
+          s.source === 'admin' ? 'Comp' : 'Purchase',
+        ];
+      });
+      const csv = [headers, ...rows].map(row => row.map(csvEscape).join(',')).join('\r\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `armonia-connect-students-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    });
+
     // ── Message hub (inbox of every conversation, across all students) ──
     let inboxFilter = 'all';
     function timeAgo(iso) {
@@ -1277,6 +1352,45 @@
     }
     document.getElementById('nuSaveDraftBtn').addEventListener('click', () => submitNewUpdate(false));
     document.getElementById('nuPublishBtn').addEventListener('click', () => submitNewUpdate(true));
+
+    // ── Message by Instrument (batch) ──
+    document.getElementById('openBatchMessageBtn').addEventListener('click', () => {
+      document.getElementById('batchMessageModal').classList.add('open');
+      document.getElementById('batchMessageForm').style.display = 'block';
+      document.getElementById('batchMessageResult').style.display = 'none';
+      document.getElementById('bmError').style.display = 'none';
+      document.getElementById('bmBody').value = '';
+    });
+    document.getElementById('batchMessageModalClose').addEventListener('click', () => {
+      document.getElementById('batchMessageModal').classList.remove('open');
+    });
+    document.getElementById('bmSendBtn').addEventListener('click', async () => {
+      const instrument = document.getElementById('bmInstrument').value;
+      const body = document.getElementById('bmBody').value.trim();
+      const errBox = document.getElementById('bmError');
+      errBox.style.display = 'none';
+      if (!body) { errBox.textContent = 'Enter a message.'; errBox.style.display = 'block'; return; }
+      const btn = document.getElementById('bmSendBtn');
+      btn.disabled = true; btn.textContent = 'Sending…';
+      try {
+        const data = await adminFetch('/api/admin/batch-message', { method: 'POST', body: JSON.stringify({ instrument, body }) });
+        document.getElementById('batchMessageForm').style.display = 'none';
+        document.getElementById('batchMessageResult').style.display = 'block';
+        document.getElementById('bmResultText').textContent = data.sent > 0
+          ? `Sent to ${data.sent} ${instrument} student${data.sent === 1 ? '' : 's'}.`
+          : `No active students are currently studying ${instrument}.`;
+        loadStudents();
+      } catch (err) {
+        errBox.textContent = err.message;
+        errBox.style.display = 'block';
+      } finally {
+        btn.disabled = false; btn.textContent = 'Send to Instrument';
+      }
+    });
+    document.getElementById('bmDoneBtn').addEventListener('click', () => {
+      document.getElementById('batchMessageModal').classList.remove('open');
+    });
+
 
     function studentRowHtml(s) {
       const isClassroom = s.code_type === 'classroom';
