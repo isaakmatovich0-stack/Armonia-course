@@ -276,6 +276,25 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, email: session.email, unreadCount: count || 0, unreadUpdateCount: unreadUpdates });
   }
 
+  // ── /api/search ── (lessons + resources, for the topbar search bar) ──
+  if (route === 'search') {
+    if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+    const q = (req.query.q || '').trim();
+    if (q.length < 2) return res.status(200).json({ results: [] });
+
+    const [lessonsRes, resourcesRes] = await Promise.all([
+      supabase.from('lessons').select('id, title, instrument_key, section').ilike('title', `%${q}%`).limit(8),
+      supabase.from('resources').select('id, title, kind').ilike('title', `%${q}%`).limit(8),
+    ]);
+
+    const results = [
+      ...(lessonsRes.data || []).map(l => ({ kind: 'Lesson', title: l.title, url: `/course/lesson.html?id=${l.id}` })),
+      ...(resourcesRes.data || []).map(r => ({ kind: r.kind === 'sheet_music' ? 'Sheet Music' : (r.kind === 'chord_book' ? 'Chord Book' : 'MIDI'), title: r.title, url: `/course/dashboard.html#resources` })),
+    ].slice(0, 10);
+
+    return res.status(200).json({ results });
+  }
+
   // ── /api/course-updates ── (published only, for the bell dropdown + updates page) ──
   if (route === 'course-updates') {
     if (req.method === 'GET') {

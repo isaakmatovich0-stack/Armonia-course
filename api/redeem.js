@@ -37,6 +37,23 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Could not verify this browser. Please refresh the page and try again.' });
   }
 
+  const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket?.remoteAddress;
+  const ipHash = hashIp(ip);
+
+  // ── Rate limiting ──
+  // 4 failed attempts within 15 minutes from the same IP blocks further
+  // tries. Checked before the code lookup so a locked-out IP can't keep
+  // probing for valid codes at all, successful or not.
+  const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+  const { count: recentFailures } = await supabase
+    .from('failed_login_attempts')
+    .select('id', { count: 'exact', head: true })
+    .eq('ip_hash', ipHash)
+    .gt('created_at', fifteenMinAgo);
+  if ((recentFailures || 0) >= 4) {
+    return res.status(429).json({ error: 'Too many failed attempts. Please wait 15 minutes and try again, or contact maestro.armoniaconnect@gmail.com if you need help finding your code.' });
+  }
+
   const { data: record, error } = await supabase
     .from('access_codes')
     .select('code, email, revoked, redeemed_count, bound_device_id, code_type')
@@ -49,16 +66,16 @@ export default async function handler(req, res) {
   }
 
   if (!record) {
+    await supabase.from('failed_login_attempts').insert({ ip_hash: ipHash });
     return res.status(404).json({ error: 'That code was not recognized. Double-check it against your confirmation email.' });
   }
 
   if (record.revoked) {
+    await supabase.from('failed_login_attempts').insert({ ip_hash: ipHash });
     return res.status(403).json({ error: 'This code is no longer active. Contact maestro.armoniaconnect@gmail.com for help.' });
   }
 
   const isClassroom = record.code_type === 'classroom';
-  const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket?.remoteAddress;
-  const ipHash = hashIp(ip);
 
   // ── Device binding check ──
   // Classroom codes are meant for a shared/big-screen setup and explicitly

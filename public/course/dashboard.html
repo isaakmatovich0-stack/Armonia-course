@@ -59,6 +59,33 @@
     position: sticky; top: 0; z-index: 30; backdrop-filter: blur(6px);
   }
   .brand { display: flex; align-items: center; gap: 14px; }
+  .topbar-social { display: flex; align-items: center; gap: 9px; padding-left: 16px; margin-left: 2px; border-left: 1px solid var(--border-gold); flex-shrink: 0; }
+  .topbar-social-icon { color: var(--text-muted); display: flex; transition: color 0.2s; }
+  .topbar-social-icon:hover { color: var(--gold-light); }
+  .topbar-search-wrap { flex: 1; max-width: 380px; margin: 0 24px; position: relative; display: flex; align-items: center; }
+  .topbar-search-icon { position: absolute; left: 12px; width: 14px; height: 14px; opacity: 0.6; pointer-events: none; }
+  .topbar-search-icon::before {
+    content: ''; position: absolute; width: 9px; height: 9px; border: 1.5px solid var(--text-muted); border-radius: 50%;
+  }
+  .topbar-search-icon::after {
+    content: ''; position: absolute; width: 5px; height: 1.5px; background: var(--text-muted); top: 9px; left: 8px; transform: rotate(45deg); transform-origin: left;
+  }
+  .topbar-search-input {
+    width: 100%; background: var(--charcoal); border: 1px solid var(--border-gold); color: var(--cream);
+    padding: 8px 12px 8px 32px; font-size: 0.83rem; font-family: var(--font-sans); border-radius: 6px;
+    transition: border-color 0.2s;
+  }
+  .topbar-search-input::placeholder { color: var(--text-muted); }
+  .topbar-search-input:focus { outline: none; border-color: var(--gold); }
+  .topbar-search-results { top: calc(100% + 8px); left: 0; right: 0; width: auto; }
+  .ts-result { display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; }
+  .ts-result:hover { background: rgba(201,168,76,0.08); }
+  .ts-result-kind { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gold); flex-shrink: 0; width: 70px; }
+  .ts-result-title { font-size: 0.85rem; color: var(--cream); }
+  @media (max-width: 980px) {
+    .topbar-social { display: none; }
+    .topbar-search-wrap { max-width: none; margin: 0 12px; }
+  }
   .logo-ring-wrap { position: relative; width: 42px; height: 42px; }
   .logo-ring-wrap::before {
     content: ''; position: absolute; inset: -5px; border: 1px dashed var(--border-gold-strong);
@@ -363,6 +390,21 @@
   }
   @media (max-width: 480px) {
     .portal-card { flex: 0 0 100%; height: 190px; }
+  }  @media print {
+    .topbar, .sidebar, .mobile-menu-btn, .sidebar-mobile-overlay,
+    .nav-item, .edit-profile-btn, .photo-btn, .banner-edit-btn,
+    .save-btn, .new-message-btn, #newMessageSearchWrap, .conv-col,
+    .mock-audition-panel, .dm-input-row, .status-pill, button {
+      display: none !important;
+    }
+    .shell { display: block; }
+    main { padding: 0; max-width: none; }
+    body { background: #fff; color: #000; }
+    .view { display: none !important; }
+    .view.active { display: block !important; }
+    h1, h2, h3, .row-label { color: #000 !important; }
+    a { color: #000 !important; text-decoration: underline; }
+    .card, .resource-row, .announcement, .update-card { border: 1px solid #999 !important; background: #fff !important; }
   }
 </style>
 </head>
@@ -405,6 +447,15 @@
       </button>
       <div class="logo-ring-wrap"><img src="/armonia-connect-logo.png" alt="Armonía Connect"></div>
       <div class="brand-text"><div class="l1">Armonía Connect</div><div class="l2">ALL-STATE ETUDE STUDIES</div></div>
+    </div>
+    <div class="topbar-social">
+      <a href="https://www.instagram.com/armoniaconnect?igsh=NHdqamoxczVvc2wx&amp;utm_source=qr" target="_blank" rel="noopener noreferrer" class="topbar-social-icon" aria-label="Instagram"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2.5" y="2.5" width="19" height="19" rx="5"/><circle cx="12" cy="12" r="4.5"/><circle cx="17.3" cy="6.7" r="1.1" fill="currentColor" stroke="none"/></svg></a>
+      <a href="#" class="topbar-social-icon" aria-label="YouTube (coming soon)" onclick="return false;" style="cursor:default; opacity:0.45;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="1.5" y="5.5" width="21" height="13" rx="4"/><path d="M10 9.3v5.4l5-2.7-5-2.7Z" fill="currentColor" stroke="none"/></svg></a>
+    </div>
+    <div class="topbar-search-wrap">
+      <span class="topbar-search-icon"></span>
+      <input type="text" id="topbarSearch" class="topbar-search-input" placeholder="Search lessons, resources…" autocomplete="off">
+      <div class="dropdown-menu topbar-search-results" id="topbarSearchResults"></div>
     </div>
     <div class="topbar-right">
       <div class="notif-wrap" style="position:relative;">
@@ -760,6 +811,27 @@ document.getElementById('logoutBtn').addEventListener('click', (e) => {
 document.addEventListener('click', () => {
   document.getElementById('notifDropdown').classList.remove('open');
   document.getElementById('profileDropdown').classList.remove('open');
+  document.getElementById('topbarSearchResults').classList.remove('open');
+});
+
+// ── Topbar search ──
+let searchTimer = null;
+const searchInput = document.getElementById('topbarSearch');
+const searchResults = document.getElementById('topbarSearchResults');
+searchInput.addEventListener('click', (e) => e.stopPropagation());
+searchInput.addEventListener('input', (e) => {
+  clearTimeout(searchTimer);
+  const q = e.target.value.trim();
+  if (q.length < 2) { searchResults.classList.remove('open'); return; }
+  searchTimer = setTimeout(async () => {
+    try {
+      const data = await apiGet(`/api/search?q=${encodeURIComponent(q)}`);
+      searchResults.innerHTML = data.results.length
+        ? data.results.map(r => `<div class="ts-result" onclick="window.location.href='${r.url}'"><span class="ts-result-kind">${r.kind}</span><span class="ts-result-title">${r.title}</span></div>`).join('')
+        : '<div class="dropdown-empty">No matches yet — try a different word.</div>';
+      searchResults.classList.add('open');
+    } catch (err) { if (err.message !== 'kicked') console.error(err); }
+  }, 300);
 });
 
 const ARMONIA_FACTS = [
@@ -898,16 +970,31 @@ sidebar.addEventListener('click', (e) => {
 });
 
 let isClassroomAccount = false;
-function showRestrictedMessage() {
+function showToast(message, type) {
   const el = document.createElement('div');
-  el.textContent = 'This feature is only available in the individual student version of the course.';
-  el.style.cssText = 'position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--gold-light); padding:14px 22px; font-size:0.85rem; z-index:400; max-width:90vw; text-align:center; box-shadow:0 8px 24px rgba(0,0,0,0.4);';
+  el.textContent = message;
+  const accent = type === 'error' ? 'var(--red-accent)' : 'var(--gold)';
+  const textColor = type === 'error' ? '#e8a8a8' : 'var(--gold-light)';
+  el.style.cssText = `position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(10px); background:var(--charcoal-3); border:1px solid ${accent}; color:${textColor}; padding:13px 22px; font-size:0.85rem; z-index:400; max-width:90vw; text-align:center; box-shadow:0 8px 24px rgba(0,0,0,0.4); opacity:0; transition:opacity 0.25s, transform 0.25s;`;
   document.body.appendChild(el);
-  setTimeout(() => el.remove(), 3200);
+  requestAnimationFrame(() => { el.style.opacity = '1'; el.style.transform = 'translateX(-50%) translateY(0)'; });
+  setTimeout(() => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateX(-50%) translateY(10px)';
+    setTimeout(() => el.remove(), 300);
+  }, 2800);
+}
+function showRestrictedMessage() {
+  showToast('This feature is only available in the individual student version of the course.', 'error');
 }
 
 function switchView(key) {
   if (isClassroomAccount && (key === 'community' || key === 'announcements')) { showRestrictedMessage(); return; }
+  const currentActive = document.querySelector('.view.active');
+  if (currentActive && currentActive.id === 'view-profile' && key !== 'profile' && typeof profileFormDirty !== 'undefined' && profileFormDirty) {
+    if (!confirm('You have unsaved changes to your profile. Leave without saving?')) return;
+    profileFormDirty = false;
+  }
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-item[data-view]').forEach(n => n.classList.remove('active'));
   const el = document.getElementById(`view-${key}`);
@@ -1061,7 +1148,7 @@ document.getElementById('communityImageInput').addEventListener('change', async 
     pendingImageUrl = data.url;
     document.getElementById('communityImagePreview').src = pendingImageUrl;
     document.getElementById('communityImagePreviewWrap').style.display = 'block';
-  } catch (err) { if (err.message !== 'kicked') alert(err.message); }
+  } catch (err) { if (err.message !== 'kicked') showToast(err.message, 'error'); }
 });
 document.getElementById('communityImageRemoveBtn').addEventListener('click', () => {
   pendingImageUrl = null;
@@ -1079,7 +1166,7 @@ document.getElementById('communityPostBtn').addEventListener('click', async () =
     document.getElementById('communityImagePreviewWrap').style.display = 'none';
     document.getElementById('communityImageInput').value = '';
     loadCommunityFeed();
-  } catch (err) { if (err.message !== 'kicked') alert(err.message); }
+  } catch (err) { if (err.message !== 'kicked') showToast(err.message, 'error'); }
 });
 
 function timeAgo(iso) {
@@ -1117,7 +1204,7 @@ function renderPost(p) {
       likeBtn.classList.toggle('liked', data.liked);
       likeBtn.querySelector('.like-count').textContent = data.likeCount;
       likeBtn.classList.remove('burst'); void likeBtn.offsetWidth; likeBtn.classList.add('burst');
-    } catch (err) { if (err.message !== 'kicked') alert(err.message); }
+    } catch (err) { if (err.message !== 'kicked') showToast(err.message, 'error'); }
   });
 
   const repliesBox = el.querySelector('.post-replies');
@@ -1162,7 +1249,7 @@ function renderPost(p) {
       input.value = '';
       repliesBox.classList.add('open');
       await loadReplies();
-    } catch (err) { if (err.message !== 'kicked') alert(err.message); }
+    } catch (err) { if (err.message !== 'kicked') showToast(err.message, 'error'); }
   });
 
   return el;
@@ -1223,7 +1310,7 @@ document.getElementById('mockAuditionsList').addEventListener('click', async (e)
   try {
     await apiPost('/api/mock-auditions', { mockAuditionId: id });
     loadMockAuditions();
-  } catch (err) { if (err.message !== 'kicked') alert(err.message); }
+  } catch (err) { if (err.message !== 'kicked') showToast(err.message, 'error'); }
 });
 
 let currentConversationId = 'maestro';
@@ -1323,7 +1410,7 @@ document.getElementById('dmForm').addEventListener('submit', async (e) => {
       await apiPost('/api/dm', { to: currentConversationId, body });
     }
     loadThread();
-  } catch (err) { if (err.message !== 'kicked') alert(err.message); }
+  } catch (err) { if (err.message !== 'kicked') showToast(err.message, 'error'); }
 });
 
 document.getElementById('dmBackBtn').addEventListener('click', () => {
@@ -1442,7 +1529,7 @@ document.getElementById('profilePhotoInput').addEventListener('change', async (e
     currentPhotoUrl = data.url;
     document.getElementById('profileAvatarLg').style.backgroundImage = `url(${currentPhotoUrl})`;
     document.getElementById('profileAvatarLg').textContent = '';
-  } catch (err) { if (err.message !== 'kicked') alert(err.message); }
+  } catch (err) { if (err.message !== 'kicked') showToast(err.message, 'error'); }
 });
 document.getElementById('changeBannerBtn').addEventListener('click', () => document.getElementById('bannerPhotoInput').click());
 document.getElementById('bannerPhotoInput').addEventListener('change', async (e) => {
@@ -1457,10 +1544,16 @@ document.getElementById('bannerPhotoInput').addEventListener('change', async (e)
     const data = await apiPost('/api/upload-photo', { imageBase64: dataUrl, contentType });
     await apiPost('/api/profile', { bannerUrl: data.url });
     document.getElementById('profileBanner').style.backgroundImage = `url(${data.url})`;
-  } catch (err) { if (err.message !== 'kicked') alert(err.message); }
+  } catch (err) { if (err.message !== 'kicked') showToast(err.message, 'error'); }
   btn.textContent = originalText;
   btn.disabled = false;
 });
+let profileFormDirty = false;
+document.getElementById('profileForm').addEventListener('input', () => { profileFormDirty = true; });
+window.addEventListener('beforeunload', (e) => {
+  if (profileFormDirty) { e.preventDefault(); e.returnValue = ''; }
+});
+
 document.getElementById('profileForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   try {
@@ -1477,10 +1570,9 @@ document.getElementById('profileForm').addEventListener('submit', async (e) => {
     document.getElementById('pfDisplayExperience').textContent = document.getElementById('pf-experience').value;
     document.getElementById('pfDisplayYears').textContent = document.getElementById('pf-years').value + ' playing';
     document.getElementById('pfDisplayBio').textContent = document.getElementById('pf-bio').value;
-    const note = document.getElementById('savedNote');
-    note.style.display = 'inline';
-    setTimeout(() => { note.style.display = 'none'; }, 2000);
-  } catch (err) { if (err.message !== 'kicked') alert(err.message); }
+    profileFormDirty = false;
+    showToast('Profile saved');
+  } catch (err) { if (err.message !== 'kicked') showToast(err.message, 'error'); }
 });
 
 document.addEventListener('click', (e) => {
