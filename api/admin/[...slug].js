@@ -14,7 +14,7 @@
 import { requireAdmin } from '../../lib/requireAdmin.js';
 import { supabase } from '../../lib/supabase.js';
 import { hashPassword, verifyPassword } from '../../lib/password.js';
-import { sendAdminVerificationEmail, sendGeneratedCodeEmail } from '../../lib/email.js';
+import { sendAdminVerificationEmail, sendGeneratedCodeEmail, sendGeneratedCodeBatchEmail } from '../../lib/email.js';
 import { generateAccessCode } from '../../lib/generateCode.js';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
@@ -537,28 +537,32 @@ export default async function handler(req, res) {
     const { email, codeType } = req.body || {};
     if (!email || !email.includes('@')) return res.status(400).json({ error: 'A valid email is required.' });
     const type = codeType === 'classroom' ? 'classroom' : 'student';
+    const quantity = Math.min(50, Math.max(1, parseInt(req.body?.quantity, 10) || 1));
 
-    let code = generateAccessCode();
-    // guard against the astronomically unlikely collision
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const { data: existing } = await supabase.from('access_codes').select('code').eq('code', code).maybeSingle();
-      if (!existing) break;
-      code = generateAccessCode();
+    const codes = [];
+    for (let i = 0; i < quantity; i++) {
+      let code = generateAccessCode();
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const { data: existing } = await supabase.from('access_codes').select('code').eq('code', code).maybeSingle();
+        if (!existing) break;
+        code = generateAccessCode();
+      }
+      codes.push(code);
     }
 
-    const { error } = await supabase.from('access_codes').insert({
-      code, email, code_type: type, source: 'admin', revoked: false,
-    });
-    if (error) { console.error('Admin code generation error:', error); return res.status(500).json({ error: 'Could not generate a code. Please try again.' }); }
+    const { error } = await supabase.from('access_codes').insert(
+      codes.map(code => ({ code, email, code_type: type, source: 'admin', revoked: false }))
+    );
+    if (error) { console.error('Admin code generation error:', error); return res.status(500).json({ error: 'Could not generate codes. Please try again.' }); }
 
     try {
-      await sendGeneratedCodeEmail({ to: email, code, codeType: type });
+      if (codes.length === 1) await sendGeneratedCodeEmail({ to: email, code: codes[0], codeType: type });
+      else await sendGeneratedCodeBatchEmail({ to: email, codes, codeType: type });
     } catch (err) {
       console.error('Generated-code email send error:', err);
-      // Code was created successfully even if the email failed — surface both facts.
-      return res.status(200).json({ code, email, codeType: type, emailSent: false });
+      return res.status(200).json({ codes, email, codeType: type, emailSent: false });
     }
-    return res.status(200).json({ code, email, codeType: type, emailSent: true });
+    return res.status(200).json({ codes, email, codeType: type, emailSent: true });
   }
 
   // ── /api/admin/course-updates ── (review, edit, publish, or discard drafts) ──

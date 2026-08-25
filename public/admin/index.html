@@ -509,17 +509,22 @@
           <input type="email" id="gcEmail" placeholder="teacher@school.edu" style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
           <p style="font-size:0.72rem; color:var(--text-muted); margin-top:6px;">The code is emailed automatically, the same way a real purchase confirmation works.</p>
         </div>
+        <div style="margin-bottom:18px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">How many codes?</label>
+          <input type="number" id="gcQuantity" value="1" min="1" max="50" style="width:100px; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
+          <p style="font-size:0.72rem; color:var(--text-muted); margin-top:6px;">For a director requesting codes for multiple students at once — all sent in one email, up to 50 at a time.</p>
+        </div>
         <div style="display:flex; justify-content:flex-end;">
           <button id="gcGenerateBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:9px 22px; font-weight:600; cursor:pointer;">Generate &amp; Send</button>
         </div>
         <div id="gcError" style="display:none; margin-top:14px; padding:10px 14px; background:rgba(155,36,36,0.1); border:1px solid var(--red-accent); color:#e8a8a8; font-size:0.82rem;"></div>
       </div>
       <div style="padding:20px; display:none;" id="generateCodeResult">
-        <p style="font-size:0.78rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">Code Generated</p>
-        <p id="gcResultCode" style="font-family:monospace; font-size:1.3rem; color:var(--gold-light); background:rgba(201,168,76,0.08); border:1px solid var(--border-gold); padding:16px; text-align:center; margin-bottom:14px;"></p>
+        <p style="font-size:0.78rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;" id="gcResultLabel">Code Generated</p>
+        <div id="gcResultCode" style="font-family:monospace; font-size:1.05rem; color:var(--gold-light); background:rgba(201,168,76,0.08); border:1px solid var(--border-gold); padding:16px; margin-bottom:14px; max-height:240px; overflow-y:auto;"></div>
         <p id="gcResultStatus" style="font-size:0.82rem; color:var(--text-muted); margin-bottom:18px;"></p>
         <div style="display:flex; justify-content:flex-end; gap:10px;">
-          <button id="gcCopyBtn" style="background:var(--charcoal-3); color:var(--cream); border:1px solid var(--border-gold); padding:9px 18px; cursor:pointer;">Copy Code</button>
+          <button id="gcCopyBtn" style="background:var(--charcoal-3); color:var(--cream); border:1px solid var(--border-gold); padding:9px 18px; cursor:pointer;">Copy Code(s)</button>
           <button id="gcDoneBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:9px 18px; font-weight:600; cursor:pointer;">Done</button>
         </div>
       </div>
@@ -1360,6 +1365,7 @@
       document.getElementById('generateCodeResult').style.display = 'none';
       document.getElementById('gcError').style.display = 'none';
       document.getElementById('gcEmail').value = '';
+      document.getElementById('gcQuantity').value = '1';
     });
     document.getElementById('generateCodeModalClose').addEventListener('click', () => {
       document.getElementById('generateCodeModal').classList.remove('open');
@@ -1378,19 +1384,21 @@
     });
     document.getElementById('gcGenerateBtn').addEventListener('click', async () => {
       const email = document.getElementById('gcEmail').value.trim();
+      const quantity = Math.min(50, Math.max(1, parseInt(document.getElementById('gcQuantity').value, 10) || 1));
       const errBox = document.getElementById('gcError');
       errBox.style.display = 'none';
       if (!email || !email.includes('@')) { errBox.textContent = 'Enter a valid email address.'; errBox.style.display = 'block'; return; }
       const btn = document.getElementById('gcGenerateBtn');
       btn.disabled = true; btn.textContent = 'Generating…';
       try {
-        const data = await adminFetch('/api/admin/generate-code', { method: 'POST', body: JSON.stringify({ email, codeType: gcSelectedType }) });
+        const data = await adminFetch('/api/admin/generate-code', { method: 'POST', body: JSON.stringify({ email, codeType: gcSelectedType, quantity }) });
         document.getElementById('generateCodeForm').style.display = 'none';
         document.getElementById('generateCodeResult').style.display = 'block';
-        document.getElementById('gcResultCode').textContent = data.code;
+        document.getElementById('gcResultLabel').textContent = data.codes.length > 1 ? `${data.codes.length} Codes Generated` : 'Code Generated';
+        document.getElementById('gcResultCode').innerHTML = data.codes.map(c => `<div style="padding:3px 0;">${c}</div>`).join('');
         document.getElementById('gcResultStatus').textContent = data.emailSent
-          ? `Sent to ${data.email}. It'll also show up in the Students table${data.codeType === 'classroom' ? ' under Classrooms' : ''}.`
-          : `Code created, but the email failed to send — copy it and deliver it manually.`;
+          ? `Sent to ${data.email}. ${data.codes.length > 1 ? "They'll" : "It'll"} also show up in the Students table${data.codeType === 'classroom' ? ' under Classrooms' : ''}.`
+          : `Code${data.codes.length > 1 ? 's' : ''} created, but the email failed to send — copy them and deliver manually.`;
         loadStudents();
       } catch (err) {
         errBox.textContent = err.message;
@@ -1400,7 +1408,7 @@
       }
     });
     document.getElementById('gcCopyBtn').addEventListener('click', () => {
-      navigator.clipboard.writeText(document.getElementById('gcResultCode').textContent);
+      navigator.clipboard.writeText(document.getElementById('gcResultCode').innerText);
       const btn = document.getElementById('gcCopyBtn');
       btn.textContent = 'Copied!';
       setTimeout(() => { btn.textContent = 'Copy Code'; }, 1500);
