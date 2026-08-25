@@ -64,6 +64,12 @@
 
   .lesson-desc { font-family: var(--font-serif); font-size: 1.08rem; line-height: 1.8; color: var(--cream); max-width: 760px; }
   .lesson-desc:empty { display: none; }
+  .complete-btn { flex-shrink: 0; background: transparent; border: 1px solid var(--border-gold); color: var(--gold-light); padding: 9px 18px; font-size: 0.82rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+  .complete-btn:hover { border-color: var(--gold); background: rgba(201,168,76,0.06); }
+  .complete-btn.done { background: var(--gold); color: var(--charcoal); border-color: var(--gold); font-weight: 600; }
+  .sb-check { width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--border-gold); flex-shrink: 0; display: flex; align-items: center; justify-content: center; margin-left: auto; }
+  .sb-check.done { background: var(--gold); border-color: var(--gold); }
+  .sb-check.done::after { content: ''; width: 4px; height: 7px; border-right: 1.5px solid var(--charcoal); border-bottom: 1.5px solid var(--charcoal); transform: rotate(45deg) translate(-1px,-1px); }
 
   .sb-heading { font-size: 0.7rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); padding: 0 20px 14px; }
   .sb-item {
@@ -117,8 +123,13 @@
   <div class="layout">
     <div class="main-col">
       <p class="breadcrumb" id="breadcrumb"></p>
-      <h1 class="lesson-title" id="lessonTitle">Loading…</h1>
-      <p class="lesson-kind" id="lessonKind"></p>
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap;">
+        <div>
+          <h1 class="lesson-title" id="lessonTitle">Loading…</h1>
+          <p class="lesson-kind" id="lessonKind"></p>
+        </div>
+        <button type="button" id="completeBtn" class="complete-btn" style="display:none;">Mark Complete</button>
+      </div>
       <div class="player-frame" id="playerFrame"></div>
       <p class="lesson-desc" id="lessonDesc"></p>
     </div>
@@ -143,6 +154,20 @@ async function safeJson(res) {
 }
 async function apiGet(url) {
   const res = await fetch(url, { headers: authHeaders });
+  const data = await safeJson(res);
+  if (res.status === 401 && data.kicked) { showKicked(); throw new Error('kicked'); }
+  if (!res.ok) throw new Error(data.error || 'Request failed.');
+  return data;
+}
+async function apiPost(url, body) {
+  const res = await fetch(url, { method: 'POST', headers: authHeaders, body: JSON.stringify(body) });
+  const data = await safeJson(res);
+  if (res.status === 401 && data.kicked) { showKicked(); throw new Error('kicked'); }
+  if (!res.ok) throw new Error(data.error || 'Request failed.');
+  return data;
+}
+async function apiDelete(url) {
+  const res = await fetch(url, { method: 'DELETE', headers: authHeaders });
   const data = await safeJson(res);
   if (res.status === 401 && data.kicked) { showKicked(); throw new Error('kicked'); }
   if (!res.ok) throw new Error(data.error || 'Request failed.');
@@ -192,8 +217,9 @@ function buildOrderedList(inst) {
   if (!lessonId) { window.location.href = '/course/dashboard.html'; return; }
 
   try {
-    const [libData, profileData] = await Promise.all([apiGet('/api/library'), apiGet('/api/profile')]);
+    const [libData, profileData, progressData] = await Promise.all([apiGet('/api/library'), apiGet('/api/profile'), apiGet('/api/progress').catch(() => ({ completedLessonIds: [] }))]);
     const accessCode = profileData.code;
+    const completedIds = new Set(progressData.completedLessonIds || []);
 
     let foundInst = null;
     let foundItem = null;
@@ -218,12 +244,34 @@ function buildOrderedList(inst) {
     document.getElementById('lessonDesc').textContent = foundItem.description || '';
     document.getElementById('sbHeading').textContent = `${INSTRUMENT_NAMES[foundInst.key] || foundInst.name} Lessons`;
 
+    const ready = !!(foundItem.soundsliceId || foundItem.videoUrl);
+    if (ready) {
+      const btn = document.getElementById('completeBtn');
+      btn.style.display = 'inline-block';
+      let isDone = completedIds.has(lessonId);
+      const renderBtn = () => { btn.textContent = isDone ? '✓ Completed' : 'Mark Complete'; btn.classList.toggle('done', isDone); };
+      renderBtn();
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        try {
+          if (isDone) await apiDelete(`/api/complete-lesson?lessonId=${lessonId}`);
+          else await apiPost('/api/complete-lesson', { lessonId });
+          isDone = !isDone;
+          renderBtn();
+          const sbCheck = document.getElementById(`sbcheck-${lessonId}`);
+          if (sbCheck) sbCheck.classList.toggle('done', isDone);
+        } catch (err) { if (err.message !== 'kicked') alert(err.message); }
+        btn.disabled = false;
+      });
+    }
+
     const orderedList = buildOrderedList(foundInst);
     document.getElementById('sbList').innerHTML = orderedList.map((item, i) => {
       const ready = !!(item.soundsliceId || item.videoUrl);
       const isActive = item.id === lessonId;
       const tag = ready ? 'a' : 'div';
       const href = ready ? `href="/course/lesson.html?id=${encodeURIComponent(item.id)}"` : '';
+      const isDone = completedIds.has(item.id);
       return `
         <${tag} class="sb-item ${isActive ? 'active' : ''} ${ready ? '' : 'disabled'}" ${href}>
           <div class="sb-num">${i + 1}</div>
@@ -231,6 +279,7 @@ function buildOrderedList(inst) {
             <div class="sb-item-title">${item.title}</div>
             <div class="sb-item-kind">${item.kind}${ready ? '' : ' — Coming Soon'}</div>
           </div>
+          ${ready ? `<div class="sb-check ${isDone ? 'done' : ''}" id="sbcheck-${item.id}"></div>` : ''}
         </${tag}>`;
     }).join('');
   } catch (err) {

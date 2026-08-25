@@ -276,21 +276,94 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, email: session.email, unreadCount: count || 0, unreadUpdateCount: unreadUpdates });
   }
 
+  // ── /api/complete-lesson ── (mark/unmark a lesson complete) ──
+  if (route === 'complete-lesson') {
+    if (req.method === 'POST') {
+      const lessonId = (req.body?.lessonId || '').trim();
+      if (!lessonId) return res.status(400).json({ error: 'lessonId is required.' });
+      const { error } = await supabase.from('lesson_completions').upsert({ code: session.code, lesson_id: lessonId, completed_at: new Date().toISOString() }, { onConflict: 'code,lesson_id' });
+      if (error) { console.error('Complete-lesson error:', error); return res.status(500).json({ error: 'Could not save your progress.' }); }
+      return res.status(200).json({ ok: true });
+    }
+    if (req.method === 'DELETE') {
+      const lessonId = (req.query.lessonId || '').trim();
+      if (!lessonId) return res.status(400).json({ error: 'lessonId is required.' });
+      const { error } = await supabase.from('lesson_completions').delete().eq('code', session.code).eq('lesson_id', lessonId);
+      if (error) { console.error('Uncomplete-lesson error:', error); return res.status(500).json({ error: 'Could not update your progress.' }); }
+      return res.status(200).json({ ok: true });
+    }
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // ── /api/progress ── (completed lesson IDs + current practice streak) ──
+  if (route === 'progress') {
+    if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+    const { data, error } = await supabase.from('lesson_completions').select('lesson_id, completed_at').eq('code', session.code).order('completed_at', { ascending: false });
+    if (error) { console.error('Progress fetch error:', error); return res.status(500).json({ error: 'Could not load progress.' }); }
+
+    const completedLessonIds = (data || []).map(r => r.lesson_id);
+
+    // Streak = consecutive calendar days with at least one completion,
+    // counting backward from today. A gap of a day breaks it. If today has
+    // no completion yet but yesterday does, the streak still counts as
+    // "current" — it just hasn't been extended yet today.
+    const dates = [...new Set((data || []).map(r => new Date(r.completed_at).toISOString().slice(0, 10)))].sort().reverse();
+    let streak = 0;
+    if (dates.length) {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const oneDayMs = 24 * 60 * 60 * 1000;
+      let cursor = new Date(todayStr + 'T00:00:00Z');
+      const hasToday = dates[0] === todayStr;
+      if (!hasToday) cursor = new Date(cursor.getTime() - oneDayMs);
+      for (const d of dates) {
+        const cursorStr = cursor.toISOString().slice(0, 10);
+        if (d === cursorStr) { streak++; cursor = new Date(cursor.getTime() - oneDayMs); }
+        else if (d < cursorStr) break;
+      }
+    }
+
+    return res.status(200).json({ completedLessonIds, streak });
+  }
+
   // ── /api/search ── (lessons + resources, for the topbar search bar) ──
+  // Matches on individual words rather than the whole phrase, so generic
+  // queries like "Vihuela", "lesson 1", or "guitarron lesson" find anything
+  // containing any of those words — ranked by how many words matched, not
+  // just an exact substring of the whole query. Also normalizes accents
+  // (guitarron matches guitarrón) since typing accents on a phone/laptop is
+  // real friction most people won't bother with.
   if (route === 'search') {
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
     const q = (req.query.q || '').trim();
     if (q.length < 2) return res.status(200).json({ results: [] });
 
+    const normalize = (s) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const queryWords = normalize(q).split(/\s+/).filter(w => w.length > 0);
+
+    const INSTRUMENT_NAMES = { vihuela: 'Vihuela', guitarra: 'Guitarra', 'guitarra-de-golpe': 'Guitarra de Golpe', guitarron: 'Guitarrón' };
+    const SECTION_WORDS = { etude: 'etude lesson', practice_technique: 'practice technique lesson', performance: 'performance track lesson' };
+    const KIND_WORDS = { sheet_music: 'sheet music', chord_book: 'chord book', midi_track: 'midi track backing' };
+    const KIND_LABELS = { sheet_music: 'Sheet Music', chord_book: 'Chord Book', midi_track: 'MIDI' };
+
     const [lessonsRes, resourcesRes] = await Promise.all([
-      supabase.from('lessons').select('id, title, instrument_key, section').ilike('title', `%${q}%`).limit(8),
-      supabase.from('resources').select('id, title, kind').ilike('title', `%${q}%`).limit(8),
+      supabase.from('lessons').select('id, title, instrument_key, section'),
+      supabase.from('resources').select('id, title, kind'),
     ]);
 
-    const results = [
-      ...(lessonsRes.data || []).map(l => ({ kind: 'Lesson', title: l.title, url: `/course/lesson.html?id=${l.id}` })),
-      ...(resourcesRes.data || []).map(r => ({ kind: r.kind === 'sheet_music' ? 'Sheet Music' : (r.kind === 'chord_book' ? 'Chord Book' : 'MIDI'), title: r.title, url: `/course/dashboard.html#resources` })),
-    ].slice(0, 10);
+    const scored = [];
+    (lessonsRes.data || []).forEach(l => {
+      const haystack = normalize(`${l.title} ${INSTRUMENT_NAMES[l.instrument_key] || ''} ${SECTION_WORDS[l.section] || 'lesson'}`);
+      const score = queryWords.filter(w => haystack.includes(w)).length;
+      if (score > 0) scored.push({ score, kind: 'Lesson', title: l.title, url: `/course/lesson.html?id=${l.id}` });
+    });
+    (resourcesRes.data || []).forEach(r => {
+      const haystack = normalize(`${r.title} ${KIND_WORDS[r.kind] || ''}`);
+      const score = queryWords.filter(w => haystack.includes(w)).length;
+      if (score > 0) scored.push({ score, kind: KIND_LABELS[r.kind] || r.kind, title: r.title, url: `/course/dashboard.html#resources` });
+    });
+
+    scored.sort((a, b) => b.score - a.score || a.title.localeCompare(b.title));
+    const results = scored.slice(0, 10).map(({ score, ...rest }) => rest);
 
     return res.status(200).json({ results });
   }
