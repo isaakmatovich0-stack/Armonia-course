@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Armonía Admin</title>
-<link rel="icon" id="faviconLink" href="/armonia-connect-logo.png">
+<link rel="icon" id="faviconLink" href="/favicon.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <script>
 fetch('/api/site-content').then(r => r.json()).then(d => {
   const url = d.content && d.content['site.favicon_url'];
@@ -271,6 +272,13 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
           <input type="file" id="faviconFileInput" accept="image/png, image/jpeg, image/webp" style="display:none;">
           <span id="faviconStatus" style="font-size:0.8rem; color:var(--text-muted);"></span>
         </div>
+
+        <h2 style="font-family:var(--font-display); margin:34px 0 8px; font-size:1.3rem;">Thank You &amp; Credits Page</h2>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:18px;">Turn this on to hide the title, video, and thank-you message on that page — leaving just the credits list at the bottom.</p>
+        <label style="display:flex; align-items:center; gap:10px; cursor:pointer; margin-bottom:34px;">
+          <input type="checkbox" id="creditsSimpleModeToggle" style="width:18px; height:18px; accent-color:var(--gold); cursor:pointer;">
+          <span style="font-size:0.9rem; color:var(--cream);">Show only the credits list (hide title, video, and message)</span>
+        </label>
 
         <h2 style="font-family:var(--font-display); margin:34px 0 8px; font-size:1.3rem;">Instrument Cover Images</h2>
         <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:18px;">Replace the colored gradient on each Course Library card with a real photo — same hover animations either way.</p>
@@ -1067,6 +1075,7 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
       if (saved['site.favicon_url']) {
         document.getElementById('faviconPreview').style.backgroundImage = `url(${saved['site.favicon_url']})`;
       }
+      document.getElementById('creditsSimpleModeToggle').checked = saved['credits.simple_mode'] === 'true';
 
       document.getElementById('contentFieldsList').innerHTML = CONTENT_FIELDS.map(f => `
         <div style="margin-bottom:20px;">
@@ -1780,6 +1789,15 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
         setTimeout(() => { status.textContent = ''; }, 4000);
       } catch (err) {
         status.textContent = err.message;
+      }
+    });
+
+    document.getElementById('creditsSimpleModeToggle').addEventListener('change', async (e) => {
+      try {
+        await adminFetch('/api/admin/site-content', { method: 'PATCH', body: JSON.stringify({ key: 'credits.simple_mode', value: e.target.checked ? 'true' : 'false' }) });
+      } catch (err) {
+        alert(err.message);
+        e.target.checked = !e.target.checked; // revert on failure
       }
     });
 
