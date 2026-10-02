@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verify Email — Armonía Connect</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root { --gold:#C9A84C; --gold-light:#E8C97A; --cream:#F2EBD9; --charcoal:#0E0D0B; --charcoal-3:#1C1A16; --border-gold:rgba(201,168,76,0.25); }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--charcoal); color: var(--cream); font-family: 'Inter', sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .box { text-align: center; max-width: 380px; }
+  h1 { font-family: 'Playfair Display', serif; font-size: 1.6rem; color: var(--gold-light); margin-bottom: 14px; }
+  p { color: #8A8275; font-size: 0.9rem; line-height: 1.6; }
+  a { color: var(--gold-light); }
+</style>
+</head>
+<body>
+  <div class="box">
+    <h1 id="statusTitle">Verifying…</h1>
+    <p id="statusMessage">One moment.</p>
+  </div>
+  <script>
+    const token = new URLSearchParams(window.location.search).get('token');
+    const titleEl = document.getElementById('statusTitle');
+    const msgEl = document.getElementById('statusMessage');
+
+    if (!token) {
+      titleEl.textContent = 'Missing link';
+      msgEl.textContent = 'This verification link looks incomplete. Request a new one from the admin Settings tab.';
+    } else {
+      fetch('/api/admin/verify-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      }).then(r => r.json()).then(data => {
+        if (data.ok) {
+          titleEl.textContent = 'Email verified';
+          msgEl.innerHTML = 'Your login email is confirmed. You can close this tab and return to <a href="/admin/">/admin/</a>.';
+        } else {
+          titleEl.textContent = 'Could not verify';
+          msgEl.textContent = data.error || 'Something went wrong.';
+        }
+      }).catch(() => {
+        titleEl.textContent = 'Could not verify';
+        msgEl.textContent = 'A network error occurred. Please try again.';
+      });
+    }
+  </script>
+</body>
+</html>

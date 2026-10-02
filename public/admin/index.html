@@ -1,0 +1,1893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Armonía Admin</title>
+<link rel="icon" id="faviconLink" href="/favicon.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<script>
+fetch('/api/site-content').then(r => r.json()).then(d => {
+  const url = d.content && d.content['site.favicon_url'];
+  if (url) { const el = document.getElementById('faviconLink'); if (el) el.href = url; }
+}).catch(() => {});
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold: #C9A84C; --gold-light: #E8C97A; --cream: #F2EBD9;
+    --charcoal: #0E0D0B; --charcoal-2: #141310; --charcoal-3: #1C1A16; --charcoal-4: #242019;
+    --text-muted: #8A8275; --border-gold: rgba(201,168,76,0.25); --red-accent: #9B2424;
+    --font-display: 'Playfair Display', Georgia, serif;
+    --font-serif: 'Cormorant Garamond', Georgia, serif;
+    --font-sans: 'Inter', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--charcoal); color: var(--cream); font-family: var(--font-sans); min-height: 100vh; }
+  a { color: inherit; }
+
+  /* Login screen */
+  #loginScreen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+  .login-box { width: 100%; max-width: 340px; text-align: center; }
+  .login-box .logo { font-family: var(--font-display); font-size: 1.5rem; color: var(--gold-light); margin-bottom: 28px; }
+  .login-box input {
+    width: 100%; background: var(--charcoal-3); border: 1px solid var(--border-gold); color: var(--cream);
+    padding: 13px 16px; font-size: 0.95rem; margin-bottom: 14px;
+  }
+  .login-box button {
+    width: 100%; background: var(--gold); color: var(--charcoal); border: none; padding: 13px;
+    font-weight: 600; letter-spacing: 0.5px; cursor: pointer;
+  }
+  .login-error { color: #e8a8a8; font-size: 0.85rem; margin-top: 12px; display: none; }
+
+  /* App shell */
+  #app { display: none; }
+  header { display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; border-bottom: 1px solid var(--border-gold); background: var(--charcoal-2); }
+  header .logo { font-family: var(--font-display); font-size: 1.2rem; color: var(--gold-light); }
+  .tabs { display: flex; align-items: center; gap: 4px; padding: 0 24px; border-bottom: 1px solid var(--border-gold); background: var(--charcoal-2); }
+  .tab-divider { width: 1px; height: 20px; background: var(--border-gold); margin: 0 8px; flex-shrink: 0; }
+  .tab { padding: 12px 18px; font-size: 0.87rem; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; }
+  .tab.active { color: var(--gold-light); border-bottom-color: var(--gold); }
+  .tab-badge { display: inline-block; background: var(--red-accent); color: #fff; font-size: 0.68rem; font-weight: 700; padding: 1px 6px; border-radius: 10px; margin-left: 4px; vertical-align: 2px; }
+  main { padding: 28px 24px; max-width: 1100px; margin: 0 auto; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .inbox-row { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-bottom: 1px solid var(--border-gold); cursor: pointer; transition: background 0.15s; }
+  .inbox-row:hover { background: rgba(201,168,76,0.05); }
+  .inbox-row.unread { background: rgba(201,168,76,0.06); }
+  .inbox-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--charcoal-4); border: 1px solid var(--border-gold); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); color: var(--gold-light); }
+  .inbox-body { flex: 1; min-width: 0; }
+  .inbox-name { font-size: 0.9rem; color: var(--cream); }
+  .inbox-row.unread .inbox-name { font-weight: 700; color: var(--gold-light); }
+  .inbox-preview { font-size: 0.82rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 480px; }
+  .inbox-row.unread .inbox-preview { color: var(--cream); }
+  .inbox-meta { flex-shrink: 0; text-align: right; font-size: 0.72rem; color: var(--text-muted); }
+  .inbox-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); flex-shrink: 0; margin-top: 4px; }
+
+  .stf-btn { background: var(--charcoal-3); border: 1px solid var(--border-gold); color: var(--text-muted); padding: 8px 16px; font-size: 0.8rem; cursor: pointer; }
+  .stf-btn.active { background: var(--gold); color: var(--charcoal); border-color: var(--gold); font-weight: 600; }
+  .msg-filter-btn { background: var(--charcoal-3); border: 1px solid var(--border-gold); color: var(--text-muted); padding: 8px 16px; font-size: 0.8rem; cursor: pointer; }
+  .msg-filter-btn.active { background: var(--gold); color: var(--charcoal); border-color: var(--gold); font-weight: 600; }
+  .type-badge { font-size: 0.68rem; padding: 3px 8px; letter-spacing: 0.05em; text-transform: uppercase; border: 1px solid var(--border-gold); }
+  .type-badge.classroom { color: var(--gold-light); border-color: var(--gold); }
+  .type-badge.student { color: var(--text-muted); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.87rem; }
+  th { text-align: left; padding: 10px 12px; color: var(--text-muted); font-size: 0.75rem; letter-spacing: 0.5px; text-transform: uppercase; border-bottom: 1px solid var(--border-gold); }
+  td { padding: 12px; border-bottom: 1px solid rgba(201,168,76,0.1); vertical-align: top; }
+  tr:hover td { background: var(--charcoal-3); }
+  .pill { display: inline-block; font-size: 0.7rem; padding: 2px 8px; border: 1px solid var(--border-gold); color: var(--gold-light); }
+  .pill.unread { background: var(--red-accent); border-color: var(--red-accent); color: var(--cream); }
+  .pill.revoked { border-color: var(--red-accent); color: #e8a8a8; }
+  .row-actions a, .row-actions button { font-size: 0.78rem; color: var(--gold-light); cursor: pointer; background: none; border: none; text-decoration: underline; margin-right: 10px; padding: 0; }
+
+  /* Chat modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); align-items: center; justify-content: center; padding: 24px; z-index: 50; }
+  .modal-overlay.open { display: flex; }
+  .modal-box { background: var(--charcoal-2); border: 1px solid var(--border-gold); width: 100%; max-width: 560px; display: flex; flex-direction: column; max-height: 80vh; }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border-gold); }
+  .modal-header h3 { font-family: var(--font-serif); color: var(--gold-light); font-size: 1.15rem; }
+  .modal-close { background: none; border: none; color: var(--text-muted); font-size: 1.3rem; cursor: pointer; }
+  .chat-messages { flex: 1; overflow-y: auto; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; min-height: 200px; }
+  .msg { max-width: 78%; padding: 9px 13px; font-size: 0.86rem; line-height: 1.5; }
+  .msg.maestro { align-self: flex-end; background: var(--gold); color: var(--charcoal); }
+  .msg.student { align-self: flex-start; background: var(--charcoal-4); border: 1px solid var(--border-gold); }
+  .chat-input-row { display: flex; border-top: 1px solid var(--border-gold); }
+  .chat-input-row input { flex: 1; background: transparent; border: none; color: var(--cream); padding: 13px 16px; font-size: 0.88rem; }
+  .chat-input-row input:focus { outline: none; }
+  .chat-input-row button { background: var(--gold); color: var(--charcoal); border: none; padding: 0 20px; font-weight: 600; cursor: pointer; }
+
+  /* Announcement composer */
+  .composer { max-width: 520px; }
+  .composer input, .composer textarea {
+    width: 100%; background: var(--charcoal-3); border: 1px solid var(--border-gold); color: var(--cream);
+    padding: 12px 14px; font-size: 0.9rem; margin-bottom: 14px;
+  }
+  .composer textarea { min-height: 120px; resize: vertical; }
+  .composer button { background: var(--gold); color: var(--charcoal); border: none; padding: 12px 22px; font-weight: 600; cursor: pointer; }
+  .composer-note { color: var(--gold-light); font-size: 0.85rem; margin-left: 12px; display: none; }
+  .empty-state { color: var(--text-muted); padding: 20px 0; }
+</style>
+</head>
+<body>
+
+  <div id="loginScreen">
+    <div class="login-box">
+      <p class="logo">Armonía Admin</p>
+      <input type="password" id="adminPassword" placeholder="Password">
+      <button id="adminLoginBtn">Log in</button>
+      <p class="login-error" id="loginError"></p>
+    </div>
+  </div>
+
+  <div id="app">
+    <header>
+      <span class="logo">Armonía Admin</span>
+      <span style="font-size:0.85rem; color:var(--text-muted); cursor:pointer;" id="adminLogoutBtn">Log out</span>
+    </header>
+    <div class="tabs">
+      <div class="tab active" data-panel="students">Students</div>
+      <div class="tab" data-panel="devices">Device Requests</div>
+      <div class="tab" data-panel="messages">Messages <span id="messagesTabBadge" class="tab-badge" style="display:none;"></span></div>
+      <div class="tab-divider"></div>
+      <div class="tab" data-panel="lessons">Lessons</div>
+      <div class="tab" data-panel="updates">Course Updates <span id="updatesTabBadge" class="tab-badge" style="display:none;"></span></div>
+      <div class="tab" data-panel="announcements">Post Announcement</div>
+      <div class="tab" data-panel="content">Site Text</div>
+      <div class="tab-divider"></div>
+      <div class="tab" data-panel="community">Community</div>
+      <div class="tab" data-panel="auditions">Mock Auditions</div>
+      <div class="tab-divider"></div>
+      <div class="tab" data-panel="account">Account Settings</div>
+    </div>
+    <main>
+      <section class="panel active" id="panel-students">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:10px;">
+          <div class="student-type-filter" id="studentTypeFilter" style="display:flex; gap:8px;">
+            <button type="button" class="stf-btn active" data-filter="all">All</button>
+            <button type="button" class="stf-btn" data-filter="student">Students</button>
+            <button type="button" class="stf-btn" data-filter="classroom">Classrooms</button>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button type="button" id="exportCsvBtn" style="background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:9px 18px; cursor:pointer;">Export CSV</button>
+            <button type="button" id="openGenerateCodeBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:9px 18px; font-weight:600; cursor:pointer;">+ Generate Access Code</button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Student</th><th>Type</th><th>Instrument</th><th>Code</th><th>Logins</th><th>Device</th><th>Status</th><th></th></tr>
+          </thead>
+          <tbody id="studentsTableBody"></tbody>
+        </table>
+
+        <div id="archiveSection" style="margin-top:24px; display:none;">
+          <button type="button" id="archiveToggle" style="background:transparent; border:none; color:var(--text-muted); font-size:0.82rem; cursor:pointer; padding:8px 0; text-align:left;">▸ Terminated / Archived (0)</button>
+          <div id="archiveTableWrap" style="display:none;">
+            <p style="font-size:0.78rem; color:var(--text-muted); margin-bottom:12px;">Terminated codes are hidden from the main list to keep it clean, but nothing is deleted — restore any of these any time.</p>
+            <table>
+              <thead>
+                <tr><th>Student</th><th>Type</th><th>Instrument</th><th>Code</th><th>Logins</th><th>Device</th><th>Status</th><th></th></tr>
+              </thead>
+              <tbody id="archivedTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-messages">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:10px;">
+          <h2 style="font-family:var(--font-display); font-size:1.3rem;">Messages</h2>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button type="button" id="openBatchMessageBtn" style="background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:8px 16px; font-size:0.82rem; cursor:pointer;">Message by Instrument</button>
+            <div style="width:1px; height:20px; background:var(--border-gold);"></div>
+            <button type="button" class="msg-filter-btn active" data-msgfilter="all">All</button>
+            <button type="button" class="msg-filter-btn" data-msgfilter="unread">Unread</button>
+          </div>
+        </div>
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:18px;">Every conversation with a student or classroom account, most recent first. Click any to open and reply.</p>
+        <div id="inboxList" style="border:1px solid var(--border-gold);"></div>
+      </section>
+
+      <section class="panel" id="panel-updates">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <h2 style="font-family:var(--font-display); font-size:1.3rem;">Course Updates</h2>
+          <button type="button" id="newUpdateBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:9px 18px; font-weight:600; cursor:pointer;">+ Write Update</button>
+        </div>
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:24px;">Adding a new lesson automatically drafts an update here — it stays invisible to students until you review and publish it.</p>
+
+        <h3 style="font-size:1rem; color:var(--gold-light); margin-bottom:12px;">Pending Review</h3>
+        <div id="pendingUpdatesList" style="margin-bottom:36px;"></div>
+
+        <h3 style="font-size:1rem; color:var(--text-muted); margin-bottom:12px;">Published</h3>
+        <div id="publishedUpdatesList"></div>
+      </section>
+
+      <section class="panel" id="panel-lessons">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+          <h2 style="font-family:var(--font-display); font-size:1.3rem;">Lessons</h2>
+          <button id="newLessonBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:9px 18px; font-weight:600; cursor:pointer;">+ Add Lesson</button>
+        </div>
+        <div style="margin-bottom:24px;">
+          <label style="font-size:0.8rem; color:var(--text-muted); margin-right:10px;">Filter by instrument:</label>
+          <select id="lessonInstrumentFilter" style="background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:7px 10px;">
+            <option value="">All</option>
+            <option value="vihuela">Vihuela</option>
+            <option value="guitarra">Guitarra</option>
+            <option value="guitarra-de-golpe">Guitarra de Golpe</option>
+            <option value="guitarron">Guitarrón</option>
+          </select>
+        </div>
+        <div style="margin-bottom:24px; padding:16px; background:var(--charcoal-3); border:1px solid var(--border-gold);">
+          <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:10px;">Practice Technique lesson — one per instrument, shown to students on every instrument's page. Lessons with no title below don't have one yet:</p>
+          <div id="practiceTechniqueStatus" style="display:flex; flex-wrap:wrap; gap:10px;"></div>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Instrument</th><th>Section</th><th>Title</th><th>Media</th><th>Cover</th><th></th></tr>
+          </thead>
+          <tbody id="lessonsTableBody"></tbody>
+        </table>
+        <input type="file" id="inlineCoverInput" accept="image/png, image/jpeg, image/webp" style="display:none;">
+
+        <h2 style="font-family:var(--font-display); font-size:1.2rem; margin:36px 0 16px;">Resources (Chord Books &amp; MIDI)</h2>
+        <div style="display:flex; justify-content:flex-end; margin-bottom:14px;">
+          <button id="newResourceBtn" style="background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:8px 16px; cursor:pointer;">+ Add Resource</button>
+        </div>
+        <table>
+          <thead><tr><th>Kind</th><th>Title</th><th>File</th><th></th></tr></thead>
+          <tbody id="resourcesTableBody"></tbody>
+        </table>
+
+        <h2 style="font-family:var(--font-display); font-size:1.2rem; margin:36px 0 16px;">Sheet Music</h2>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:14px;">PDF notation for etudes and exercises. Include the instrument in the title (e.g. "Vihuela — Etude No. 1") since there's no separate instrument field here.</p>
+        <div style="display:flex; justify-content:flex-end; margin-bottom:14px;">
+          <button id="newSheetMusicBtn" style="background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:8px 16px; cursor:pointer;">+ Add Sheet Music</button>
+        </div>
+        <table>
+          <thead><tr><th>Title</th><th>File</th><th></th></tr></thead>
+          <tbody id="sheetMusicTableBody"></tbody>
+        </table>
+      </section>
+
+      <section class="panel" id="panel-content">
+        <h2 style="font-family:var(--font-display); margin-bottom:8px; font-size:1.3rem;">Site Text</h2>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:22px;">Edit headlines and copy that appear on the live course site. Changes go live immediately — no redeploy needed.</p>
+        <div id="contentFieldsList" class="composer"></div>
+
+        <h2 style="font-family:var(--font-display); margin:34px 0 8px; font-size:1.3rem;">Your Community Profile</h2>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:18px;">This is what students see and click on in Community to message you directly.</p>
+        <div style="display:flex; align-items:center; gap:16px; margin-bottom:18px;">
+          <div id="maestroPhotoPreview" style="width:64px; height:64px; border-radius:50%; background:var(--charcoal-3); border:1px solid var(--border-gold); background-size:cover; background-position:center;"></div>
+          <button type="button" id="maestroPhotoBtn" style="background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:9px 16px; font-size:0.83rem; cursor:pointer;">Upload photo</button>
+          <input type="file" id="maestroPhotoInput" accept="image/png, image/jpeg, image/webp" style="display:none;">
+        </div>
+
+        <h2 style="font-family:var(--font-display); margin:34px 0 8px; font-size:1.3rem;">Site Favicon</h2>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:18px;">The small icon shown in browser tabs and (once search engines re-index) in Google search results. Square images work best.</p>
+        <div style="display:flex; align-items:center; gap:16px; margin-bottom:34px;">
+          <div id="faviconPreview" style="width:48px; height:48px; border:1px solid var(--border-gold); background:var(--charcoal-3); background-size:cover; background-position:center;"></div>
+          <button type="button" id="faviconUploadBtn" style="background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:9px 18px; cursor:pointer;">Upload New Favicon</button>
+          <input type="file" id="faviconFileInput" accept="image/png, image/jpeg, image/webp" style="display:none;">
+          <span id="faviconStatus" style="font-size:0.8rem; color:var(--text-muted);"></span>
+        </div>
+
+        <h2 style="font-family:var(--font-display); margin:34px 0 8px; font-size:1.3rem;">Promotional Sale</h2>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:14px;">Turn this on to show a sale banner and updated pricing site-wide. This changes the displayed price only — you must separately create a matching Stripe Payment Link at the sale price and paste it below, since checkout runs through Stripe directly.</p>
+        <label style="display:flex; align-items:center; gap:10px; cursor:pointer; margin-bottom:16px;">
+          <input type="checkbox" id="saleEnabledToggle" style="width:18px; height:18px; accent-color:var(--gold); cursor:pointer;">
+          <span style="font-size:0.9rem; color:var(--cream);">Sale is active</span>
+        </label>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+          <div>
+            <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Sale Price ($)</label>
+            <input type="text" id="salePrice" placeholder="50" style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
+          </div>
+          <div>
+            <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Original Price ($)</label>
+            <input type="text" id="saleOriginalPrice" placeholder="100" style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
+          </div>
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Banner Message</label>
+          <input type="text" id="saleMessage" placeholder="50% OFF — Celebrating 20 Students! Limited Time" style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
+        </div>
+        <div style="margin-bottom:18px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Sale Stripe Payment Link</label>
+          <input type="text" id="saleStripeLink" placeholder="https://buy.stripe.com/..." style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
+          <p style="font-size:0.72rem; color:var(--text-muted); margin-top:6px;">Create this in your Stripe Dashboard → Payment Links → New, set to the sale price, before turning the sale on.</p>
+        </div>
+        <button type="button" id="saveSaleBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:9px 22px; font-weight:600; cursor:pointer; margin-bottom:34px;">Save Sale Settings</button>
+        <span id="saleSaveStatus" style="font-size:0.8rem; color:var(--text-muted); margin-left:12px;"></span>
+
+        <h2 style="font-family:var(--font-display); margin:34px 0 8px; font-size:1.3rem;">Thank You &amp; Credits Page</h2>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:18px;">Turn this on to hide the title, video, and thank-you message on that page — leaving just the credits list at the bottom.</p>
+        <label style="display:flex; align-items:center; gap:10px; cursor:pointer; margin-bottom:34px;">
+          <input type="checkbox" id="creditsSimpleModeToggle" style="width:18px; height:18px; accent-color:var(--gold); cursor:pointer;">
+          <span style="font-size:0.9rem; color:var(--cream);">Show only the credits list (hide title, video, and message)</span>
+        </label>
+
+        <h2 style="font-family:var(--font-display); margin:34px 0 8px; font-size:1.3rem;">Instrument Cover Images</h2>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:18px;">Replace the colored gradient on each Course Library card with a real photo — same hover animations either way.</p>
+        <div id="instrumentCoversList" style="display:flex; flex-wrap:wrap; gap:20px;"></div>
+      </section>
+
+      <!-- Device Requests -->
+      <section class="panel" id="panel-devices">
+        <h2 style="font-family:var(--font-display); margin-bottom:8px; font-size:1.3rem;">Device Requests</h2>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:22px;">
+          When a code is used on a device it isn't already bound to, it shows up here instead of being silently blocked. Approve it if it's a legitimate device change, or deny it and reach out to the student.
+        </p>
+        <table>
+          <thead><tr><th>Code</th><th>Attempted Device</th><th>When</th><th>Status</th><th></th></tr></thead>
+          <tbody id="deviceRequestsBody"></tbody>
+        </table>
+      </section>
+
+      <!-- Community Moderation -->
+      <section class="panel" id="panel-community">
+        <h2 style="font-family:var(--font-display); margin-bottom:8px; font-size:1.3rem;">Community</h2>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:22px;">Recent posts from every student. Delete anything that needs moderating — this also removes its likes and replies.</p>
+        <div id="communityModList"></div>
+      </section>
+
+      <!-- Mock Auditions -->
+      <section class="panel" id="panel-auditions">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+          <h2 style="font-family:var(--font-display); font-size:1.3rem;">Mock Auditions</h2>
+          <button id="newAuditionBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:9px 18px; font-weight:600; cursor:pointer;">+ Schedule One</button>
+        </div>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:22px;">Students see these on the Message the Maestro page and can enter — the Zoom link only shows up for them once they've agreed to attend.</p>
+        <table>
+          <thead><tr><th>Title</th><th>Date</th><th>Entered</th><th></th></tr></thead>
+          <tbody id="auditionsTableBody"></tbody>
+        </table>
+      </section>
+
+      <!-- Account Settings -->
+      <section class="panel" id="panel-account">
+        <h2 style="font-family:var(--font-display); margin-bottom:18px; font-size:1.3rem;">My Account</h2>
+
+        <h3 style="font-family:var(--font-serif); color:var(--gold-light); font-size:1.05rem; margin-bottom:14px;">Personal Information</h3>
+        <div style="max-width:440px; margin-bottom:30px;">
+          <div style="margin-bottom:16px;">
+            <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Name</label>
+            <div style="display:flex; gap:8px;">
+              <input type="text" id="acctName" style="flex:1; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
+              <button id="acctNameSaveBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:0 16px; font-weight:600; cursor:pointer;">Save</button>
+            </div>
+          </div>
+          <div style="margin-bottom:16px;">
+            <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Login email <span id="loginEmailBadge"></span></label>
+            <div style="display:flex; gap:8px;">
+              <input type="email" id="acctLoginEmail" style="flex:1; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
+              <button id="acctLoginEmailSaveBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:0 16px; font-weight:600; cursor:pointer;">Save</button>
+              <button id="acctVerifyBtn" style="background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:0 14px; cursor:pointer;">Verify</button>
+            </div>
+            <p id="acctVerifyNote" style="font-size:0.78rem; color:var(--text-muted); margin-top:6px; display:none;"></p>
+          </div>
+          <div style="margin-bottom:16px;">
+            <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Billing email</label>
+            <div style="display:flex; gap:8px;">
+              <input type="email" id="acctBillingEmail" style="flex:1; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
+              <button id="acctBillingEmailSaveBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:0 16px; font-weight:600; cursor:pointer;">Save</button>
+            </div>
+          </div>
+          <div>
+            <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Password</label>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <input type="password" id="acctCurrentPw" placeholder="Current password" style="flex:1; min-width:140px; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
+              <input type="password" id="acctNewPw" placeholder="New password" style="flex:1; min-width:140px; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
+              <button id="acctChangePwBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:0 16px; font-weight:600; cursor:pointer;">Change</button>
+            </div>
+          </div>
+        </div>
+
+        <h3 style="font-family:var(--font-serif); color:var(--gold-light); font-size:1.05rem; margin-bottom:14px;">Subscription &amp; Billing</h3>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:14px; max-width:440px;">Armonía Connect charges your students through Stripe — this opens your actual Stripe dashboard, where invoices, payouts, and receipts live.</p>
+        <a href="https://dashboard.stripe.com" target="_blank" rel="noopener" style="display:inline-block; background:var(--gold); color:var(--charcoal); text-decoration:none; padding:11px 20px; font-weight:600; margin-bottom:30px;">Manage Billing on Stripe ↗</a>
+
+        <h3 style="font-family:var(--font-serif); color:var(--gold-light); font-size:1.05rem; margin-bottom:14px;">Support Information</h3>
+        <div style="font-size:0.88rem; color:var(--text-muted); max-width:440px;">
+          <p style="margin-bottom:8px;">Account ID: <span id="acctId" style="font-family:monospace; color:var(--cream);">—</span></p>
+          <p>Admin account created: <span id="acctCreated" style="color:var(--cream);">—</span></p>
+        </div>
+
+        <p id="acctSavedNote" style="color:var(--gold-light); font-size:0.85rem; margin-top:18px; display:none;">✓ Saved</p>
+      </section>
+
+      <section class="panel" id="panel-announcements">
+        <h2 style="font-family:var(--font-display); margin-bottom:18px; font-size:1.3rem;">Post an Announcement</h2>
+        <div class="composer">
+          <input type="text" id="annTitle" placeholder="Title">
+          <textarea id="annBody" placeholder="Message to every enrolled student…"></textarea>
+          <div style="margin-bottom:14px;">
+            <div id="annImagePreview" style="display:none; width:200px; margin-bottom:8px;"><img style="width:100%; border:1px solid var(--border-gold); display:block;"></div>
+            <button type="button" id="annImageBtn" style="background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:8px 14px; font-size:0.83rem; cursor:pointer;">📷 Add image (optional)</button>
+            <button type="button" id="annImageRemoveBtn" style="display:none; background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:8px 14px; font-size:0.83rem; cursor:pointer; margin-left:8px;">Remove</button>
+            <input type="file" id="annImageInput" accept="image/png, image/jpeg, image/webp, image/gif" style="display:none;">
+          </div>
+          <div style="display:flex; align-items:center;">
+            <button id="annSubmitBtn">Post</button>
+            <span class="composer-note" id="annSavedNote">✓ Posted</span>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Lesson editor modal -->
+  <div class="modal-overlay" id="lessonModal">
+    <div class="modal-box" style="max-width:480px;">
+      <div class="modal-header">
+        <h3 id="lessonModalTitle">Add Lesson</h3>
+        <button class="modal-close" id="lessonModalClose">✕</button>
+      </div>
+      <div style="padding:20px;">
+        <input type="hidden" id="lessonId">
+        <div style="margin-bottom:14px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Instrument</label>
+          <select id="lessonInstrument" style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
+            <option value="vihuela">Vihuela</option>
+            <option value="guitarra">Guitarra</option>
+            <option value="guitarra-de-golpe">Guitarra de Golpe</option>
+            <option value="guitarron">Guitarrón</option>
+          </select>
+        </div>
+        <div style="margin-bottom:14px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Section</label>
+          <select id="lessonSection" style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
+            <option value="etude">Etude</option>
+            <option value="practice_technique">Practice Technique</option>
+            <option value="performance">Performance Track</option>
+          </select>
+        </div>
+        <div style="margin-bottom:14px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Title</label>
+          <input type="text" id="lessonTitle" style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
+        </div>
+        <div style="margin-bottom:14px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Description</label>
+          <textarea id="lessonDescription" style="width:100%; min-height:70px; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;"></textarea>
+        </div>
+        <div style="margin-bottom:14px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Soundslice ID <span style="color:var(--text-muted);">(once you have licensing — the number from your embed URL)</span></label>
+          <input type="text" id="lessonSoundslice" placeholder="e.g. 123456" style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
+        </div>
+        <div style="margin-bottom:18px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Or direct video URL</label>
+          <input type="text" id="lessonVideoUrl" placeholder="https://…" style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
+        </div>
+        <div style="margin-bottom:18px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Cover image</label>
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div id="lessonCoverPreview" style="width:64px; height:36px; background:var(--charcoal-3); border:1px solid var(--border-gold); background-size:cover; background-position:center; flex-shrink:0;"></div>
+            <button type="button" id="lessonCoverBtn" style="background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:8px 14px; font-size:0.83rem; cursor:pointer;">Upload cover</button>
+            <input type="file" id="lessonCoverInput" accept="image/png, image/jpeg, image/webp" style="display:none;">
+          </div>
+          <p style="font-size:0.72rem; color:var(--text-muted); margin-top:6px;">Shows on the card instead of the grey placeholder. Optional.</p>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <button id="lessonDeleteBtn" style="background:none; border:1px solid var(--red-accent); color:#e8a8a8; padding:9px 16px; cursor:pointer; display:none;">Delete</button>
+          <button id="lessonSaveBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:9px 22px; font-weight:600; cursor:pointer; margin-left:auto;">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Resource editor modal -->
+  <div class="modal-overlay" id="resourceModal">
+    <div class="modal-box" style="max-width:420px;">
+      <div class="modal-header">
+        <h3 id="resourceModalTitle">Add Resource</h3>
+        <button class="modal-close" id="resourceModalClose">✕</button>
+      </div>
+      <div style="padding:20px;">
+        <input type="hidden" id="resourceId">
+        <div style="margin-bottom:14px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Kind</label>
+          <select id="resourceKind" style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
+            <option value="chord_book">Chord Book</option>
+            <option value="midi_track">MIDI Track</option>
+            <option value="sheet_music">Sheet Music</option>
+          </select>
+        </div>
+        <div style="margin-bottom:14px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Title</label>
+          <input type="text" id="resourceTitle" style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
+        </div>
+        <div style="margin-bottom:18px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Upload a file</label>
+          <button type="button" id="resourceUploadBtn" style="background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:9px 16px; font-size:0.85rem; cursor:pointer;">📎 Choose file (PDF, MP3, WAV, MIDI)</button>
+          <input type="file" id="resourceFileInput" accept=".pdf,.mp3,.wav,.midi,.mid,application/pdf,audio/*" style="display:none;">
+          <p id="resourceUploadStatus" style="font-size:0.78rem; color:var(--text-muted); margin-top:8px; display:none;"></p>
+          <p style="font-size:0.72rem; color:var(--text-muted); margin-top:6px;">Files up to 3MB upload directly. For larger audio files, upload via the Supabase dashboard (Storage → course-resources) and paste the URL below instead.</p>
+        </div>
+        <div style="margin-bottom:18px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">File URL</label>
+          <input type="text" id="resourceFileUrl" placeholder="https://…" style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <button id="resourceDeleteBtn" style="background:none; border:1px solid var(--red-accent); color:#e8a8a8; padding:9px 16px; cursor:pointer; display:none;">Delete</button>
+          <button id="resourceSaveBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:9px 22px; font-weight:600; cursor:pointer; margin-left:auto;">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mock Audition editor modal -->
+  <div class="modal-overlay" id="auditionModal">
+    <div class="modal-box" style="max-width:440px;">
+      <div class="modal-header">
+        <h3 id="auditionModalTitle">Schedule a Mock Audition</h3>
+        <button class="modal-close" id="auditionModalClose">✕</button>
+      </div>
+      <div style="padding:20px;">
+        <input type="hidden" id="auditionId">
+        <div style="margin-bottom:14px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Title</label>
+          <input type="text" id="auditionTitle" placeholder="e.g. Mock Audition — Vihuela" style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
+        </div>
+        <div style="margin-bottom:14px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Date &amp; Time</label>
+          <input type="datetime-local" id="auditionDate" style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
+        </div>
+        <div style="margin-bottom:14px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Description</label>
+          <textarea id="auditionDescription" style="width:100%; min-height:70px; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;" placeholder="What to prepare, what to expect…"></textarea>
+        </div>
+        <div style="margin-bottom:18px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Zoom (or other) link</label>
+          <input type="text" id="auditionZoomLink" placeholder="https://zoom.us/…" style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
+          <p style="font-size:0.72rem; color:var(--text-muted); margin-top:6px;">Only shown to a student after they've entered and agreed to attend.</p>
+        </div>
+        <div style="display:flex; justify-content:flex-end;">
+          <button id="auditionSaveBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:9px 22px; font-weight:600; cursor:pointer;">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Generate Access Code modal -->
+  <div class="modal-overlay" id="generateCodeModal">
+    <div class="modal-box" style="max-width:460px;">
+      <div class="modal-header">
+        <h3>Generate Access Code</h3>
+        <button class="modal-close" id="generateCodeModalClose">✕</button>
+      </div>
+      <div style="padding:20px;" id="generateCodeForm">
+        <div style="margin-bottom:16px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:8px;">Code Type</label>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="gc-type-btn active" data-type="student" style="flex:1; background:var(--gold); color:var(--charcoal); border:1px solid var(--gold); padding:10px; font-weight:600; cursor:pointer;">Individual (Free)</button>
+            <button type="button" class="gc-type-btn" data-type="classroom" style="flex:1; background:var(--charcoal-3); color:var(--cream); border:1px solid var(--border-gold); padding:10px; font-weight:600; cursor:pointer;">Classroom</button>
+          </div>
+          <p style="font-size:0.72rem; color:var(--text-muted); margin-top:8px;" id="gcTypeNote">A normal single-session student code — full course access, no charge.</p>
+        </div>
+        <div style="margin-bottom:18px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Recipient Email</label>
+          <input type="email" id="gcEmail" placeholder="teacher@school.edu" style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
+          <p style="font-size:0.72rem; color:var(--text-muted); margin-top:6px;">The code is emailed automatically, the same way a real purchase confirmation works.</p>
+        </div>
+        <div style="margin-bottom:18px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">How many codes?</label>
+          <input type="number" id="gcQuantity" value="1" min="1" max="50" style="width:100px; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
+          <p style="font-size:0.72rem; color:var(--text-muted); margin-top:6px;">For a director requesting codes for multiple students at once — all sent in one email, up to 50 at a time.</p>
+        </div>
+        <div style="display:flex; justify-content:flex-end;">
+          <button id="gcGenerateBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:9px 22px; font-weight:600; cursor:pointer;">Generate &amp; Send</button>
+        </div>
+        <div id="gcError" style="display:none; margin-top:14px; padding:10px 14px; background:rgba(155,36,36,0.1); border:1px solid var(--red-accent); color:#e8a8a8; font-size:0.82rem;"></div>
+      </div>
+      <div style="padding:20px; display:none;" id="generateCodeResult">
+        <p style="font-size:0.78rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;" id="gcResultLabel">Code Generated</p>
+        <div id="gcResultCode" style="font-family:monospace; font-size:1.05rem; color:var(--gold-light); background:rgba(201,168,76,0.08); border:1px solid var(--border-gold); padding:16px; margin-bottom:14px; max-height:240px; overflow-y:auto;"></div>
+        <p id="gcResultStatus" style="font-size:0.82rem; color:var(--text-muted); margin-bottom:18px;"></p>
+        <div style="display:flex; justify-content:flex-end; gap:10px;">
+          <button id="gcCopyBtn" style="background:var(--charcoal-3); color:var(--cream); border:1px solid var(--border-gold); padding:9px 18px; cursor:pointer;">Copy Code(s)</button>
+          <button id="gcDoneBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:9px 18px; font-weight:600; cursor:pointer;">Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="newUpdateModal">
+    <div class="modal-box" style="max-width:460px;">
+      <div class="modal-header">
+        <h3>Write Course Update</h3>
+        <button class="modal-close" id="newUpdateModalClose">✕</button>
+      </div>
+      <div style="padding:20px;">
+        <div style="margin-bottom:14px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Title</label>
+          <input type="text" id="nuTitle" placeholder="e.g. New Guitarrón backing tracks added" style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
+        </div>
+        <div style="margin-bottom:18px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Details (optional)</label>
+          <textarea id="nuBody" rows="4" style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px; resize:vertical;"></textarea>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:10px;">
+          <button id="nuSaveDraftBtn" style="background:var(--charcoal-3); color:var(--cream); border:1px solid var(--border-gold); padding:9px 18px; cursor:pointer;">Save as Draft</button>
+          <button id="nuPublishBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:9px 18px; font-weight:600; cursor:pointer;">Publish Now</button>
+        </div>
+        <div id="nuError" style="display:none; margin-top:14px; padding:10px 14px; background:rgba(155,36,36,0.1); border:1px solid var(--red-accent); color:#e8a8a8; font-size:0.82rem;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="batchMessageModal">
+    <div class="modal-box" style="max-width:460px;">
+      <div class="modal-header">
+        <h3>Message by Instrument</h3>
+        <button class="modal-close" id="batchMessageModalClose">✕</button>
+      </div>
+      <div style="padding:20px;" id="batchMessageForm">
+        <div style="margin-bottom:14px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Instrument</label>
+          <select id="bmInstrument" style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px;">
+            <option value="Vihuela">Vihuela</option>
+            <option value="Guitarra">Guitarra</option>
+            <option value="Guitarra de Golpe">Guitarra de Golpe</option>
+            <option value="Guitarrón">Guitarrón</option>
+          </select>
+        </div>
+        <div style="margin-bottom:18px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Message</label>
+          <textarea id="bmBody" rows="4" placeholder="e.g. New Guitarrón backing tracks are up in Chord Books & MIDI." style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px; resize:vertical;"></textarea>
+          <p style="font-size:0.72rem; color:var(--text-muted); margin-top:6px;">Sent as a direct message from you to every active student who selected this instrument during onboarding.</p>
+        </div>
+        <div style="display:flex; justify-content:flex-end;">
+          <button id="bmSendBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:9px 22px; font-weight:600; cursor:pointer;">Send to Instrument</button>
+        </div>
+        <div id="bmError" style="display:none; margin-top:14px; padding:10px 14px; background:rgba(155,36,36,0.1); border:1px solid var(--red-accent); color:#e8a8a8; font-size:0.82rem;"></div>
+      </div>
+      <div style="padding:20px; display:none;" id="batchMessageResult">
+        <p style="font-size:0.9rem; color:var(--gold-light); margin-bottom:18px;" id="bmResultText"></p>
+        <div style="display:flex; justify-content:flex-end;">
+          <button id="bmDoneBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:9px 18px; font-weight:600; cursor:pointer;">Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat modal -->
+  <div class="modal-overlay" id="chatModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="chatModalTitle">Conversation</h3>
+        <button class="modal-close" id="chatModalClose">✕</button>
+      </div>
+      <div class="chat-messages" id="adminChatMessages"></div>
+      <form class="chat-input-row" id="adminChatForm">
+        <input type="text" id="adminChatInput" placeholder="Reply…" autocomplete="off">
+        <button type="submit">Send</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let adminToken = localStorage.getItem('armonia_admin_token');
+
+    function showApp() {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      loadStudents();
+      loadCourseUpdates();
+    }
+
+    if (adminToken) {
+      // Try loading immediately; if the token's stale, loadStudents() will bounce back to login.
+      showApp();
+    }
+
+    document.getElementById('adminLoginBtn').addEventListener('click', async () => {
+      const password = document.getElementById('adminPassword').value;
+      const errBox = document.getElementById('loginError');
+      errBox.style.display = 'none';
+      try {
+        const res = await fetch('/api/admin/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Login failed.');
+        adminToken = data.token;
+        localStorage.setItem('armonia_admin_token', adminToken);
+        showApp();
+      } catch (err) {
+        errBox.textContent = err.message;
+        errBox.style.display = 'block';
+      }
+    });
+
+    document.getElementById('adminLogoutBtn').addEventListener('click', () => {
+      localStorage.removeItem('armonia_admin_token');
+      window.location.reload();
+    });
+
+    function adminHeaders() {
+      return { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' };
+    }
+
+    async function adminFetch(url, opts = {}) {
+      const res = await fetch(url, { ...opts, headers: { ...adminHeaders(), ...(opts.headers || {}) } });
+      if (res.status === 401) {
+        localStorage.removeItem('armonia_admin_token');
+        window.location.reload();
+        throw new Error('Session expired.');
+      }
+      let data;
+      try {
+        data = await res.json();
+      } catch (err) {
+        throw new Error(res.status === 413 ? 'That file is too large. Please try a smaller one.' : 'Something went wrong. Please try again.');
+      }
+      if (!res.ok) throw new Error(data.error || 'Request failed.');
+      return data;
+    }
+
+    // ── Tabs ──
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(`panel-${tab.dataset.panel}`).classList.add('active');
+        if (tab.dataset.panel === 'lessons') { loadLessons(); loadResources(); }
+        if (tab.dataset.panel === 'content') { loadSiteContent(); loadInstrumentCovers(); }
+        if (tab.dataset.panel === 'devices') { loadDeviceRequests(); }
+        if (tab.dataset.panel === 'account') { loadAccount(); }
+        if (tab.dataset.panel === 'community') { loadCommunityMod(); }
+        if (tab.dataset.panel === 'auditions') { loadAuditions(); }
+        if (tab.dataset.panel === 'messages') { renderInbox(); }
+        if (tab.dataset.panel === 'updates') { loadCourseUpdates(); }
+      });
+    });
+
+    // ── Lessons CMS ──
+    const SECTION_LABELS = { etude: 'Etude', practice_technique: 'Practice Technique', performance: 'Performance Track' };
+    let allLessons = [];
+
+    async function loadLessons() {
+      try {
+        const data = await adminFetch('/api/admin/lessons');
+        allLessons = data.lessons;
+        renderLessonsTable();
+        renderPracticeTechniqueStatus();
+      } catch (err) { console.error(err); }
+    }
+
+    function renderLessonsTable() {
+      const filter = document.getElementById('lessonInstrumentFilter').value;
+      const rows = filter ? allLessons.filter(l => l.instrument_key === filter) : allLessons;
+      const body = document.getElementById('lessonsTableBody');
+      if (!rows.length) { body.innerHTML = '<tr><td colspan="6" class="empty-state">No lessons yet — add your first one.</td></tr>'; return; }
+      body.innerHTML = rows.map(l => `
+        <tr>
+          <td>${l.instrument_key}</td>
+          <td>${SECTION_LABELS[l.section] || l.section}</td>
+          <td>${l.title}</td>
+          <td>${l.soundslice_id ? 'Soundslice' : (l.video_url ? 'Video' : '<span style="color:var(--text-muted);">Not set</span>')}</td>
+          <td>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <div style="width:52px; height:30px; background:var(--charcoal-3); border:1px solid var(--border-gold); background-size:cover; background-position:center; flex-shrink:0; ${l.cover_image_url ? `background-image:url('${l.cover_image_url}');` : ''}"></div>
+              <button onclick="inlineCoverUpload('${l.id}')" style="background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:5px 10px; font-size:0.72rem; cursor:pointer;">${l.cover_image_url ? 'Change' : 'Upload'}</button>
+            </div>
+          </td>
+          <td class="row-actions"><button onclick="editLesson('${l.id}')">Edit</button></td>
+        </tr>`).join('');
+    }
+    document.getElementById('lessonInstrumentFilter').addEventListener('change', renderLessonsTable);
+
+    let inlineCoverTargetId = null;
+    window.inlineCoverUpload = function(lessonId) {
+      inlineCoverTargetId = lessonId;
+      document.getElementById('inlineCoverInput').click();
+    };
+    document.getElementById('inlineCoverInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      e.target.value = '';
+      if (!file || !inlineCoverTargetId) return;
+      try {
+        const { dataUrl, contentType } = await resizeImageFile(file, 500, 0.82);
+        const uploadData = await adminFetch('/api/admin/upload-image', { method: 'POST', body: JSON.stringify({ imageBase64: dataUrl, contentType }) });
+        await adminFetch(`/api/admin/lessons?id=${inlineCoverTargetId}`, { method: 'PATCH', body: JSON.stringify({ coverImageUrl: uploadData.url }) });
+        loadLessons();
+      } catch (err) { alert(err.message); }
+    });
+
+    function openLessonModal() { document.getElementById('lessonModal').classList.add('open'); }
+    let currentLessonCoverUrl = null;
+    document.getElementById('lessonCoverBtn').addEventListener('click', () => document.getElementById('lessonCoverInput').click());
+    document.getElementById('lessonCoverInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const { dataUrl, contentType } = await resizeImageFile(file, 500, 0.82);
+        const data = await adminFetch('/api/admin/upload-image', { method: 'POST', body: JSON.stringify({ imageBase64: dataUrl, contentType }) });
+        currentLessonCoverUrl = data.url;
+        document.getElementById('lessonCoverPreview').style.backgroundImage = `url(${data.url})`;
+      } catch (err) { alert(err.message); }
+    });
+
+    document.getElementById('newLessonBtn').addEventListener('click', () => {
+      document.getElementById('lessonModalTitle').textContent = 'Add Lesson';
+      document.getElementById('lessonId').value = '';
+      document.getElementById('lessonInstrument').value = 'vihuela';
+      document.getElementById('lessonSection').value = 'etude';
+      document.getElementById('lessonTitle').value = '';
+      document.getElementById('lessonDescription').value = '';
+      document.getElementById('lessonSoundslice').value = '';
+      document.getElementById('lessonVideoUrl').value = '';
+      document.getElementById('lessonDeleteBtn').style.display = 'none';
+      currentLessonCoverUrl = null;
+      document.getElementById('lessonCoverPreview').style.backgroundImage = '';
+      openLessonModal();
+    });
+
+    const INSTRUMENT_LABELS = { vihuela: 'Vihuela', guitarra: 'Guitarra', 'guitarra-de-golpe': 'Guitarra de Golpe', guitarron: 'Guitarrón' };
+    function renderPracticeTechniqueStatus() {
+      const host = document.getElementById('practiceTechniqueStatus');
+      host.innerHTML = Object.keys(INSTRUMENT_LABELS).map(key => {
+        const existing = allLessons.find(l => l.instrument_key === key && l.section === 'practice_technique');
+        if (existing) {
+          return `<div style="padding:8px 12px; border:1px solid var(--border-gold); background:rgba(201,168,76,0.08); font-size:0.8rem; cursor:pointer;" onclick="editLesson('${existing.id}')">
+            <strong style="color:var(--gold-light);">${INSTRUMENT_LABELS[key]}</strong> — ${existing.title}
+          </div>`;
+        }
+        return `<div style="padding:8px 12px; border:1px dashed var(--border-gold); font-size:0.8rem;">
+          <strong>${INSTRUMENT_LABELS[key]}</strong> — <span style="color:var(--text-muted);">not set</span>
+          <button onclick="quickAddPracticeTechnique('${key}')" style="background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:3px 9px; font-size:0.72rem; cursor:pointer; margin-left:6px;">+ Add</button>
+        </div>`;
+      }).join('');
+    }
+    window.quickAddPracticeTechnique = function(instrumentKey) {
+      document.getElementById('lessonModalTitle').textContent = 'Add Lesson';
+      document.getElementById('lessonId').value = '';
+      document.getElementById('lessonInstrument').value = instrumentKey;
+      document.getElementById('lessonSection').value = 'practice_technique';
+      document.getElementById('lessonTitle').value = `${INSTRUMENT_LABELS[instrumentKey]} — Practice Techniques`;
+      document.getElementById('lessonDescription').value = '';
+      document.getElementById('lessonSoundslice').value = '';
+      document.getElementById('lessonVideoUrl').value = '';
+      document.getElementById('lessonDeleteBtn').style.display = 'none';
+      currentLessonCoverUrl = null;
+      document.getElementById('lessonCoverPreview').style.backgroundImage = '';
+      openLessonModal();
+    };
+
+    window.editLesson = function(id) {
+      const l = allLessons.find(x => x.id === id);
+      if (!l) return;
+      document.getElementById('lessonModalTitle').textContent = 'Edit Lesson';
+      document.getElementById('lessonId').value = l.id;
+      document.getElementById('lessonInstrument').value = l.instrument_key;
+      document.getElementById('lessonSection').value = l.section;
+      document.getElementById('lessonTitle').value = l.title;
+      document.getElementById('lessonDescription').value = l.description || '';
+      document.getElementById('lessonSoundslice').value = l.soundslice_id || '';
+      document.getElementById('lessonVideoUrl').value = l.video_url || '';
+      document.getElementById('lessonDeleteBtn').style.display = 'inline-block';
+      currentLessonCoverUrl = l.cover_image_url || null;
+      document.getElementById('lessonCoverPreview').style.backgroundImage = currentLessonCoverUrl ? `url(${currentLessonCoverUrl})` : '';
+      openLessonModal();
+    };
+
+    document.getElementById('lessonModalClose').addEventListener('click', () => document.getElementById('lessonModal').classList.remove('open'));
+
+    document.getElementById('lessonSaveBtn').addEventListener('click', async () => {
+      const id = document.getElementById('lessonId').value;
+      const payload = {
+        instrumentKey: document.getElementById('lessonInstrument').value,
+        section: document.getElementById('lessonSection').value,
+        title: document.getElementById('lessonTitle').value.trim(),
+        description: document.getElementById('lessonDescription').value.trim(),
+        soundsliceId: document.getElementById('lessonSoundslice').value.trim(),
+        videoUrl: document.getElementById('lessonVideoUrl').value.trim(),
+        coverImageUrl: currentLessonCoverUrl,
+      };
+      if (!payload.title) { alert('Title is required.'); return; }
+      try {
+        if (id) {
+          await adminFetch(`/api/admin/lessons?id=${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+        } else {
+          await adminFetch('/api/admin/lessons', { method: 'POST', body: JSON.stringify(payload) });
+        }
+        document.getElementById('lessonModal').classList.remove('open');
+        loadLessons();
+      } catch (err) { alert(err.message); }
+    });
+
+    document.getElementById('lessonDeleteBtn').addEventListener('click', async () => {
+      const id = document.getElementById('lessonId').value;
+      if (!id || !confirm('Delete this lesson? This cannot be undone.')) return;
+      try {
+        await adminFetch(`/api/admin/lessons?id=${id}`, { method: 'DELETE' });
+        document.getElementById('lessonModal').classList.remove('open');
+        loadLessons();
+      } catch (err) { alert(err.message); }
+    });
+
+    // ── Resources CMS (Chord Books, MIDI, Sheet Music) ──
+    let allResources = [];
+    const KIND_LABELS = { chord_book: 'Chord Book', midi_track: 'MIDI Track', sheet_music: 'Sheet Music' };
+    async function loadResources() {
+      try {
+        const data = await adminFetch('/api/admin/resources');
+        allResources = data.resources;
+
+        const chordAndMidi = allResources.filter(r => r.kind !== 'sheet_music');
+        const body = document.getElementById('resourcesTableBody');
+        body.innerHTML = chordAndMidi.length ? chordAndMidi.map(r => `
+          <tr>
+            <td>${KIND_LABELS[r.kind] || r.kind}</td>
+            <td>${r.title}</td>
+            <td>${r.file_url ? 'Set' : '<span style="color:var(--text-muted);">Not set</span>'}</td>
+            <td class="row-actions"><button onclick="editResource('${r.id}')">Edit</button></td>
+          </tr>`).join('') : '<tr><td colspan="4" class="empty-state">No resources yet.</td></tr>';
+
+        const sheetMusic = allResources.filter(r => r.kind === 'sheet_music');
+        const smBody = document.getElementById('sheetMusicTableBody');
+        smBody.innerHTML = sheetMusic.length ? sheetMusic.map(r => `
+          <tr>
+            <td>${r.title}</td>
+            <td>${r.file_url ? 'Set' : '<span style="color:var(--text-muted);">Not set</span>'}</td>
+            <td class="row-actions"><button onclick="editResource('${r.id}')">Edit</button></td>
+          </tr>`).join('') : '<tr><td colspan="3" class="empty-state">No sheet music uploaded yet.</td></tr>';
+      } catch (err) { console.error(err); }
+    }
+
+    function openNewResourceModal(defaultKind) {
+      document.getElementById('resourceModalTitle').textContent = defaultKind === 'sheet_music' ? 'Add Sheet Music' : 'Add Resource';
+      document.getElementById('resourceId').value = '';
+      document.getElementById('resourceKind').value = defaultKind;
+      document.getElementById('resourceTitle').value = '';
+      document.getElementById('resourceTitle').placeholder = defaultKind === 'sheet_music' ? 'e.g. Vihuela — Etude No. 1' : '';
+      document.getElementById('resourceFileUrl').value = '';
+      document.getElementById('resourceDeleteBtn').style.display = 'none';
+      document.getElementById('resourceUploadStatus').style.display = 'none';
+      document.getElementById('resourceFileInput').value = '';
+      document.getElementById('resourceModal').classList.add('open');
+    }
+    document.getElementById('newResourceBtn').addEventListener('click', () => openNewResourceModal('chord_book'));
+    document.getElementById('newSheetMusicBtn').addEventListener('click', () => openNewResourceModal('sheet_music'));
+
+    window.editResource = function(id) {
+      const r = allResources.find(x => x.id === id);
+      if (!r) return;
+      document.getElementById('resourceModalTitle').textContent = r.kind === 'sheet_music' ? 'Edit Sheet Music' : 'Edit Resource';
+      document.getElementById('resourceId').value = r.id;
+      document.getElementById('resourceKind').value = r.kind;
+      document.getElementById('resourceTitle').value = r.title;
+      document.getElementById('resourceTitle').placeholder = '';
+      document.getElementById('resourceFileUrl').value = r.file_url || '';
+      document.getElementById('resourceDeleteBtn').style.display = 'inline-block';
+      document.getElementById('resourceUploadStatus').style.display = 'none';
+      document.getElementById('resourceFileInput').value = '';
+      document.getElementById('resourceModal').classList.add('open');
+    };
+
+    document.getElementById('resourceModalClose').addEventListener('click', () => document.getElementById('resourceModal').classList.remove('open'));
+
+    document.getElementById('resourceUploadBtn').addEventListener('click', () => document.getElementById('resourceFileInput').click());
+    document.getElementById('resourceFileInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const statusEl = document.getElementById('resourceUploadStatus');
+      statusEl.style.display = 'block';
+      statusEl.style.color = 'var(--text-muted)';
+      statusEl.textContent = 'Uploading…';
+
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        try {
+          const data = await adminFetch('/api/admin/upload-resource', {
+            method: 'POST',
+            body: JSON.stringify({ fileBase64: ev.target.result, contentType: file.type, fileName: file.name }),
+          });
+          document.getElementById('resourceFileUrl').value = data.url;
+          statusEl.style.color = 'var(--gold-light)';
+          statusEl.textContent = '✓ Uploaded — URL filled in below.';
+        } catch (err) {
+          statusEl.style.color = '#e8a8a8';
+          statusEl.textContent = err.message;
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+
+    document.getElementById('resourceSaveBtn').addEventListener('click', async () => {
+      const id = document.getElementById('resourceId').value;
+      const payload = {
+        kind: document.getElementById('resourceKind').value,
+        title: document.getElementById('resourceTitle').value.trim(),
+        fileUrl: document.getElementById('resourceFileUrl').value.trim(),
+      };
+      if (!payload.title) { alert('Title is required.'); return; }
+      try {
+        if (id) {
+          await adminFetch(`/api/admin/resources?id=${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+        } else {
+          await adminFetch('/api/admin/resources', { method: 'POST', body: JSON.stringify(payload) });
+        }
+        document.getElementById('resourceModal').classList.remove('open');
+        loadResources();
+      } catch (err) { alert(err.message); }
+    });
+
+    document.getElementById('resourceDeleteBtn').addEventListener('click', async () => {
+      const id = document.getElementById('resourceId').value;
+      if (!id || !confirm('Delete this resource?')) return;
+      try {
+        await adminFetch(`/api/admin/resources?id=${id}`, { method: 'DELETE' });
+        document.getElementById('resourceModal').classList.remove('open');
+        loadResources();
+      } catch (err) { alert(err.message); }
+    });
+
+    // ── Site Text ──
+    const CONTENT_FIELDS = [
+      { key: 'announcements.title', label: 'Announcements — Page Title', default: 'Announcements' },
+      { key: 'announcements.subtitle', label: 'Announcements — Subtitle', default: 'The latest updates from Isaak.' },
+      { key: 'credits.title', label: 'Thank You Page — Title', default: 'Thank You' },
+      { key: 'credits.subtitle', label: 'Thank You Page — Subtitle', default: 'A word from Isaak, and everyone who made Armonía Connect possible.' },
+      { key: 'credits.video_url', label: 'Thank You Page — Video URL (direct .mp4 link, e.g. from Supabase Storage)', default: '' },
+      { key: 'credits.body', label: 'Thank You Page — Message', default: "To every student who trusted me with their preparation this season — thank you." },
+      { key: 'credits.row1_role', label: 'Credits — Row 1 Role', default: 'Instruction & Course Content' },
+      { key: 'credits.row1_name', label: 'Credits — Row 1 Name', default: 'Isaak Matovich' },
+      { key: 'credits.row2_role', label: 'Credits — Row 2 Role', default: 'Photography' },
+      { key: 'credits.row2_name', label: 'Credits — Row 2 Name', default: 'bynicolephotography' },
+      { key: 'credits.row3_role', label: 'Credits — Row 3 Role', default: 'Platform Design & Development' },
+      { key: 'credits.row3_name', label: 'Credits — Row 3 Name', default: 'Armonía Connect' },
+      { key: 'maestro.name', label: 'Your Name (shown in Community)', default: 'Isaak Matovich' },
+      { key: 'maestro.bio', label: 'Your Bio (shown in Community)', default: 'Founder of Armonía Connect. TMEA All-State clinician and mariachi director.' },
+    ];
+
+    let maestroPhotoUrl = '';
+
+    // Resizes/compresses an image in the browser before upload — phone
+    // camera photos are often 8-15MB, and Vercel's platform hard-caps
+    // request bodies at 4.5MB regardless of any app-level config.
+    function resizeImageFile(file, maxDim = 700, quality = 0.85) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            let { width, height } = img;
+            if (width > maxDim || height > maxDim) {
+              if (width > height) { height = Math.round(height * (maxDim / width)); width = maxDim; }
+              else { width = Math.round(width * (maxDim / height)); height = maxDim; }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+            resolve({ dataUrl: canvas.toDataURL('image/jpeg', quality), contentType: 'image/jpeg' });
+          };
+          img.onerror = () => reject(new Error('Could not read that image. Please try a different file.'));
+          img.src = e.target.result;
+        };
+        reader.onerror = () => reject(new Error('Could not read that file.'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    document.getElementById('maestroPhotoBtn').addEventListener('click', () => document.getElementById('maestroPhotoInput').click());
+    document.getElementById('maestroPhotoInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const { dataUrl, contentType } = await resizeImageFile(file, 700, 0.85);
+        const data = await adminFetch('/api/admin/upload-maestro-photo', {
+          method: 'POST', body: JSON.stringify({ imageBase64: dataUrl, contentType }),
+        });
+        maestroPhotoUrl = data.url;
+        document.getElementById('maestroPhotoPreview').style.backgroundImage = `url(${data.url})`;
+      } catch (err) { alert(err.message); }
+    });
+
+    async function loadSiteContent() {
+      let saved = {};
+      try {
+        const data = await adminFetch('/api/admin/site-content');
+        data.content.forEach(row => { saved[row.key] = row.value; });
+      } catch (err) { console.error(err); }
+
+      if (saved['maestro.photo_url']) {
+        maestroPhotoUrl = saved['maestro.photo_url'];
+        document.getElementById('maestroPhotoPreview').style.backgroundImage = `url(${maestroPhotoUrl})`;
+      }
+      if (saved['site.favicon_url']) {
+        document.getElementById('faviconPreview').style.backgroundImage = `url(${saved['site.favicon_url']})`;
+      }
+      document.getElementById('creditsSimpleModeToggle').checked = saved['credits.simple_mode'] === 'true';
+      document.getElementById('saleEnabledToggle').checked = saved['sale.enabled'] === 'true';
+      document.getElementById('salePrice').value = saved['sale.price'] || '';
+      document.getElementById('saleOriginalPrice').value = saved['sale.original_price'] || '100';
+      document.getElementById('saleMessage').value = saved['sale.message'] || '';
+      document.getElementById('saleStripeLink').value = saved['sale.stripe_link'] || '';
+
+      document.getElementById('contentFieldsList').innerHTML = CONTENT_FIELDS.map(f => `
+        <div style="margin-bottom:20px;">
+          <label style="display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">${f.label}</label>
+          <textarea data-key="${f.key}" style="min-height:60px;">${(saved[f.key] !== undefined ? saved[f.key] : f.default)}</textarea>
+        </div>`).join('') + `<button id="contentSaveBtn">Save All</button><span class="composer-note" id="contentSavedNote">✓ Saved</span>`;
+
+      document.getElementById('contentSaveBtn').addEventListener('click', async () => {
+        try {
+          const textareas = document.querySelectorAll('#contentFieldsList textarea');
+          for (const ta of textareas) {
+            await adminFetch('/api/admin/site-content', { method: 'PATCH', body: JSON.stringify({ key: ta.dataset.key, value: ta.value }) });
+          }
+          const note = document.getElementById('contentSavedNote');
+          note.style.display = 'inline';
+          setTimeout(() => { note.style.display = 'none'; }, 2000);
+        } catch (err) { alert(err.message); }
+      });
+    }
+
+    // ── Students table ──
+    // ── Device Requests ──
+    async function loadDeviceRequests() {
+      try {
+        const data = await adminFetch('/api/admin/device-requests');
+        const body = document.getElementById('deviceRequestsBody');
+        if (!data.requests.length) {
+          body.innerHTML = '<tr><td colspan="5" class="empty-state">No device requests yet.</td></tr>';
+          return;
+        }
+        body.innerHTML = data.requests.map(r => `
+          <tr>
+            <td style="font-family:monospace; font-size:0.8rem;">${r.code}</td>
+            <td style="font-family:monospace; font-size:0.75rem; color:var(--text-muted);">${r.attempted_device_id.slice(0, 12)}…</td>
+            <td style="font-size:0.8rem;">${new Date(r.created_at).toLocaleString()}</td>
+            <td>
+              ${r.status === 'pending' ? '<span class="pill unread">Pending</span>' : ''}
+              ${r.status === 'approved' ? '<span class="pill">Approved</span>' : ''}
+              ${r.status === 'denied' ? '<span class="pill revoked">Denied</span>' : ''}
+            </td>
+            <td class="row-actions">
+              ${r.status === 'pending' ? `
+                <button onclick="resolveDeviceRequest('${r.id}', 'approve')">Approve</button>
+                <button onclick="resolveDeviceRequest('${r.id}', 'deny')">Deny</button>
+              ` : ''}
+            </td>
+          </tr>`).join('');
+      } catch (err) { console.error(err); }
+    }
+
+    window.resolveDeviceRequest = async function(id, action) {
+      const verb = action === 'approve' ? 'approve' : 'deny';
+      if (!confirm(`Are you sure you want to ${verb} this device request?`)) return;
+      try {
+        await adminFetch('/api/admin/device-requests', { method: 'POST', body: JSON.stringify({ id, action }) });
+        loadDeviceRequests();
+      } catch (err) { alert(err.message); }
+    };
+
+    // ── Account Settings ──
+    async function loadAccount() {
+      try {
+        const data = await adminFetch('/api/admin/account');
+        document.getElementById('acctName').value = data.name || '';
+        document.getElementById('acctLoginEmail').value = data.loginEmail || '';
+        document.getElementById('acctBillingEmail').value = data.billingEmail || '';
+        document.getElementById('acctId').textContent = data.id;
+        document.getElementById('acctCreated').textContent = new Date(data.createdAt).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+        document.getElementById('loginEmailBadge').innerHTML = data.loginEmailVerified
+          ? '<span style="color:var(--gold-light); font-size:0.7rem;">✓ Verified</span>'
+          : '<span style="color:#e8a8a8; font-size:0.7rem; border:1px solid var(--red-accent); padding:1px 7px;">Unverified</span>';
+      } catch (err) { console.error(err); }
+    }
+
+    function showAcctSaved() {
+      const note = document.getElementById('acctSavedNote');
+      note.style.display = 'block';
+      setTimeout(() => { note.style.display = 'none'; }, 2000);
+    }
+
+    document.getElementById('acctNameSaveBtn').addEventListener('click', async () => {
+      try {
+        await adminFetch('/api/admin/account', { method: 'PATCH', body: JSON.stringify({ name: document.getElementById('acctName').value.trim() }) });
+        showAcctSaved();
+      } catch (err) { alert(err.message); }
+    });
+
+    document.getElementById('acctLoginEmailSaveBtn').addEventListener('click', async () => {
+      try {
+        await adminFetch('/api/admin/account', { method: 'PATCH', body: JSON.stringify({ loginEmail: document.getElementById('acctLoginEmail').value.trim() }) });
+        showAcctSaved();
+        loadAccount();
+      } catch (err) { alert(err.message); }
+    });
+
+    document.getElementById('acctBillingEmailSaveBtn').addEventListener('click', async () => {
+      try {
+        await adminFetch('/api/admin/account', { method: 'PATCH', body: JSON.stringify({ billingEmail: document.getElementById('acctBillingEmail').value.trim() }) });
+        showAcctSaved();
+      } catch (err) { alert(err.message); }
+    });
+
+    document.getElementById('acctVerifyBtn').addEventListener('click', async () => {
+      const note = document.getElementById('acctVerifyNote');
+      try {
+        await adminFetch('/api/admin/send-verification', { method: 'POST', body: JSON.stringify({}) });
+        note.textContent = 'Verification email sent — check your inbox.';
+        note.style.display = 'block';
+      } catch (err) {
+        note.textContent = err.message;
+        note.style.display = 'block';
+      }
+    });
+
+    document.getElementById('acctChangePwBtn').addEventListener('click', async () => {
+      const currentPassword = document.getElementById('acctCurrentPw').value;
+      const newPassword = document.getElementById('acctNewPw').value;
+      if (!currentPassword || !newPassword) { alert('Enter both your current and new password.'); return; }
+      try {
+        await adminFetch('/api/admin/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) });
+        document.getElementById('acctCurrentPw').value = '';
+        document.getElementById('acctNewPw').value = '';
+        showAcctSaved();
+      } catch (err) { alert(err.message); }
+    });
+
+    let allStudents = [];
+    let studentTypeFilter = 'all';
+
+    async function loadStudents() {
+      try {
+        const data = await adminFetch('/api/admin/overview');
+        allStudents = data.students;
+        renderStudentsTable();
+        renderInbox();
+        updateMessagesBadge();
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function csvEscape(value) {
+      const s = String(value ?? '');
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    }
+    document.getElementById('exportCsvBtn').addEventListener('click', () => {
+      const filtered = studentTypeFilter === 'all' ? allStudents : allStudents.filter(s => (s.code_type || 'student') === studentTypeFilter);
+      const headers = ['Name', 'Email', 'Type', 'Instrument', 'School', 'Code', 'Redeemed Count', 'Last Login', 'Joined', 'Status', 'Source'];
+      const rows = filtered.map(s => {
+        const isClassroom = s.code_type === 'classroom';
+        return [
+          isClassroom ? (s.profile?.teacher_name || s.profile?.name || '') : (s.profile?.name || ''),
+          s.email,
+          isClassroom ? 'Classroom' : 'Student',
+          s.profile?.instrument || '',
+          s.profile?.school_name || '',
+          s.code,
+          s.redeemed_count,
+          s.last_login_at ? new Date(s.last_login_at).toLocaleString() : '',
+          s.created_at ? new Date(s.created_at).toLocaleDateString() : '',
+          s.revoked ? 'Terminated' : 'Active',
+          s.source === 'admin' ? 'Comp' : 'Purchase',
+        ];
+      });
+      const csv = [headers, ...rows].map(row => row.map(csvEscape).join(',')).join('\r\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `armonia-connect-students-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    });
+
+    // ── Message hub (inbox of every conversation, across all students) ──
+    let inboxFilter = 'all';
+    function timeAgo(iso) {
+      const diffMs = Date.now() - new Date(iso).getTime();
+      const mins = Math.floor(diffMs / 60000);
+      if (mins < 1) return 'just now';
+      if (mins < 60) return `${mins}m ago`;
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return `${hrs}h ago`;
+      const days = Math.floor(hrs / 24);
+      if (days < 7) return `${days}d ago`;
+      return new Date(iso).toLocaleDateString();
+    }
+    function renderInbox() {
+      const host = document.getElementById('inboxList');
+      let conversations = allStudents.filter(s => s.lastMessage);
+      if (inboxFilter === 'unread') conversations = conversations.filter(s => s.unreadCount > 0);
+      conversations.sort((a, b) => new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt));
+
+      if (!conversations.length) {
+        host.innerHTML = `<div class="empty-state" style="padding:40px 20px; text-align:center;">${inboxFilter === 'unread' ? 'No unread messages.' : 'No conversations yet — messages from students will show up here.'}</div>`;
+        return;
+      }
+      host.innerHTML = conversations.map(s => {
+        const isClassroom = s.code_type === 'classroom';
+        const displayName = isClassroom
+          ? (s.profile?.teacher_name || s.profile?.name || s.email)
+          : (s.profile?.name || s.email);
+        const initial = displayName.charAt(0).toUpperCase();
+        const isUnread = s.unreadCount > 0;
+        const prefix = s.lastMessage.sender === 'maestro' ? 'You: ' : '';
+        return `
+          <div class="inbox-row ${isUnread ? 'unread' : ''}" onclick="openChat('${s.code}', '${displayName.replace(/'/g, "\\'")}')">
+            <div class="inbox-avatar">${initial}</div>
+            <div class="inbox-body">
+              <div class="inbox-name">${displayName}${isClassroom ? ' <span class="type-badge classroom" style="margin-left:6px;">Classroom</span>' : ''}</div>
+              <div class="inbox-preview">${prefix}${(s.lastMessage.body || '').replace(/</g,'&lt;')}</div>
+            </div>
+            <div class="inbox-meta">
+              <div>${timeAgo(s.lastMessage.createdAt)}</div>
+              ${isUnread ? `<div style="display:flex; align-items:center; justify-content:flex-end; gap:5px; margin-top:4px;"><span class="inbox-dot"></span> ${s.unreadCount}</div>` : ''}
+            </div>
+          </div>`;
+      }).join('');
+    }
+    document.querySelectorAll('.msg-filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.msg-filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        inboxFilter = btn.dataset.msgfilter;
+        renderInbox();
+      });
+    });
+    function updateMessagesBadge() {
+      const total = allStudents.reduce((sum, s) => sum + (s.unreadCount || 0), 0);
+      const badge = document.getElementById('messagesTabBadge');
+      if (total > 0) {
+        badge.textContent = total >= 4 ? '4+' : String(total);
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    // ── Course Updates (auto-drafted on new lesson, held for review) ──
+    async function loadCourseUpdates() {
+      try {
+        const data = await adminFetch('/api/admin/course-updates');
+        const pending = data.updates.filter(u => u.status === 'pending');
+        const published = data.updates.filter(u => u.status === 'published');
+
+        const badge = document.getElementById('updatesTabBadge');
+        if (pending.length > 0) { badge.textContent = pending.length >= 4 ? '4+' : String(pending.length); badge.style.display = 'inline-block'; }
+        else { badge.style.display = 'none'; }
+
+        document.getElementById('pendingUpdatesList').innerHTML = pending.length ? pending.map(u => `
+          <div style="border:1px solid var(--border-gold); background:var(--charcoal-3); padding:16px; margin-bottom:12px;">
+            <p style="font-size:0.68rem; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); margin-bottom:10px;">${u.source === 'auto' ? 'Auto-generated' : 'Manual draft'} · ${new Date(u.created_at).toLocaleString()}</p>
+            <input type="text" value="${u.title.replace(/"/g,'&quot;')}" id="pu-title-${u.id}" style="width:100%; background:var(--charcoal-4); border:1px solid var(--border-gold); color:var(--cream); padding:8px 10px; margin-bottom:8px; font-weight:600;">
+            <textarea id="pu-body-${u.id}" rows="2" style="width:100%; background:var(--charcoal-4); border:1px solid var(--border-gold); color:var(--cream); padding:8px 10px; margin-bottom:10px; resize:vertical;">${u.body || ''}</textarea>
+            <div style="display:flex; gap:8px; justify-content:flex-end;">
+              <button onclick="discardUpdate('${u.id}')" style="background:transparent; border:1px solid var(--red-accent); color:#e8a8a8; padding:7px 14px; font-size:0.8rem; cursor:pointer;">Discard</button>
+              <button onclick="publishUpdate('${u.id}')" style="background:var(--gold); color:var(--charcoal); border:none; padding:7px 16px; font-weight:600; font-size:0.8rem; cursor:pointer;">Publish</button>
+            </div>
+          </div>`).join('') : '<p class="empty-state" style="padding:16px 0;">Nothing waiting for review.</p>';
+
+        document.getElementById('publishedUpdatesList').innerHTML = published.length ? published.map(u => `
+          <div style="padding:12px 0; border-bottom:1px solid rgba(201,168,76,0.1);">
+            <strong style="font-size:0.88rem;">${u.title}</strong>
+            <span style="color:var(--text-muted); font-size:0.76rem; margin-left:8px;">${new Date(u.published_at).toLocaleDateString()}</span>
+            <p style="font-size:0.82rem; color:var(--text-muted); margin-top:3px;">${u.body || ''}</p>
+          </div>`).join('') : '<p class="empty-state" style="padding:16px 0;">Nothing published yet.</p>';
+      } catch (err) { console.error(err); }
+    }
+    window.publishUpdate = async function(id) {
+      const title = document.getElementById(`pu-title-${id}`).value.trim();
+      const body = document.getElementById(`pu-body-${id}`).value.trim();
+      if (!title) { alert('Title is required.'); return; }
+      try {
+        await adminFetch(`/api/admin/course-updates?id=${id}`, { method: 'PATCH', body: JSON.stringify({ title, body, publish: true }) });
+        loadCourseUpdates();
+      } catch (err) { alert(err.message); }
+    };
+    window.discardUpdate = async function(id) {
+      if (!confirm('Discard this draft? This cannot be undone.')) return;
+      try {
+        await adminFetch(`/api/admin/course-updates?id=${id}`, { method: 'DELETE' });
+        loadCourseUpdates();
+      } catch (err) { alert(err.message); }
+    };
+    document.getElementById('newUpdateBtn').addEventListener('click', () => {
+      document.getElementById('nuTitle').value = '';
+      document.getElementById('nuBody').value = '';
+      document.getElementById('nuError').style.display = 'none';
+      document.getElementById('newUpdateModal').classList.add('open');
+    });
+    document.getElementById('newUpdateModalClose').addEventListener('click', () => {
+      document.getElementById('newUpdateModal').classList.remove('open');
+    });
+    async function submitNewUpdate(publishNow) {
+      const title = document.getElementById('nuTitle').value.trim();
+      const body = document.getElementById('nuBody').value.trim();
+      const errBox = document.getElementById('nuError');
+      if (!title) { errBox.textContent = 'Title is required.'; errBox.style.display = 'block'; return; }
+      try {
+        await adminFetch('/api/admin/course-updates', { method: 'POST', body: JSON.stringify({ title, body, publishNow }) });
+        document.getElementById('newUpdateModal').classList.remove('open');
+        loadCourseUpdates();
+      } catch (err) { errBox.textContent = err.message; errBox.style.display = 'block'; }
+    }
+    document.getElementById('nuSaveDraftBtn').addEventListener('click', () => submitNewUpdate(false));
+    document.getElementById('nuPublishBtn').addEventListener('click', () => submitNewUpdate(true));
+
+    // ── Message by Instrument (batch) ──
+    document.getElementById('openBatchMessageBtn').addEventListener('click', () => {
+      document.getElementById('batchMessageModal').classList.add('open');
+      document.getElementById('batchMessageForm').style.display = 'block';
+      document.getElementById('batchMessageResult').style.display = 'none';
+      document.getElementById('bmError').style.display = 'none';
+      document.getElementById('bmBody').value = '';
+    });
+    document.getElementById('batchMessageModalClose').addEventListener('click', () => {
+      document.getElementById('batchMessageModal').classList.remove('open');
+    });
+    document.getElementById('bmSendBtn').addEventListener('click', async () => {
+      const instrument = document.getElementById('bmInstrument').value;
+      const body = document.getElementById('bmBody').value.trim();
+      const errBox = document.getElementById('bmError');
+      errBox.style.display = 'none';
+      if (!body) { errBox.textContent = 'Enter a message.'; errBox.style.display = 'block'; return; }
+      const btn = document.getElementById('bmSendBtn');
+      btn.disabled = true; btn.textContent = 'Sending…';
+      try {
+        const data = await adminFetch('/api/admin/batch-message', { method: 'POST', body: JSON.stringify({ instrument, body }) });
+        document.getElementById('batchMessageForm').style.display = 'none';
+        document.getElementById('batchMessageResult').style.display = 'block';
+        document.getElementById('bmResultText').textContent = data.sent > 0
+          ? `Sent to ${data.sent} ${instrument} student${data.sent === 1 ? '' : 's'}.`
+          : `No active students are currently studying ${instrument}.`;
+        loadStudents();
+      } catch (err) {
+        errBox.textContent = err.message;
+        errBox.style.display = 'block';
+      } finally {
+        btn.disabled = false; btn.textContent = 'Send to Instrument';
+      }
+    });
+    document.getElementById('bmDoneBtn').addEventListener('click', () => {
+      document.getElementById('batchMessageModal').classList.remove('open');
+    });
+
+
+    function studentRowHtml(s) {
+      const isClassroom = s.code_type === 'classroom';
+      const displayName = isClassroom
+        ? (s.profile?.teacher_name || s.profile?.name || '(no profile yet)')
+        : (s.profile?.name || '(no profile yet)');
+      const secondCol = isClassroom
+        ? (s.profile?.school_name ? `<strong>${s.profile.school_name}</strong>` : '—')
+        : (s.profile?.instrument || '—') + (s.profile ? `<br><span style="color:var(--text-muted); font-size:0.8rem;">${s.profile.experience_level}, ${s.profile.years_playing}</span>` : '');
+      const deviceCol = isClassroom
+        ? '<span style="color:var(--text-muted); font-size:0.8rem;">Multi-session (classroom)</span>'
+        : (s.bound_device_id
+            ? `<span class="pill" style="border-color:var(--gold); color:var(--gold-light);">Bound</span><br><span style="color:var(--text-muted); font-size:0.72rem;">since ${new Date(s.bound_at).toLocaleDateString()}</span>`
+            : '<span style="color:var(--text-muted); font-size:0.8rem;">Not yet used</span>');
+      return `
+        <tr>
+          <td>
+            <strong>${displayName}</strong><br>
+            <span style="color:var(--text-muted); font-size:0.8rem;">${s.email}</span>
+          </td>
+          <td><span class="type-badge ${isClassroom ? 'classroom' : 'student'}">${isClassroom ? 'Classroom' : 'Student'}</span>${s.source === 'admin' ? '<br><span style="color:var(--text-muted); font-size:0.68rem;">Comp</span>' : ''}</td>
+          <td>${secondCol}</td>
+          <td style="font-family:monospace; font-size:0.8rem;">${s.code}</td>
+          <td>${s.redeemed_count}</td>
+          <td>${deviceCol}</td>
+          <td>
+            ${s.revoked ? '<span class="pill revoked">Terminated</span>' : '<span class="pill">Active</span>'}
+            ${s.unreadCount > 0 ? `<span class="pill unread">${s.unreadCount} new</span>` : ''}
+          </td>
+          <td class="row-actions">
+            <button onclick="openChat('${s.code}', '${displayName.replace(/'/g, "\\'")}')">Message</button>
+            <button onclick="toggleRevoke('${s.code}', ${!s.revoked})">${s.revoked ? 'Restore' : 'Terminate'}</button>
+            ${!isClassroom && s.bound_device_id ? `<button onclick="resetDevice('${s.code}')">Reset Device</button>` : ''}
+          </td>
+        </tr>
+      `;
+    }
+
+    function renderStudentsTable() {
+      const body = document.getElementById('studentsTableBody');
+      const filtered = studentTypeFilter === 'all' ? allStudents : allStudents.filter(s => (s.code_type || 'student') === studentTypeFilter);
+      const active = filtered.filter(s => !s.revoked);
+      const archived = filtered.filter(s => s.revoked);
+
+      body.innerHTML = active.length
+        ? active.map(studentRowHtml).join('')
+        : '<tr><td colspan="8" class="empty-state">No active enrollments.</td></tr>';
+
+      const archiveToggle = document.getElementById('archiveToggle');
+      const archiveBody = document.getElementById('archivedTableBody');
+      const archiveSection = document.getElementById('archiveSection');
+      archiveToggle.textContent = `▸ Terminated / Archived (${archived.length})`;
+      if (!archived.length) {
+        archiveSection.style.display = 'none';
+      } else {
+        archiveSection.style.display = 'block';
+        archiveBody.innerHTML = archived.map(studentRowHtml).join('');
+      }
+    }
+    document.getElementById('archiveToggle').addEventListener('click', function() {
+      const wrap = document.getElementById('archiveTableWrap');
+      const open = wrap.style.display === 'block';
+      wrap.style.display = open ? 'none' : 'block';
+      const archivedCount = allStudents.filter(s => s.revoked && (studentTypeFilter === 'all' || (s.code_type || 'student') === studentTypeFilter)).length;
+      this.textContent = `${open ? '▸' : '▾'} Terminated / Archived (${archivedCount})`;
+    });
+
+    document.querySelectorAll('.stf-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.stf-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        studentTypeFilter = btn.dataset.filter;
+        renderStudentsTable();
+      });
+    });
+
+    // ── Generate Access Code ──
+    let gcSelectedType = 'student';
+    const gcTypeNotes = {
+      student: 'A normal single-session student code — full course access, no charge.',
+      classroom: 'Supports multiple simultaneous logins for a shared/big-screen setup. Skips device binding, Community, and Credits. Onboarding only asks for school and teacher name.',
+    };
+    document.getElementById('openGenerateCodeBtn').addEventListener('click', () => {
+      document.getElementById('generateCodeModal').classList.add('open');
+      document.getElementById('generateCodeForm').style.display = 'block';
+      document.getElementById('generateCodeResult').style.display = 'none';
+      document.getElementById('gcError').style.display = 'none';
+      document.getElementById('gcEmail').value = '';
+      document.getElementById('gcQuantity').value = '1';
+    });
+    document.getElementById('generateCodeModalClose').addEventListener('click', () => {
+      document.getElementById('generateCodeModal').classList.remove('open');
+    });
+    document.querySelectorAll('.gc-type-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.gc-type-btn').forEach(b => {
+          b.classList.remove('active');
+          b.style.background = 'var(--charcoal-3)'; b.style.color = 'var(--cream)'; b.style.borderColor = 'var(--border-gold)';
+        });
+        btn.classList.add('active');
+        btn.style.background = 'var(--gold)'; btn.style.color = 'var(--charcoal)'; btn.style.borderColor = 'var(--gold)';
+        gcSelectedType = btn.dataset.type;
+        document.getElementById('gcTypeNote').textContent = gcTypeNotes[gcSelectedType];
+      });
+    });
+    document.getElementById('gcGenerateBtn').addEventListener('click', async () => {
+      const email = document.getElementById('gcEmail').value.trim();
+      const quantity = Math.min(50, Math.max(1, parseInt(document.getElementById('gcQuantity').value, 10) || 1));
+      const errBox = document.getElementById('gcError');
+      errBox.style.display = 'none';
+      if (!email || !email.includes('@')) { errBox.textContent = 'Enter a valid email address.'; errBox.style.display = 'block'; return; }
+      const btn = document.getElementById('gcGenerateBtn');
+      btn.disabled = true; btn.textContent = 'Generating…';
+      try {
+        const data = await adminFetch('/api/admin/generate-code', { method: 'POST', body: JSON.stringify({ email, codeType: gcSelectedType, quantity }) });
+        document.getElementById('generateCodeForm').style.display = 'none';
+        document.getElementById('generateCodeResult').style.display = 'block';
+        document.getElementById('gcResultLabel').textContent = data.codes.length > 1 ? `${data.codes.length} Codes Generated` : 'Code Generated';
+        document.getElementById('gcResultCode').innerHTML = data.codes.map(c => `<div style="padding:3px 0;">${c}</div>`).join('');
+        document.getElementById('gcResultStatus').textContent = data.emailSent
+          ? `Sent to ${data.email}. ${data.codes.length > 1 ? "They'll" : "It'll"} also show up in the Students table${data.codeType === 'classroom' ? ' under Classrooms' : ''}.`
+          : `Code${data.codes.length > 1 ? 's' : ''} created, but the email failed to send — copy them and deliver manually.`;
+        loadStudents();
+      } catch (err) {
+        errBox.textContent = err.message;
+        errBox.style.display = 'block';
+      } finally {
+        btn.disabled = false; btn.textContent = 'Generate & Send';
+      }
+    });
+    document.getElementById('gcCopyBtn').addEventListener('click', () => {
+      navigator.clipboard.writeText(document.getElementById('gcResultCode').innerText);
+      const btn = document.getElementById('gcCopyBtn');
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = 'Copy Code'; }, 1500);
+    });
+    document.getElementById('gcDoneBtn').addEventListener('click', () => {
+      document.getElementById('generateCodeModal').classList.remove('open');
+    });
+
+    async function resetDevice(code) {
+      if (!confirm(`Reset the device binding for ${code}?\n\nThis lets the code be used on a new device next login. Only do this if you've confirmed it's a legitimate device change (new phone, etc.) — not someone trying to share the code.`)) return;
+      try {
+        await adminFetch('/api/admin/reset-device', { method: 'POST', body: JSON.stringify({ code }) });
+        loadStudents();
+      } catch (err) { alert(err.message); }
+    }
+
+    async function toggleRevoke(code, revoked) {
+      if (!confirm(revoked ? `Revoke access for ${code}? This logs them out immediately.` : `Restore access for ${code}?`)) return;
+      try {
+        await adminFetch('/api/admin/revoke', { method: 'POST', body: JSON.stringify({ code, revoked }) });
+        loadStudents();
+      } catch (err) { alert(err.message); }
+    }
+
+    // ── Chat modal ──
+    let activeChatCode = null;
+    let chatPollTimer = null;
+
+    function openChat(code, name) {
+      activeChatCode = code;
+      loadChat._lastSignature = null;
+      document.getElementById('chatModalTitle').textContent = name;
+      document.getElementById('chatModal').classList.add('open');
+      loadChat();
+      clearInterval(chatPollTimer);
+      chatPollTimer = setInterval(loadChat, 4000);
+    }
+
+    async function loadChat() {
+      if (!activeChatCode) return;
+      try {
+        const data = await adminFetch(`/api/admin/messages?code=${encodeURIComponent(activeChatCode)}`);
+        const signature = data.messages.map(m => m.id).join(',');
+        if (loadChat._lastSignature === signature) return;
+        loadChat._lastSignature = signature;
+        const host = document.getElementById('adminChatMessages');
+        host.innerHTML = data.messages.length
+          ? data.messages.map(m => `<div class="msg ${m.sender}">${m.body}</div>`).join('')
+          : '<p class="empty-state">No messages yet.</p>';
+        host.scrollTop = host.scrollHeight;
+      } catch (err) { console.error(err); }
+    }
+
+    document.getElementById('chatModalClose').addEventListener('click', () => {
+      document.getElementById('chatModal').classList.remove('open');
+      clearInterval(chatPollTimer);
+      activeChatCode = null;
+      loadStudents(); // refresh unread badges
+    });
+
+    document.getElementById('adminChatForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = document.getElementById('adminChatInput');
+      const body = input.value.trim();
+      if (!body || !activeChatCode) return;
+      input.value = '';
+      try {
+        await adminFetch('/api/admin/messages', { method: 'POST', body: JSON.stringify({ code: activeChatCode, body }) });
+        loadChat();
+      } catch (err) { alert(err.message); }
+    });
+
+    // ── Announcements ──
+    let annImageUrl = null;
+    document.getElementById('annImageBtn').addEventListener('click', () => document.getElementById('annImageInput').click());
+    document.getElementById('annImageInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const { dataUrl, contentType } = await resizeImageFile(file, 800, 0.85);
+        const data = await adminFetch('/api/admin/upload-image', { method: 'POST', body: JSON.stringify({ imageBase64: dataUrl, contentType }) });
+        annImageUrl = data.url;
+        const preview = document.getElementById('annImagePreview');
+        preview.querySelector('img').src = annImageUrl;
+        preview.style.display = 'block';
+        document.getElementById('annImageRemoveBtn').style.display = 'inline-block';
+      } catch (err) { alert(err.message); }
+    });
+    document.getElementById('annImageRemoveBtn').addEventListener('click', () => {
+      annImageUrl = null;
+      document.getElementById('annImagePreview').style.display = 'none';
+      document.getElementById('annImageRemoveBtn').style.display = 'none';
+      document.getElementById('annImageInput').value = '';
+    });
+
+    document.getElementById('annSubmitBtn').addEventListener('click', async () => {
+      const title = document.getElementById('annTitle').value.trim();
+      const body = document.getElementById('annBody').value.trim();
+      if (!title || !body) { alert('Title and message are both required.'); return; }
+      try {
+        await adminFetch('/api/admin/announcements', { method: 'POST', body: JSON.stringify({ title, body, imageUrl: annImageUrl }) });
+        document.getElementById('annTitle').value = '';
+        document.getElementById('annBody').value = '';
+        annImageUrl = null;
+        document.getElementById('annImagePreview').style.display = 'none';
+        document.getElementById('annImageRemoveBtn').style.display = 'none';
+        document.getElementById('annImageInput').value = '';
+        const note = document.getElementById('annSavedNote');
+        note.style.display = 'inline';
+        setTimeout(() => { note.style.display = 'none'; }, 2000);
+      } catch (err) { alert(err.message); }
+    });
+
+    // ── Community moderation ──
+    async function loadCommunityMod() {
+      try {
+        const data = await adminFetch('/api/admin/community-posts');
+        const host = document.getElementById('communityModList');
+        if (!data.posts.length) { host.innerHTML = '<p class="empty-state">No posts yet.</p>'; return; }
+        host.innerHTML = data.posts.map(p => `
+          <div style="display:flex; gap:14px; padding:14px 0; border-bottom:1px solid rgba(201,168,76,0.12);">
+            <div style="flex:1;">
+              <div style="font-size:0.85rem; margin-bottom:4px;"><strong>${p.authorName}</strong> <span style="color:var(--text-muted); font-size:0.78rem;">${new Date(p.createdAt).toLocaleString()}</span></div>
+              <div style="font-size:0.87rem; white-space:pre-wrap;">${p.body || ''}</div>
+              ${p.imageUrl ? `<img src="${p.imageUrl}" style="max-width:200px; margin-top:8px; border:1px solid var(--border-gold); display:block;">` : ''}
+            </div>
+            <button onclick="deleteCommunityPost('${p.id}')" style="background:none; border:1px solid var(--red-accent); color:#e8a8a8; padding:7px 12px; font-size:0.78rem; cursor:pointer; height:fit-content;">Delete</button>
+          </div>`).join('');
+      } catch (err) { console.error(err); }
+    }
+    window.deleteCommunityPost = async function(id) {
+      if (!confirm('Delete this post? This also removes its likes and replies.')) return;
+      try {
+        await adminFetch(`/api/admin/community-post?id=${id}`, { method: 'DELETE' });
+        loadCommunityMod();
+      } catch (err) { alert(err.message); }
+    };
+
+    // ── Mock Auditions ──
+    let allAuditions = [];
+    async function loadAuditions() {
+      try {
+        const data = await adminFetch('/api/admin/mock-auditions');
+        allAuditions = data.auditions;
+        const body = document.getElementById('auditionsTableBody');
+        body.innerHTML = allAuditions.length ? allAuditions.map(a => `
+          <tr>
+            <td>${a.title}</td>
+            <td>${new Date(a.eventDate).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</td>
+            <td>${a.signupCount}</td>
+            <td class="row-actions">
+              <button onclick="editAudition('${a.id}')">Edit</button>
+              <button onclick="deleteAudition('${a.id}')">Delete</button>
+            </td>
+          </tr>`).join('') : '<tr><td colspan="4" class="empty-state">No mock auditions scheduled yet.</td></tr>';
+      } catch (err) { console.error(err); }
+    }
+    document.getElementById('newAuditionBtn').addEventListener('click', () => {
+      document.getElementById('auditionModalTitle').textContent = 'Schedule a Mock Audition';
+      document.getElementById('auditionId').value = '';
+      document.getElementById('auditionTitle').value = '';
+      document.getElementById('auditionDate').value = '';
+      document.getElementById('auditionDescription').value = '';
+      document.getElementById('auditionZoomLink').value = '';
+      document.getElementById('auditionModal').classList.add('open');
+    });
+    window.editAudition = function(id) {
+      const a = allAuditions.find(x => x.id === id);
+      if (!a) return;
+      document.getElementById('auditionModalTitle').textContent = 'Edit Mock Audition';
+      document.getElementById('auditionId').value = a.id;
+      document.getElementById('auditionTitle').value = a.title;
+      // datetime-local needs "YYYY-MM-DDTHH:mm" in local time
+      const d = new Date(a.eventDate);
+      const pad = n => String(n).padStart(2, '0');
+      document.getElementById('auditionDate').value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      document.getElementById('auditionDescription').value = a.description || '';
+      document.getElementById('auditionZoomLink').value = a.zoomLink || '';
+      document.getElementById('auditionModal').classList.add('open');
+    };
+    window.deleteAudition = async function(id) {
+      if (!confirm('Delete this mock audition? Students who signed up will no longer see it.')) return;
+      try {
+        await adminFetch(`/api/admin/mock-auditions?id=${id}`, { method: 'DELETE' });
+        loadAuditions();
+      } catch (err) { alert(err.message); }
+    };
+    document.getElementById('auditionModalClose').addEventListener('click', () => document.getElementById('auditionModal').classList.remove('open'));
+    document.getElementById('auditionSaveBtn').addEventListener('click', async () => {
+      const id = document.getElementById('auditionId').value;
+      const title = document.getElementById('auditionTitle').value.trim();
+      const dateVal = document.getElementById('auditionDate').value;
+      if (!title || !dateVal) { alert('Title and date/time are required.'); return; }
+      const payload = {
+        title,
+        eventDate: new Date(dateVal).toISOString(),
+        description: document.getElementById('auditionDescription').value.trim(),
+        zoomLink: document.getElementById('auditionZoomLink').value.trim(),
+      };
+      try {
+        if (id) {
+          await adminFetch(`/api/admin/mock-auditions?id=${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+        } else {
+          await adminFetch('/api/admin/mock-auditions', { method: 'POST', body: JSON.stringify(payload) });
+        }
+        document.getElementById('auditionModal').classList.remove('open');
+        loadAuditions();
+      } catch (err) { alert(err.message); }
+    });
+
+    // ── Instrument cover images ──
+    const INSTRUMENT_LIST = [
+      { key: 'vihuela', name: 'Vihuela' },
+      { key: 'guitarra', name: 'Guitarra' },
+      { key: 'guitarra-de-golpe', name: 'Guitarra de Golpe' },
+      { key: 'guitarron', name: 'Guitarrón' },
+    ];
+    // ── Site Favicon ──
+    document.getElementById('faviconUploadBtn').addEventListener('click', () => document.getElementById('faviconFileInput').click());
+    document.getElementById('faviconFileInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      e.target.value = '';
+      if (!file) return;
+      const status = document.getElementById('faviconStatus');
+      status.textContent = 'Uploading…';
+      try {
+        const { dataUrl, contentType } = await resizeImageFile(file, 256, 0.9);
+        const uploadData = await adminFetch('/api/admin/upload-image', { method: 'POST', body: JSON.stringify({ imageBase64: dataUrl, contentType }) });
+        await adminFetch('/api/admin/site-content', { method: 'PATCH', body: JSON.stringify({ key: 'site.favicon_url', value: uploadData.url }) });
+        document.getElementById('faviconPreview').style.backgroundImage = `url(${uploadData.url})`;
+        status.textContent = 'Saved — updates everywhere within a few minutes.';
+        setTimeout(() => { status.textContent = ''; }, 4000);
+      } catch (err) {
+        status.textContent = err.message;
+      }
+    });
+
+    document.getElementById('saveSaleBtn').addEventListener('click', async () => {
+      const status = document.getElementById('saleSaveStatus');
+      status.textContent = 'Saving…';
+      try {
+        const fields = {
+          'sale.enabled': document.getElementById('saleEnabledToggle').checked ? 'true' : 'false',
+          'sale.price': document.getElementById('salePrice').value.trim(),
+          'sale.original_price': document.getElementById('saleOriginalPrice').value.trim() || '100',
+          'sale.message': document.getElementById('saleMessage').value.trim(),
+          'sale.stripe_link': document.getElementById('saleStripeLink').value.trim(),
+        };
+        for (const [key, value] of Object.entries(fields)) {
+          await adminFetch('/api/admin/site-content', { method: 'PATCH', body: JSON.stringify({ key, value }) });
+        }
+        status.textContent = '✓ Saved — live on the site now.';
+        setTimeout(() => { status.textContent = ''; }, 4000);
+      } catch (err) {
+        status.textContent = err.message;
+      }
+    });
+
+    document.getElementById('creditsSimpleModeToggle').addEventListener('change', async (e) => {
+      try {
+        await adminFetch('/api/admin/site-content', { method: 'PATCH', body: JSON.stringify({ key: 'credits.simple_mode', value: e.target.checked ? 'true' : 'false' }) });
+      } catch (err) {
+        alert(err.message);
+        e.target.checked = !e.target.checked; // revert on failure
+      }
+    });
+
+    async function loadInstrumentCovers() {
+      let saved = {};
+      try {
+        const data = await adminFetch('/api/admin/site-content');
+        data.content.forEach(row => { saved[row.key] = row.value; });
+      } catch (err) { console.error(err); }
+
+      document.getElementById('instrumentCoversList').innerHTML = INSTRUMENT_LIST.map(inst => `
+        <div style="width:180px;">
+          <div style="font-size:0.82rem; margin-bottom:8px;">${inst.name}</div>
+          <div class="inst-cover-preview" data-key="${inst.key}" style="width:180px; height:110px; background:var(--charcoal-3); border:1px solid var(--border-gold); background-size:cover; background-position:center; margin-bottom:8px; ${saved['instrument.' + inst.key + '.cover_url'] ? `background-image:url('${saved['instrument.' + inst.key + '.cover_url']}');` : ''}"></div>
+          <button type="button" class="inst-cover-btn" data-key="${inst.key}" style="width:100%; background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:7px; font-size:0.78rem; cursor:pointer;">Upload</button>
+        </div>`).join('');
+
+      document.querySelectorAll('.inst-cover-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const picker = document.createElement('input');
+          picker.type = 'file';
+          picker.accept = 'image/png, image/jpeg, image/webp';
+          picker.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            try {
+              const { dataUrl, contentType } = await resizeImageFile(file, 700, 0.85);
+              const data = await adminFetch('/api/admin/upload-image', { method: 'POST', body: JSON.stringify({ imageBase64: dataUrl, contentType }) });
+              await adminFetch('/api/admin/site-content', { method: 'PATCH', body: JSON.stringify({ key: `instrument.${btn.dataset.key}.cover_url`, value: data.url }) });
+              document.querySelector(`.inst-cover-preview[data-key="${btn.dataset.key}"]`).style.backgroundImage = `url(${data.url})`;
+            } catch (err) { alert(err.message); }
+          });
+          picker.click();
+        });
+      });
+    }
+  </script>
+</body>
+</html>

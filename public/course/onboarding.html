@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Armonía Connect — Welcome</title>
+<link rel="icon" id="faviconLink" href="/favicon.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<script>
+fetch('/api/site-content').then(r => r.json()).then(d => {
+  const url = d.content && d.content['site.favicon_url'];
+  if (url) { const el = document.getElementById('faviconLink'); if (el) el.href = url; }
+}).catch(() => {});
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold: #C9A84C; --gold-light: #E8C97A; --cream: #F2EBD9;
+    --charcoal: #0E0D0B; --charcoal-2: #141310; --charcoal-3: #1C1A16;
+    --text-muted: #8A8275; --border-gold: rgba(201,168,76,0.25); --red-accent: #9B2424;
+    --font-display: 'Playfair Display', Georgia, serif;
+    --font-serif: 'Cormorant Garamond', Georgia, serif;
+    --font-sans: 'Inter', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--charcoal); color: var(--cream); font-family: var(--font-sans); min-height: 100vh; padding: 48px 24px; }
+  .wrap { max-width: 520px; margin: 0 auto; }
+  .logo { font-family: var(--font-display); font-size: 1.6rem; color: var(--gold-light); text-align: center; margin-bottom: 4px; }
+  .tagline { font-family: var(--font-serif); font-style: italic; color: var(--text-muted); text-align: center; margin-bottom: 36px; }
+  .field { margin-bottom: 20px; }
+  label { display: block; font-size: 0.78rem; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
+  input, select, textarea {
+    width: 100%; background: var(--charcoal-3); border: 1px solid var(--border-gold);
+    color: var(--cream); padding: 12px 14px; font-size: 0.95rem; font-family: var(--font-sans);
+  }
+  textarea { resize: vertical; min-height: 90px; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--gold); }
+  .photo-row { display: flex; align-items: center; gap: 16px; }
+  .photo-preview {
+    width: 64px; height: 64px; border-radius: 50%; background: var(--charcoal-3);
+    border: 1px solid var(--border-gold); background-size: cover; background-position: center;
+    flex-shrink: 0;
+  }
+  .photo-btn {
+    background: transparent; border: 1px solid var(--border-gold); color: var(--gold-light);
+    padding: 10px 16px; font-size: 0.85rem; cursor: pointer;
+  }
+  .photo-btn:hover { border-color: var(--gold); }
+  button[type="submit"] {
+    width: 100%; margin-top: 12px; background: var(--gold); color: var(--charcoal); border: none;
+    padding: 15px; font-size: 0.95rem; font-weight: 600; letter-spacing: 1px; cursor: pointer;
+  }
+  button[type="submit"]:hover { background: var(--gold-light); }
+  button[type="submit"]:disabled { opacity: 0.6; cursor: not-allowed; }
+  .error { display: none; margin-top: 16px; padding: 12px 16px; background: rgba(155,36,36,0.1); border: 1px solid var(--red-accent); color: #e8a8a8; font-size: 0.85rem; }
+  .note { font-size: 0.8rem; color: var(--text-muted); margin-top: -8px; margin-bottom: 20px; line-height: 1.5; }
+  .onboarding-login-link {
+    position: fixed; top: 20px; left: 20px; z-index: 50;
+    color: var(--gold-light); text-decoration: none; font-family: var(--font-sans);
+    font-size: 0.85rem; font-weight: 500; padding: 8px 16px;
+    border: 1px solid var(--border-gold); transition: border-color 0.2s, background 0.2s;
+  }
+  .onboarding-login-link:hover { border-color: var(--gold); background: rgba(201,168,76,0.06); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <p class="logo">Welcome to Armonía Connect</p>
+    <p class="tagline" id="onboardingTagline">A few quick questions before you begin</p>
+
+    <form id="onboardingForm">
+      <!-- Individual student fields -->
+      <div id="studentFields">
+        <div class="field">
+          <label for="name">Your Name</label>
+          <input id="name" name="name" type="text" autocomplete="name">
+        </div>
+
+        <div class="photo-row" style="margin-bottom:24px;">
+          <div class="photo-preview" id="photoPreview"></div>
+          <input type="file" id="photoInput" accept="image/png, image/jpeg, image/webp" style="display:none;">
+          <button type="button" class="photo-btn" id="photoBtn">Add profile photo</button>
+        </div>
+
+        <div class="field">
+          <label for="instrument">Which instrument do you play?</label>
+          <select id="instrument" name="instrument">
+            <option value="" disabled selected>Select one</option>
+            <option value="Vihuela">Vihuela</option>
+            <option value="Guitarra">Guitarra</option>
+            <option value="Guitarra de Golpe">Guitarra de Golpe</option>
+            <option value="Guitarrón">Guitarrón</option>
+            <option value="Other / Multiple">Other / Multiple</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="experience">Your experience level</label>
+          <select id="experience" name="experience">
+            <option value="" disabled selected>Select one</option>
+            <option value="Beginner">Beginner</option>
+            <option value="Intermediate">Intermediate</option>
+            <option value="Advanced">Advanced</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="years">How long have you been playing?</label>
+          <input id="years" name="years" type="text" placeholder="e.g. 2 years, 6 months">
+        </div>
+
+        <div class="field">
+          <label for="bio">A short bio (optional)</label>
+          <textarea id="bio" name="bio" placeholder="Tell us a little about yourself and your musical background."></textarea>
+        </div>
+        <p class="note">Your name and instrument help us tailor guidance for you, and let other Armonía Connect students get to know you if you choose to share your profile.</p>
+      </div>
+
+      <!-- Classroom (teacher / big-screen) fields -->
+      <div id="classroomFields" style="display:none;">
+        <div class="field">
+          <label for="schoolName">Name of School</label>
+          <input id="schoolName" name="schoolName" type="text" autocomplete="organization">
+        </div>
+        <div class="field">
+          <label for="teacherName">Name of Teacher</label>
+          <input id="teacherName" name="teacherName" type="text" autocomplete="name">
+        </div>
+        <p class="note">This classroom code supports multiple students logging in at once. Community and the Thank You &amp; Credits page are reserved for individual student accounts and won't be available here.</p>
+      </div>
+
+      <button type="submit" id="submitBtn">Enter the Course</button>
+      <div class="error" id="errorBox"></div>
+    </form>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('armonia_session');
+    if (!token) window.location.href = '/course/';
+
+    const codeType = localStorage.getItem('armonia_code_type') || 'student';
+    const isClassroom = codeType === 'classroom';
+
+    if (isClassroom) {
+      document.getElementById('studentFields').style.display = 'none';
+      document.getElementById('classroomFields').style.display = 'block';
+      document.getElementById('onboardingTagline').textContent = 'Just the school and teacher name to get started';
+      document.getElementById('name').removeAttribute('required');
+      document.getElementById('instrument').removeAttribute('required');
+      document.getElementById('experience').removeAttribute('required');
+      document.getElementById('years').removeAttribute('required');
+      document.getElementById('schoolName').setAttribute('required', '');
+      document.getElementById('teacherName').setAttribute('required', '');
+    } else {
+      document.getElementById('name').setAttribute('required', '');
+      document.getElementById('instrument').setAttribute('required', '');
+      document.getElementById('experience').setAttribute('required', '');
+      document.getElementById('years').setAttribute('required', '');
+    }
+
+    let photoBase64 = null;
+    let photoContentType = null;
+
+    async function safeJsonParse(res) {
+      try {
+        return await res.json();
+      } catch (err) {
+        throw new Error(res.status === 413 ? 'That file is too large. Please try a smaller one.' : 'Something went wrong. Please try again.');
+      }
+    }
+
+    // Resizes/compresses an image in the browser before upload — phone
+    // camera photos are often 8-15MB, and Vercel's platform hard-caps
+    // request bodies at 4.5MB regardless of any app-level config.
+    function resizeImageFile(file, maxDim = 700, quality = 0.85) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            let { width, height } = img;
+            if (width > maxDim || height > maxDim) {
+              if (width > height) { height = Math.round(height * (maxDim / width)); width = maxDim; }
+              else { width = Math.round(width * (maxDim / height)); height = maxDim; }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+            resolve({ dataUrl: canvas.toDataURL('image/jpeg', quality), contentType: 'image/jpeg' });
+          };
+          img.onerror = () => reject(new Error('Could not read that image. Please try a different file.'));
+          img.src = e.target.result;
+        };
+        reader.onerror = () => reject(new Error('Could not read that file.'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    document.getElementById('photoBtn').addEventListener('click', () => {
+      document.getElementById('photoInput').click();
+    });
+
+    document.getElementById('photoInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const { dataUrl, contentType } = await resizeImageFile(file, 700, 0.85);
+        photoBase64 = dataUrl;
+        photoContentType = contentType;
+        document.getElementById('photoPreview').style.backgroundImage = `url(${photoBase64})`;
+      } catch (err) {
+        errorBox.textContent = err.message;
+        errorBox.style.display = 'block';
+      }
+    });
+
+    const form = document.getElementById('onboardingForm');
+    const errorBox = document.getElementById('errorBox');
+    const submitBtn = document.getElementById('submitBtn');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorBox.style.display = 'none';
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Saving…';
+
+      try {
+        if (isClassroom) {
+          const res = await fetch('/api/profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              schoolName: document.getElementById('schoolName').value.trim(),
+              teacherName: document.getElementById('teacherName').value.trim(),
+            }),
+          });
+          const data = await safeJsonParse(res);
+          if (!res.ok) throw new Error(data.error || 'Something went wrong.');
+          window.location.href = '/course/dashboard.html';
+          return;
+        }
+
+        let photoUrl = null;
+        if (photoBase64) {
+          const uploadRes = await fetch('/api/upload-photo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ imageBase64: photoBase64, contentType: photoContentType }),
+          });
+          const uploadData = await safeJsonParse(uploadRes);
+          if (!uploadRes.ok) throw new Error(uploadData.error || 'Photo upload failed.');
+          photoUrl = uploadData.url;
+        }
+
+        const res = await fetch('/api/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            name: document.getElementById('name').value.trim(),
+            instrument: document.getElementById('instrument').value,
+            experienceLevel: document.getElementById('experience').value,
+            yearsPlaying: document.getElementById('years').value.trim(),
+            bio: document.getElementById('bio').value.trim(),
+            photoUrl,
+          }),
+        });
+        const data = await safeJsonParse(res);
+        if (!res.ok) throw new Error(data.error || 'Something went wrong.');
+
+        window.location.href = '/course/dashboard.html';
+      } catch (err) {
+        errorBox.textContent = err.message;
+        errorBox.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Enter the Course';
+      }
+    });
+  </script>
+</body>
+</html>
