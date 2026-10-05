@@ -273,6 +273,14 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
           <span id="faviconStatus" style="font-size:0.8rem; color:var(--text-muted);"></span>
         </div>
 
+        <h2 style="font-family:var(--font-display); margin:34px 0 8px; font-size:1.3rem;">Device Restrictions</h2>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:14px;">Normally, each code locks to the first device that uses it — a different device triggers an approval request from you. Turning this on lifts that restriction for every code, immediately: any device can log in with any code, no requests generated. Existing pending requests are unaffected either way.</p>
+        <label style="display:flex; align-items:center; gap:10px; cursor:pointer; margin-bottom:10px;">
+          <input type="checkbox" id="allowAllDevicesToggle" style="width:18px; height:18px; accent-color:var(--gold); cursor:pointer;">
+          <span style="font-size:0.9rem; color:var(--cream);">Allow all devices (disables single-device lock for every code)</span>
+        </label>
+        <p style="font-size:0.78rem; color:#e8a8a8; margin-bottom:34px;">⚠ While this is on, code-sharing between students is not prevented. Meant for temporary use — remember to turn it back off.</p>
+
         <h2 style="font-family:var(--font-display); margin:34px 0 8px; font-size:1.3rem;">Promotional Sale</h2>
         <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:14px;">Turn this on to show a sale banner and updated pricing site-wide. This changes the displayed price only — you must separately create a matching Stripe Payment Link at the sale price and paste it below, since checkout runs through Stripe directly.</p>
         <label style="display:flex; align-items:center; gap:10px; cursor:pointer; margin-bottom:16px;">
@@ -1104,6 +1112,7 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
         document.getElementById('faviconPreview').style.backgroundImage = `url(${saved['site.favicon_url']})`;
       }
       document.getElementById('creditsSimpleModeToggle').checked = saved['credits.simple_mode'] === 'true';
+      document.getElementById('allowAllDevicesToggle').checked = saved['security.allow_all_devices'] === 'true';
       document.getElementById('saleEnabledToggle').checked = saved['sale.enabled'] === 'true';
       document.getElementById('salePrice').value = saved['sale.price'] || '';
       document.getElementById('saleOriginalPrice').value = saved['sale.original_price'] || '100';
@@ -1843,6 +1852,15 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
         setTimeout(() => { status.textContent = ''; }, 4000);
       } catch (err) {
         status.textContent = err.message;
+      }
+    });
+
+    document.getElementById('allowAllDevicesToggle').addEventListener('change', async (e) => {
+      try {
+        await adminFetch('/api/admin/site-content', { method: 'PATCH', body: JSON.stringify({ key: 'security.allow_all_devices', value: e.target.checked ? 'true' : 'false' }) });
+      } catch (err) {
+        alert(err.message);
+        e.target.checked = !e.target.checked;
       }
     });
 

@@ -77,11 +77,20 @@ export default async function handler(req, res) {
 
   const isClassroom = record.code_type === 'classroom';
 
+  // Global override, toggled in admin — when on, every code behaves like a
+  // classroom code for device-binding purposes only (no approval queue, no
+  // "kick the old device" behavior). Onboarding fields and every other
+  // classroom-specific behavior are untouched; this flag affects nothing
+  // except the device check directly below.
+  const { data: allowAllRow } = await supabase.from('site_content').select('value').eq('key', 'security.allow_all_devices').maybeSingle();
+  const allowAllDevices = allowAllRow?.value === 'true';
+  const skipDeviceBinding = isClassroom || allowAllDevices;
+
   // ── Device binding check ──
   // Classroom codes are meant for a shared/big-screen setup and explicitly
   // support multiple simultaneous logins, so they skip device binding
   // entirely — no single "owning" device, no approval queue.
-  if (!isClassroom && record.bound_device_id && record.bound_device_id !== deviceId) {
+  if (!skipDeviceBinding && record.bound_device_id && record.bound_device_id !== deviceId) {
     // Don't spam duplicate pending rows if they keep retrying with the same device.
     const { data: existingPending } = await supabase
       .from('device_change_requests')
@@ -123,7 +132,7 @@ export default async function handler(req, res) {
   // Classroom codes never write a single "current" session token — that's
   // exactly the mechanism that kicks older sessions on a new login, and
   // classroom codes are supposed to allow many logins at once.
-  if (!isClassroom) {
+  if (!skipDeviceBinding) {
     update.current_session_token = sessionToken;
     update.session_started_at = new Date().toISOString();
     if (isFirstBinding) {
