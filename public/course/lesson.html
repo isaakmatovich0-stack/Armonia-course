@@ -51,6 +51,20 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
     .layout { flex-direction: column; }
     .sidebar-col { width: 100%; border-left: none; border-top: 1px solid var(--border-gold); min-height: 0; }
   }
+  @media (max-width: 640px) {
+    /* The player was shrinking to a thin 16:9 strip inside the padded
+       column — on a tall phone screen that's a small fraction of the
+       viewport. Pull it out to the true edges and give it real height
+       instead of letting width alone dictate its size. */
+    .main-col { padding: 0 0 20px; }
+    .breadcrumb, .lesson-title, .lesson-kind, .lesson-desc { padding-left: 16px; padding-right: 16px; }
+    .player-frame {
+      aspect-ratio: unset;
+      height: 72vh;
+      margin: 0 0 16px;
+      border-left: none; border-right: none;
+    }
+  }
 
   .breadcrumb { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 14px; }
   .breadcrumb a { color: var(--gold-light); text-decoration: none; }
