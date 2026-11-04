@@ -20,6 +20,12 @@ export const config = {
 };
 
 function buffer(readable) {
+  // `bodyParser: false` guarantees the raw stream. If a platform change ever
+  // hands us a consumed or already-parsed body, fail fast — re-serialised JSON
+  // is not the byte string Stripe signed, and waiting on it would hang.
+  if (readable.readableEnded || readable.complete) {
+    return Promise.reject(new Error('Request body was already consumed before signature verification.'));
+  }
   return new Promise((resolve, reject) => {
     const chunks = [];
     readable.on('data', (chunk) => chunks.push(chunk));
@@ -33,19 +39,42 @@ export default async function handler(req, res) {
     return res.status(405).end();
   }
 
-  const rawBody = await buffer(req);
+  let rawBody;
+  try {
+    rawBody = await buffer(req);
+  } catch (err) {
+    console.error('Webhook body unavailable:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
   const signature = req.headers['stripe-signature'];
 
-  let event;
-  try {
-    event = stripe.webhooks.constructEvent(
-      rawBody,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
-  } catch (err) {
-    console.error('Webhook signature verification failed:', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
+  // The store has its own endpoint (api/store/[...slug].js → /api/store/webhook)
+  // and therefore its own signing secret. Both endpoints accept either secret so
+  // that registering one can never break the other, and so a rotated secret can
+  // be rolled out without a failed-payment window.
+  const secrets = [process.env.STRIPE_WEBHOOK_SECRET, process.env.STRIPE_WEBHOOK_SECRET_STORE]
+    .filter(Boolean)
+    .filter((value, index, all) => all.indexOf(value) === index);
+
+  if (!secrets.length) {
+    console.error('No Stripe webhook signing secret is configured');
+    return res.status(503).send('Webhook is not configured');
+  }
+
+  let event = null;
+  let lastError = null;
+  for (const secret of secrets) {
+    try {
+      event = stripe.webhooks.constructEvent(rawBody, signature, secret);
+      break;
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  if (!event) {
+    console.error('Webhook signature verification failed:', lastError && lastError.message);
+    return res.status(400).send(`Webhook Error: ${lastError ? lastError.message : 'invalid signature'}`);
   }
 
   if (event.type === 'checkout.session.completed') {

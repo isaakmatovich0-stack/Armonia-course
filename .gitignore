@@ -1,0 +1,16 @@
+# dependencies
+node_modules/
+
+# local environment (never commit real keys)
+.env
+.env.local
+.env.*.local
+
+# local dev store database
+.tmp/
+
+# Vercel
+.vercel
+
+# OS noise
+.DS_Store

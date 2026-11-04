@@ -134,6 +134,7 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
       <div class="tab-divider"></div>
       <div class="tab" data-panel="lessons">Lessons</div>
       <div class="tab" data-panel="updates">Course Updates <span id="updatesTabBadge" class="tab-badge" style="display:none;"></span></div>
+      <div class="tab" data-panel="orders">Store Orders <span id="ordersTabBadge" class="tab-badge" style="display:none;"></span></div>
       <div class="tab" data-panel="announcements">Post Announcement</div>
       <div class="tab" data-panel="content">Site Text</div>
       <div class="tab-divider"></div>
@@ -403,6 +404,19 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
         </div>
 
         <p id="acctSavedNote" style="color:var(--gold-light); font-size:0.85rem; margin-top:18px; display:none;">✓ Saved</p>
+      </section>
+
+      <section class="panel" id="panel-orders">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:10px;">
+          <h2 style="font-family:var(--font-display); font-size:1.3rem;">Store Orders</h2>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button type="button" id="refreshOrdersBtn" style="background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:8px 16px; font-size:0.82rem; cursor:pointer;">Refresh</button>
+            <button type="button" id="exportOrdersBtn" style="background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:8px 16px; font-size:0.82rem; cursor:pointer;">Export CSV</button>
+          </div>
+        </div>
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:20px;">Every paid order from the store, newest first. Click an order to see exactly what to pack and where to send it.</p>
+        <div id="ordersStats" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:24px;"></div>
+        <div id="ordersList"></div>
       </section>
 
       <section class="panel" id="panel-announcements">
@@ -682,6 +696,7 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
       document.getElementById('app').style.display = 'block';
       loadStudents();
       loadCourseUpdates();
+      loadStoreOrders();
     }
 
     if (adminToken) {
@@ -751,7 +766,153 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
         if (tab.dataset.panel === 'auditions') { loadAuditions(); }
         if (tab.dataset.panel === 'messages') { renderInbox(); }
         if (tab.dataset.panel === 'updates') { loadCourseUpdates(); }
+        if (tab.dataset.panel === 'orders') { loadStoreOrders(); }
       });
+    });
+
+    // ── Store Orders ──
+    let storeOrders = [];
+
+    const money = (cents) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((Number(cents) || 0) / 100);
+
+    async function loadStoreOrders() {
+      const list = document.getElementById('ordersList');
+      const stats = document.getElementById('ordersStats');
+      list.innerHTML = '<p style="color:var(--text-muted); font-size:0.85rem;">Loading orders…</p>';
+      try {
+        const data = await adminFetch('/api/admin/store-orders');
+        storeOrders = data.orders || [];
+      } catch (err) {
+        list.innerHTML = `<p style="color:#e8a8a8; font-size:0.85rem;">${err.message}</p>`;
+        return;
+      }
+
+      if (!storeOrders.length) {
+        stats.innerHTML = '';
+        list.innerHTML = '<div style="border:1px dashed var(--border-gold); padding:34px; text-align:center; color:var(--text-muted); font-size:0.9rem;">No orders yet. They appear here the moment someone completes checkout on <a href="/store/" target="_blank" style="color:var(--gold-light);">the store</a>.</div>';
+        return;
+      }
+
+      const revenue = storeOrders.filter(o => o.status !== 'refunded' && o.status !== 'cancelled').reduce((sum, o) => sum + (o.amount_total || 0), 0);
+      const units = storeOrders.reduce((sum, o) => sum + (Array.isArray(o.items) ? o.items.reduce((n, i) => n + (i.quantity || 0), 0) : 0), 0);
+      const toShip = storeOrders.filter(o => o.status === 'paid' || o.status === 'packed').length;
+      stats.innerHTML = [
+        ['Orders', storeOrders.length],
+        ['Revenue', money(revenue)],
+        ['Items sold', units],
+        ['Awaiting shipment', toShip],
+      ].map(([label, value]) => `
+        <div style="border:1px solid var(--border-gold); padding:14px 16px;">
+          <div style="font-size:0.68rem; letter-spacing:1.4px; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px;">${label}</div>
+          <div style="font-family:var(--font-display); font-size:1.3rem; color:var(--gold-light);">${value}</div>
+        </div>`).join('');
+
+      list.innerHTML = storeOrders.map((order, index) => {
+        const items = Array.isArray(order.items) ? order.items : [];
+        const addr = order.shipping_address || {};
+        const placed = order.paid_at || order.created_at;
+        const statusColor = order.status === 'shipped' ? '#8fd18f' : order.status === 'refunded' || order.status === 'cancelled' ? '#e8a8a8' : 'var(--gold-light)';
+        return `
+          <div style="border:1px solid var(--border-gold); margin-bottom:10px;">
+            <button type="button" data-order-toggle="${index}" style="width:100%; display:flex; justify-content:space-between; align-items:center; gap:14px; background:var(--charcoal-3); border:none; color:var(--cream); padding:14px 16px; cursor:pointer; text-align:left; flex-wrap:wrap;">
+              <span style="display:flex; flex-direction:column; gap:3px; min-width:150px;">
+                <strong style="font-size:0.95rem; color:var(--gold-light);">${order.number}</strong>
+                <span style="font-size:0.75rem; color:var(--text-muted);">${placed ? new Date(placed).toLocaleString() : ''}</span>
+              </span>
+              <span style="font-size:0.82rem; flex:1; min-width:160px;">${order.name || '—'}<br><span style="color:var(--text-muted); font-size:0.75rem;">${order.email || ''}</span></span>
+              <span style="font-size:0.82rem; color:var(--text-muted); min-width:80px;">${items.reduce((n, i) => n + (i.quantity || 0), 0)} ${items.reduce((n, i) => n + (i.quantity || 0), 0) === 1 ? 'item' : 'items'}</span>
+              <strong style="font-size:0.95rem; min-width:70px; text-align:right;">${money(order.amount_total)}</strong>
+              <span style="font-size:0.68rem; letter-spacing:1.2px; text-transform:uppercase; color:${statusColor}; min-width:80px; text-align:right;">${order.status}</span>
+            </button>
+            <div id="orderDetail-${index}" style="display:none; padding:18px 16px; border-top:1px solid var(--border-gold); background:var(--charcoal-2);">
+              <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:22px;">
+                <div>
+                  <p style="font-size:0.68rem; letter-spacing:1.4px; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px;">Pack</p>
+                  ${items.map(i => `<p style="font-size:0.85rem; margin-bottom:5px;">${i.quantity} × <strong>${i.name || i.productId}</strong><br><span style="color:var(--text-muted); font-size:0.78rem;">${[i.color, i.size].filter(Boolean).join(' / ')}</span></p>`).join('') || '<p style="font-size:0.85rem; color:var(--text-muted);">No line items recorded.</p>'}
+                </div>
+                <div>
+                  <p style="font-size:0.68rem; letter-spacing:1.4px; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px;">Ship to</p>
+                  <p style="font-size:0.85rem; line-height:1.7; color:var(--cream);">
+                    ${order.name || ''}<br>
+                    ${[addr.line1, addr.line2].filter(Boolean).join('<br>')}<br>
+                    ${[addr.city, addr.state, addr.postal_code].filter(Boolean).join(', ')}<br>
+                    ${addr.country || ''}
+                  </p>
+                </div>
+                <div>
+                  <p style="font-size:0.68rem; letter-spacing:1.4px; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px;">Money</p>
+                  <p style="font-size:0.82rem; line-height:1.8; color:var(--text-muted);">
+                    Subtotal ${money(order.amount_subtotal)}<br>
+                    Shipping ${order.amount_shipping ? money(order.amount_shipping) : 'Free'}<br>
+                    Tax ${order.amount_tax ? money(order.amount_tax) : '—'}
+                    ${order.amount_discount ? `<br>Discount −${money(order.amount_discount)}` : ''}
+                    ${order.promo_code ? `<br>Code ${order.promo_code}` : ''}
+                    <br><strong style="color:var(--cream);">Total ${money(order.amount_total)}</strong>
+                  </p>
+                </div>
+              </div>
+              <div style="display:flex; gap:8px; margin-top:18px; flex-wrap:wrap;">
+                ${['paid', 'packed', 'shipped', 'refunded'].map(status => `<button type="button" data-order-status="${status}" data-order-id="${order.id}" style="background:${order.status === status ? 'var(--gold)' : 'transparent'}; color:${order.status === status ? 'var(--charcoal)' : 'var(--gold-light)'}; border:1px solid var(--border-gold); padding:7px 14px; font-size:0.75rem; text-transform:capitalize; cursor:pointer;">${status}</button>`).join('')}
+                <a href="mailto:${order.email || ''}?subject=${encodeURIComponent('Your Armonia Connect order ' + order.number)}" style="margin-left:auto; align-self:center; font-size:0.78rem; color:var(--gold-light); text-decoration:underline;">Email customer</a>
+              </div>
+            </div>
+          </div>`;
+      }).join('');
+
+      list.querySelectorAll('[data-order-toggle]').forEach(button => {
+        button.addEventListener('click', () => {
+          const detail = document.getElementById(`orderDetail-${button.dataset.orderToggle}`);
+          if (detail) detail.style.display = detail.style.display === 'none' ? 'block' : 'none';
+        });
+      });
+      list.querySelectorAll('[data-order-status]').forEach(button => {
+        button.addEventListener('click', async () => {
+          const orderId = button.dataset.orderId;
+          if (!orderId || orderId === 'undefined') {
+            alert('This order has no id — reload the page and try again.');
+            return;
+          }
+          button.disabled = true;
+          try {
+            await adminFetch('/api/admin/store-orders', { method: 'PATCH', body: JSON.stringify({ id: orderId, status: button.dataset.orderStatus }) });
+            loadStoreOrders();
+          } catch (err) {
+            button.disabled = false;
+            alert(err.message);
+          }
+        });
+      });
+    }
+
+    document.getElementById('refreshOrdersBtn').addEventListener('click', loadStoreOrders);
+    document.getElementById('exportOrdersBtn').addEventListener('click', () => {
+      if (!storeOrders.length) return;
+      const rows = [['Order', 'Date', 'Customer', 'Email', 'Items', 'Subtotal', 'Shipping', 'Tax', 'Discount', 'Total', 'Status', 'Address']];
+      storeOrders.forEach(o => {
+        const items = Array.isArray(o.items) ? o.items : [];
+        const a = o.shipping_address || {};
+        rows.push([
+          o.number,
+          o.paid_at || o.created_at,
+          o.name || '',
+          o.email || '',
+          items.map(i => `${i.quantity}× ${i.name || i.productId} (${[i.color, i.size].filter(Boolean).join('/')})`).join('; '),
+          (o.amount_subtotal || 0) / 100,
+          (o.amount_shipping || 0) / 100,
+          (o.amount_tax || 0) / 100,
+          (o.amount_discount || 0) / 100,
+          (o.amount_total || 0) / 100,
+          o.status,
+          [a.line1, a.line2, a.city, a.state, a.postal_code, a.country].filter(Boolean).join(', '),
+        ]);
+      });
+      const csv = rows.map(r => r.map(cell => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `armonia-orders-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
     });
 
     // ── Lessons CMS ──

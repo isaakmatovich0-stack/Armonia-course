@@ -147,7 +147,134 @@ is already wired up. Every lesson you've entered with a Soundslice ID
 will start rendering the interactive embed on the student dashboard the
 moment you paste that ID in.
 
-## 7. Legal pages
+## 7. The merch store (`/store/`)
+
+The store is a full, live shop — real catalog, real bag, real Stripe checkout,
+real receipts — built from the Armonia Studio design export and wired into this
+same project. It shares the Supabase project, the Resend account, and the
+Stripe account with the course.
+
+### What it is
+
+| Path | What it does |
+| --- | --- |
+| `/store/` | the storefront: hero, collection, product pages, search, favorites, bag, checkout |
+| `/store/shipping` | shipping & returns page (linked from the footer + the cart) |
+| `/store/care` | product care page |
+| `/store/contact` | real contact form → lands in your inbox |
+| `/admin/` → **Store Orders** | every paid order, with what to pack, where to send it, and status buttons |
+
+### One-time setup
+
+1. **Run one more schema file** — Supabase → SQL Editor → paste
+   `supabase/schema-v14.sql` → Run. That creates `store_carts`,
+   `store_orders`, `store_checkout_sessions`, `store_promo_codes` and
+   `store_subscribers`, and seeds a `WELCOME10` code you can test with.
+   (Already applied to your project if the store was set up for you.)
+2. **Register the store webhook** — Stripe → Developers → Webhooks → Add
+   endpoint:
+   - URL: `https://armoniaconnect.com/api/store/webhook`
+   - Event: `checkout.session.completed` (add `checkout.session.expired` if you
+     want abandoned checkouts marked as such)
+   - Copy that endpoint's signing secret into `STRIPE_WEBHOOK_SECRET_STORE`.
+     The store endpoint also accepts `STRIPE_WEBHOOK_SECRET` (the course's
+     secret), and the course endpoint accepts `STRIPE_WEBHOOK_SECRET_STORE` —
+     both try every configured secret, so one shared value works if you'd rather
+     not juggle two, and rotating either one can't break the other. Each endpoint
+     is a separate Stripe webhook with its own secret, so if you put the store's
+     secret in `STRIPE_WEBHOOK_SECRET` and nowhere else, course sales stop
+     verifying — that's the one setup to avoid.
+3. **Nothing else.** `STRIPE_SECRET_KEY`, `SUPABASE_*`, `RESEND_API_KEY` and
+   `FROM_EMAIL` are already used by the course, so the store inherits them. Deploy.
+
+Without `STRIPE_SECRET_KEY` the store still works — catalog, bag, prices,
+favorites — it just says checkout isn't switched on yet instead of taking money.
+
+### How checkout works
+
+1. A customer adds items; the bag is a row in Postgres (`store_carts`) keyed by
+   an HttpOnly cookie.
+2. "Pay" calls `POST /api/store/checkout`, which **re-prices the bag on the
+   server** from `store/catalog.json`, creates the Stripe Checkout Session, and
+   redirects. Prices in the browser are cosmetic — the amount charged is decided
+   server-side.
+3. Stripe collects the shipping address and calculates sales tax, then redirects
+   back to `/store/?checkout=success&session_id=…`.
+4. The webhook records the order in `store_orders`, emails the customer a
+   receipt (`sendStoreOrderConfirmation`) and emails you a packing note
+   (`sendStoreOrderNotification`), and empties the bag.
+5. The confirmation screen reads the order back from `/api/store/order`, so a
+   customer who closes the tab can reload it from their receipt email.
+
+### Changing prices, copy, or products
+
+The design started life as an Armonia Studio export (`index.html`, ~7.4 MB with
+every image and font inlined). `store/build-store.mjs` turns that into a normal
+site:
+
+```
+node store/build-store.mjs                    # rebuild from the committed bundle + catalog
+node store/build-store.mjs --export path/to/studio-export.html   # re-extract from a new export
+```
+
+It writes `public/store/` (page, stylesheet, fonts, 43 images), regenerates the
+policy pages, and copies the app bundle + live runtime into place. Pure
+`node`, no dependencies. Run it after editing anything in `store/`.
+
+`store/catalog.json` is the source of truth for products, prices and colours —
+and `api/store` prices every order from that same file, so the page and the
+server can never disagree.
+
+### Discount codes
+
+Rows in `store_promo_codes` (`percent`, `amount`, or `free_shipping`), with an
+optional minimum spend, use cap and start/end dates. `WELCOME10` (10% off) is
+seeded for testing. Customers enter a code in the bag; valid codes are applied
+as a Stripe coupon so the discount is visible on the Stripe receipt too.
+
+### Local development
+
+```
+npm install
+npm run dev        # http://localhost:3000/store/
+```
+
+With no `SUPABASE_SERVICE_ROLE_KEY` set, the dev server runs the store against
+`.tmp/store-db.json` — real carts, real orders, no cloud needed. `POST
+/api/store/dev-seed-order` (dev only) fabricates a paid order so you can preview
+the confirmation screen and the admin order book without Stripe keys.
+
+`npm run check` parses every API/lib/store module plus the admin inline scripts
+before you deploy, so a typo can't take the store down. Run it before pushing.
+
+### Fulfilling orders
+
+`/admin/` → **Store Orders** is the order book. Each row expands into what was
+bought, where it ships, and the money breakdown (subtotal, shipping, tax,
+discount, total). Status buttons move an order through
+`paid → packed → shipped`, or flag it `refunded` / `cancelled` (those two are
+labels, not Stripe refunds — issue the refund in the Stripe dashboard). "Email
+customer" opens a pre-addressed message, and CSV export gives you a packing
+list: `armonia-orders-YYYY-MM-DD.csv`.
+
+### Things that must be true in production
+
+- `SITE_URL` is the canonical origin (`https://armoniaconnect.com`), because
+  checkout success/cancel URLs are built from it. A wrong value sends paying
+  customers to the wrong host.
+- The Stripe webhook in step 2 above points at `https://armoniaconnect.com/api/store/webhook`
+  and one of `STRIPE_WEBHOOK_SECRET_STORE` / `STRIPE_WEBHOOK_SECRET` matches
+  *that* endpoint's signing secret. Without it, `/api/store/webhook` answers 503
+  and orders are only recorded when the customer returns to the confirmation
+  screen — with it, the receipt, the packing note and the order book all update
+  even if they close the tab.
+- The store occupies exactly two serverless functions
+  (`api/store/[...slug].js`, `api/admin/[...slug].js`) to stay under the Hobby
+  plan's 12-function cap. Keep new admin routes inside the existing catch-all.
+
+---
+
+## 8. Legal pages
 
 Two drafts are included in the `legal/` folder: `terms-and-conditions.md`
 and `privacy-policy.md`, written specifically around how Armonía Connect
