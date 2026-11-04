@@ -239,6 +239,32 @@ With no `SUPABASE_SERVICE_ROLE_KEY` set, the dev server runs the store against
 /api/store/dev-seed-order` (dev only) fabricates a paid order so you can preview
 the confirmation screen and the admin order book without Stripe keys.
 
+`npm run check` parses every API/lib/store module plus the admin inline scripts
+before you deploy, so a typo can't take the store down. Run it before pushing.
+
+### Fulfilling orders
+
+`/admin/` → **Store Orders** is the order book. Each row expands into what was
+bought, where it ships, and the money breakdown (subtotal, shipping, tax,
+discount, total). Status buttons move an order through
+`paid → packed → shipped`, or flag it `refunded` / `cancelled` (those two are
+labels, not Stripe refunds — issue the refund in the Stripe dashboard). "Email
+customer" opens a pre-addressed message, and CSV export gives you a packing
+list: `armonia-orders-YYYY-MM-DD.csv`.
+
+### Things that must be true in production
+
+- `SITE_URL` is the canonical origin (`https://armoniaconnect.com`), because
+  checkout success/cancel URLs are built from it. A wrong value sends paying
+  customers to the wrong host.
+- The Stripe webhook in step 2 above points at `https://armoniaconnect.com/api/store/webhook`
+  and `STRIPE_WEBHOOK_SECRET` matches *that* endpoint's signing secret. Without
+  it, `/api/store/webhook` answers 503 and orders are only recorded when the
+  customer returns to the confirmation screen.
+- The store occupies exactly two serverless functions
+  (`api/store/[...slug].js`, `api/admin/[...slug].js`) to stay under the Hobby
+  plan's 12-function cap. Keep new admin routes inside the existing catch-all.
+
 ---
 
 ## 8. Legal pages
