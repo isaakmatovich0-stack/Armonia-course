@@ -176,9 +176,14 @@ Stripe account with the course.
    - URL: `https://armoniaconnect.com/api/store/webhook`
    - Event: `checkout.session.completed` (add `checkout.session.expired` if you
      want abandoned checkouts marked as such)
-   - Copy the signing secret into `STRIPE_WEBHOOK_SECRET` (the same variable the
-     course webhook uses, or add `STRIPE_WEBHOOK_SECRET_STORE` and point
-     `api/store/[...slug].js` at it if you'd rather keep them separate).
+   - Copy that endpoint's signing secret into `STRIPE_WEBHOOK_SECRET_STORE`.
+     The store endpoint also accepts `STRIPE_WEBHOOK_SECRET` (the course's
+     secret), and the course endpoint accepts `STRIPE_WEBHOOK_SECRET_STORE` —
+     both try every configured secret, so one shared value works if you'd rather
+     not juggle two, and rotating either one can't break the other. Each endpoint
+     is a separate Stripe webhook with its own secret, so if you put the store's
+     secret in `STRIPE_WEBHOOK_SECRET` and nowhere else, course sales stop
+     verifying — that's the one setup to avoid.
 3. **Nothing else.** `STRIPE_SECRET_KEY`, `SUPABASE_*`, `RESEND_API_KEY` and
    `FROM_EMAIL` are already used by the course, so the store inherits them. Deploy.
 
@@ -258,9 +263,11 @@ list: `armonia-orders-YYYY-MM-DD.csv`.
   checkout success/cancel URLs are built from it. A wrong value sends paying
   customers to the wrong host.
 - The Stripe webhook in step 2 above points at `https://armoniaconnect.com/api/store/webhook`
-  and `STRIPE_WEBHOOK_SECRET` matches *that* endpoint's signing secret. Without
-  it, `/api/store/webhook` answers 503 and orders are only recorded when the
-  customer returns to the confirmation screen.
+  and one of `STRIPE_WEBHOOK_SECRET_STORE` / `STRIPE_WEBHOOK_SECRET` matches
+  *that* endpoint's signing secret. Without it, `/api/store/webhook` answers 503
+  and orders are only recorded when the customer returns to the confirmation
+  screen — with it, the receipt, the packing note and the order book all update
+  even if they close the tab.
 - The store occupies exactly two serverless functions
   (`api/store/[...slug].js`, `api/admin/[...slug].js`) to stay under the Hobby
   plan's 12-function cap. Keep new admin routes inside the existing catch-all.

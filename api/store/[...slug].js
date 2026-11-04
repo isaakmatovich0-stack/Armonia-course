@@ -72,6 +72,15 @@ function stripe() {
 async function rawBody(req) {
   if (Buffer.isBuffer(req.body)) return req.body;
   if (typeof req.body === 'string') return Buffer.from(req.body);
+  // A parsed body means something upstream already consumed the stream; the
+  // raw bytes Stripe signed are gone. Re-serialising JSON would not reproduce
+  // them, so fail loudly instead of hanging or accepting an unverified event.
+  if (req.body && typeof req.body === 'object') {
+    throw new Error('Request body was parsed before signature verification.');
+  }
+  if (req.readableEnded || req.complete) {
+    throw new Error('Request body was already consumed before signature verification.');
+  }
   return new Promise((resolve, reject) => {
     const chunks = [];
     req.on('data', (chunk) => chunks.push(chunk));
@@ -478,18 +487,44 @@ export default async function handler(req, res) {
     if (route === 'webhook') {
       if (method !== 'POST') return clientError(res, 405, 'Method not allowed.');
       const stripeApi = stripe();
-      const secret = process.env.STRIPE_WEBHOOK_SECRET;
-      if (!stripeApi || !secret) {
+      if (!stripeApi) {
         console.error('[store] webhook hit but Stripe is not configured');
         return res.status(503).json({ error: 'Stripe is not configured.' });
       }
 
-      let event;
+      // The store and the course are two separate Stripe endpoints, so each get
+      // their own signing secret. Prefer the store-specific one and fall back to
+      // the shared name for single-endpoint setups. Every candidate is tried so
+      // rotating a secret (or pointing one endpoint at both URLs) keeps working.
+      const secrets = [process.env.STRIPE_WEBHOOK_SECRET_STORE, process.env.STRIPE_WEBHOOK_SECRET]
+        .filter(Boolean)
+        .filter((value, index, all) => all.indexOf(value) === index);
+      if (!secrets.length) {
+        console.error('[store] webhook hit but no signing secret is configured');
+        return res.status(503).json({ error: 'Stripe is not configured.' });
+      }
+
+      let payload;
       try {
-        event = stripeApi.webhooks.constructEvent(await rawBody(req), req.headers['stripe-signature'], secret);
+        payload = await rawBody(req);
       } catch (err) {
-        console.error('[store] webhook signature rejected:', err.message);
+        console.error('[store] webhook body unavailable:', err.message);
         return res.status(400).send(`Webhook Error: ${err.message}`);
+      }
+
+      let event = null;
+      let lastError = null;
+      for (const secret of secrets) {
+        try {
+          event = stripeApi.webhooks.constructEvent(payload, req.headers['stripe-signature'], secret);
+          break;
+        } catch (err) {
+          lastError = err;
+        }
+      }
+      if (!event) {
+        console.error('[store] webhook signature rejected:', lastError && lastError.message);
+        return res.status(400).send(`Webhook Error: ${lastError ? lastError.message : 'invalid signature'}`);
       }
 
       if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
