@@ -16,7 +16,7 @@ import { supabase } from '../../lib/supabase.js';
 import { hashPassword, verifyPassword } from '../../lib/password.js';
 import { sendAdminVerificationEmail, sendGeneratedCodeEmail, sendGeneratedCodeBatchEmail } from '../../lib/email.js';
 import { generateAccessCode } from '../../lib/generateCode.js';
-import { listOrders as listStoreOrders } from '../../lib/store/db.js';
+import { listOrders as listStoreOrders, updateOrderStatus as updateStoreOrderStatus } from '../../lib/store/db.js';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 
@@ -366,10 +366,21 @@ export default async function handler(req, res) {
     if (req.method === 'PATCH') {
       const { id, status } = req.body || {};
       const allowed = ['paid', 'packed', 'shipped', 'refunded', 'cancelled'];
-      if (!id || !allowed.includes(status)) return res.status(400).json({ error: 'id and a valid status are required.' });
-      const { error } = await supabase.from('store_orders').update({ status }).eq('id', id);
-      if (error) { console.error('Store order update error:', error); return res.status(500).json({ error: 'Could not update the order.' }); }
-      return res.status(200).json({ ok: true });
+      // "undefined"/"null" arrive as strings from the admin UI when an order row
+      // is missing its id — they are truthy, so guard them explicitly rather
+      // than reporting a successful update that matched no rows.
+      const validId = typeof id === 'string' && /^[0-9a-fA-F-]{8,64}$/.test(id);
+      if (!validId || !allowed.includes(status)) {
+        return res.status(400).json({ error: 'A valid order id and status are required.' });
+      }
+      try {
+        const updated = await updateStoreOrderStatus(id, status);
+        if (!updated) return res.status(404).json({ error: 'That order no longer exists.' });
+        return res.status(200).json({ ok: true, id, status });
+      } catch (error) {
+        console.error('Store order update error:', error);
+        return res.status(500).json({ error: 'Could not update the order.' });
+      }
     }
     return res.status(405).json({ error: 'Method not allowed.' });
   }

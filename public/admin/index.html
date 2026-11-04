@@ -820,7 +820,7 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
                 <span style="font-size:0.75rem; color:var(--text-muted);">${placed ? new Date(placed).toLocaleString() : ''}</span>
               </span>
               <span style="font-size:0.82rem; flex:1; min-width:160px;">${order.name || '—'}<br><span style="color:var(--text-muted); font-size:0.75rem;">${order.email || ''}</span></span>
-              <span style="font-size:0.82rem; color:var(--text-muted); min-width:80px;">${items.reduce((n, i) => n + (i.quantity || 0), 0)} items</span>
+              <span style="font-size:0.82rem; color:var(--text-muted); min-width:80px;">${items.reduce((n, i) => n + (i.quantity || 0), 0)} ${items.reduce((n, i) => n + (i.quantity || 0), 0) === 1 ? 'item' : 'items'}</span>
               <strong style="font-size:0.95rem; min-width:70px; text-align:right;">${money(order.amount_total)}</strong>
               <span style="font-size:0.68rem; letter-spacing:1.2px; text-transform:uppercase; color:${statusColor}; min-width:80px; text-align:right;">${order.status}</span>
             </button>
@@ -867,9 +867,14 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
       });
       list.querySelectorAll('[data-order-status]').forEach(button => {
         button.addEventListener('click', async () => {
+          const orderId = button.dataset.orderId;
+          if (!orderId || orderId === 'undefined') {
+            alert('This order has no id — reload the page and try again.');
+            return;
+          }
           button.disabled = true;
           try {
-            await adminFetch('/api/admin/store-orders', { method: 'PATCH', body: JSON.stringify({ id: button.dataset.orderId, status: button.dataset.orderStatus }) });
+            await adminFetch('/api/admin/store-orders', { method: 'PATCH', body: JSON.stringify({ id: orderId, status: button.dataset.orderStatus }) });
             loadStoreOrders();
           } catch (err) {
             button.disabled = false;
