@@ -206,12 +206,29 @@ const PATCHES = [
     find: 'className:"preview-label",children:[u.jsx("span",{})," STORE PREVIEW"]',
     replace: 'className:"preview-label",children:[u.jsx("span",{})," SECURE CHECKOUT"]',
   },
+  {
+    // The compiled export addresses its images as /images/x.webp (its own
+    // hosting root). This site publishes them under /store/images/, so every
+    // reference — string literals and template literals alike — is rebased.
+    // Without this the store renders with 404s for all 43 product images.
+    name: 'image base path',
+    find: '/images/',
+    replace: '/store/images/',
+    every: true,
+  },
 ];
 
 function patchAppCode(code) {
   let patched = code;
   for (const patch of PATCHES) {
     const count = patched.split(patch.find).length - 1;
+    if (patch.every) {
+      if (count < 1) {
+        throw new Error(`The exported app code no longer contains \"${patch.find}\" (\"${patch.name}\" patch).`);
+      }
+      patched = patched.split(patch.find).join(patch.replace);
+      continue;
+    }
     if (count !== 1) {
       throw new Error(
         `The exported app code no longer matches the "${patch.name}" hook (found ${count}× "${patch.find}").\n` +

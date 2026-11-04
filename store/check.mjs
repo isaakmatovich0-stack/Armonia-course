@@ -138,5 +138,32 @@ if (missingFonts.length) {
   console.log(`  ✓ ${fontUrls.size} font files present`);
 }
 
+/* Image paths inside the shipped bundle must all land on a real file. The
+   compiled export addresses images from its own hosting root, so a missed
+   rebase silently 404s every product photo — invisible in a build log, very
+   visible on the storefront. */
+const bundleFile = path.join(ROOT, 'public/store/frontend.js');
+if (fs.existsSync(bundleFile)) {
+  const bundle = fs.readFileSync(bundleFile, 'utf8');
+  const stray = (bundle.match(/(?<!store)\/images\//g) || []).length;
+  if (stray) {
+    failures += 1;
+    console.log(`  ✗ ${stray} image reference(s) still point at /images/ instead of /store/images/`);
+  } else {
+    console.log('  ✓ bundle image paths are rebased to /store/images/');
+  }
+
+  const staticRefs = new Set(
+    [...bundle.matchAll(/\/store\/images\/([A-Za-z0-9._-]+\.(?:webp|png|jpg|jpeg|svg))/g)].map((m) => m[1]),
+  );
+  const absent = [...staticRefs].filter((name) => !exists(`store/images/${name}`));
+  if (absent.length) {
+    failures += absent.length;
+    for (const name of absent) console.log(`  ✗ bundle references missing image: /store/images/${name}`);
+  } else {
+    console.log(`  ✓ ${staticRefs.size} bundle image paths exist`);
+  }
+}
+
 console.log(failures ? `\n${failures} problem${failures === 1 ? '' : 's'} found.` : '\nAll good.');
 process.exit(failures ? 1 : 0);
