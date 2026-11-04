@@ -293,14 +293,19 @@ export default async function handler(req, res) {
         });
       }
 
+      // A free-shipping code with a free-shipping order has nothing left to
+      // discount, but it is still "applied": handing the customer an open promo
+      // field at that point would let them stack a second code on top of it.
+      const promoApplied = Boolean(bag.promo && bag.promo.valid);
+
       let discounts;
-      const promoDiscountsSomething = bag.promo && bag.promo.valid && (bag.promo.amountCents > 0 || (bag.promo.freeShipping && bag.shippingCents > 0));
+      const promoDiscountsSomething = promoApplied && (bag.promo.amountCents > 0 || (bag.promo.freeShipping && bag.shippingCents > 0));
       if (promoDiscountsSomething) {
         try {
           const coupon = await ensureStripeCoupon(stripeApi, bag.promo);
           discounts = [{ coupon: coupon.id }];
         } catch (err) {
-          console.error('[store] coupon create failed, charging undiscounted', err.message);
+          console.error('[store] coupon create failed, refusing checkout', err.message);
           return clientError(res, 409, 'We couldn’t apply that discount. Remove the code and try again.');
         }
       }
@@ -309,7 +314,7 @@ export default async function handler(req, res) {
         mode: 'payment',
         payment_method_types: ['card'],
         line_items: lineItems,
-        allow_promotion_codes: !discounts,
+        allow_promotion_codes: !discounts && !promoApplied,
         billing_address_collection: 'auto',
         success_url: `${STORE_URL}?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${STORE_URL}?checkout=cancelled`,
