@@ -147,7 +147,101 @@ is already wired up. Every lesson you've entered with a Soundslice ID
 will start rendering the interactive embed on the student dashboard the
 moment you paste that ID in.
 
-## 7. Legal pages
+## 7. The merch store (`/store/`)
+
+The store is a full, live shop — real catalog, real bag, real Stripe checkout,
+real receipts — built from the Armonia Studio design export and wired into this
+same project. It shares the Supabase project, the Resend account, and the
+Stripe account with the course.
+
+### What it is
+
+| Path | What it does |
+| --- | --- |
+| `/store/` | the storefront: hero, collection, product pages, search, favorites, bag, checkout |
+| `/store/shipping` | shipping & returns page (linked from the footer + the cart) |
+| `/store/care` | product care page |
+| `/store/contact` | real contact form → lands in your inbox |
+| `/admin/` → **Store Orders** | every paid order, with what to pack, where to send it, and status buttons |
+
+### One-time setup
+
+1. **Run one more schema file** — Supabase → SQL Editor → paste
+   `supabase/schema-v14.sql` → Run. That creates `store_carts`,
+   `store_orders`, `store_checkout_sessions`, `store_promo_codes` and
+   `store_subscribers`, and seeds a `WELCOME10` code you can test with.
+   (Already applied to your project if the store was set up for you.)
+2. **Register the store webhook** — Stripe → Developers → Webhooks → Add
+   endpoint:
+   - URL: `https://armoniaconnect.com/api/store/webhook`
+   - Event: `checkout.session.completed` (add `checkout.session.expired` if you
+     want abandoned checkouts marked as such)
+   - Copy the signing secret into `STRIPE_WEBHOOK_SECRET` (the same variable the
+     course webhook uses, or add `STRIPE_WEBHOOK_SECRET_STORE` and point
+     `api/store/[...slug].js` at it if you'd rather keep them separate).
+3. **Nothing else.** `STRIPE_SECRET_KEY`, `SUPABASE_*`, `RESEND_API_KEY` and
+   `FROM_EMAIL` are already used by the course, so the store inherits them. Deploy.
+
+Without `STRIPE_SECRET_KEY` the store still works — catalog, bag, prices,
+favorites — it just says checkout isn't switched on yet instead of taking money.
+
+### How checkout works
+
+1. A customer adds items; the bag is a row in Postgres (`store_carts`) keyed by
+   an HttpOnly cookie.
+2. "Pay" calls `POST /api/store/checkout`, which **re-prices the bag on the
+   server** from `store/catalog.json`, creates the Stripe Checkout Session, and
+   redirects. Prices in the browser are cosmetic — the amount charged is decided
+   server-side.
+3. Stripe collects the shipping address and calculates sales tax, then redirects
+   back to `/store/?checkout=success&session_id=…`.
+4. The webhook records the order in `store_orders`, emails the customer a
+   receipt (`sendStoreOrderConfirmation`) and emails you a packing note
+   (`sendStoreOrderNotification`), and empties the bag.
+5. The confirmation screen reads the order back from `/api/store/order`, so a
+   customer who closes the tab can reload it from their receipt email.
+
+### Changing prices, copy, or products
+
+The design started life as an Armonia Studio export (`index.html`, ~7.4 MB with
+every image and font inlined). `store/build-store.mjs` turns that into a normal
+site:
+
+```
+node store/build-store.mjs                    # rebuild from the committed bundle + catalog
+node store/build-store.mjs --export path/to/studio-export.html   # re-extract from a new export
+```
+
+It writes `public/store/` (page, stylesheet, fonts, 43 images), regenerates the
+policy pages, and copies the app bundle + live runtime into place. Pure
+`node`, no dependencies. Run it after editing anything in `store/`.
+
+`store/catalog.json` is the source of truth for products, prices and colours —
+and `api/store` prices every order from that same file, so the page and the
+server can never disagree.
+
+### Discount codes
+
+Rows in `store_promo_codes` (`percent`, `amount`, or `free_shipping`), with an
+optional minimum spend, use cap and start/end dates. `WELCOME10` (10% off) is
+seeded for testing. Customers enter a code in the bag; valid codes are applied
+as a Stripe coupon so the discount is visible on the Stripe receipt too.
+
+### Local development
+
+```
+npm install
+npm run dev        # http://localhost:3000/store/
+```
+
+With no `SUPABASE_SERVICE_ROLE_KEY` set, the dev server runs the store against
+`.tmp/store-db.json` — real carts, real orders, no cloud needed. `POST
+/api/store/dev-seed-order` (dev only) fabricates a paid order so you can preview
+the confirmation screen and the admin order book without Stripe keys.
+
+---
+
+## 8. Legal pages
 
 Two drafts are included in the `legal/` folder: `terms-and-conditions.md`
 and `privacy-policy.md`, written specifically around how Armonía Connect

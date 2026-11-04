@@ -1,7 +1,15 @@
 {
   "name": "armonia-course",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
+  "type": "module",
+  "description": "Armonía Connect — course site, studio and merch store",
+  "scripts": {
+    "dev": "node dev-server.mjs",
+    "build:store": "node store/build-store.mjs",
+    "build:store:export": "node store/build-store.mjs --export",
+    "check": "node store/check.mjs"
+  },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
     "stripe": "^16.8.0",
