@@ -266,7 +266,7 @@ export default async function handler(req, res) {
 
       const lineItems = bag.lines.map((line) => {
         const product = catalog.byId.get(line.productId);
-        const images = product ? productImageUrls(product, origin(req)) : [];
+        const images = product ? productImageUrls(product, origin(req), line.color) : [];
         return {
           quantity: line.quantity,
           price_data: {
@@ -328,7 +328,7 @@ export default async function handler(req, res) {
         shipping_address_collection: { allowed_countries: shipping.countries },
         phone_number_collection: { enabled: false },
         custom_text: {
-          submit: { message: 'Free 30-day returns · Ships from the US in 2–4 business days.' },
+          submit: { message: '30-day returns at our US fulfilment partner · Ships in 2–4 business days.' },
           after_submit: { message: 'Thanks! Your receipt and order updates are on their way by email.' },
         },
         invoice_creation: { enabled: true },

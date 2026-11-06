@@ -110,7 +110,7 @@ export function page({ title, description, eyebrow, heading, body, current = '' 
 <footer class="site">
   <div class="wrap">
     <span>© ${new Date().getFullYear()} Armonia Connect · Good things. Better together.</span>
-    <span><a href="/terms.html">Terms</a> · <a href="/privacy.html">Privacy</a> · <a href="/refund-policy.html">Refunds</a></span>
+    <span><a href="/terms.html">Terms</a> · <a href="/privacy.html">Privacy</a> · <a href="/store/shipping#returns">Returns</a></span>
   </div>
 </footer>
 ${current === 'contact' ? CONTACT_SCRIPT : ''}

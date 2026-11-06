@@ -619,7 +619,7 @@ function mountBag(host, { onClose, onShop }) {
         ['Continue to checkout ', svg('arrow')],
       ),
       el('button', { class: 'continue-shopping', onClick: () => { close(); onShop && onShop(); } }, 'Keep exploring'),
-      el('div', { class: 'demo-checkout-note' }, [svg('lock'), ' Secure checkout · Free 30-day returns']),
+      el('div', { class: 'demo-checkout-note' }, [svg('lock'), ' Secure checkout · 30-day returns']),
     );
   }
 
@@ -690,7 +690,7 @@ function mountBag(host, { onClose, onShop }) {
         'By continuing you agree to our ',
         el('a', { href: '/terms.html', target: '_blank', rel: 'noopener' }, 'terms'),
         ' and ',
-        el('a', { href: '/refund-policy.html', target: '_blank', rel: 'noopener' }, 'refund policy'),
+        el('a', { href: '/store/shipping#returns', target: '_blank', rel: 'noopener' }, 'returns policy'),
         '.',
       ]),
     );
@@ -728,7 +728,25 @@ const INFO = {
       el(
         'p',
         {},
-        'Unworn, unused items can be returned within 30 days of delivery in their original condition. Start a return by emailing the address on your receipt — we’ll send a prepaid label for US orders. Refunds are issued to the original payment method within 5 business days of the return arriving.',
+        'You have 30 days from delivery. Returns are handled at our fulfilment partner’s US facility, so you are never posting anything overseas.',
+      ),
+      el('h3', {}, 'Damaged, misprinted or wrong'),
+      el(
+        'p',
+        {},
+        'Send a photo within 30 days and we will replace it free or refund you — your choice, and there is no need to post it back.',
+      ),
+      el('h3', {}, 'Changed your mind or the size is off'),
+      el(
+        'p',
+        {},
+        'Unworn, unused items in their original packaging can be returned within 30 days. Return postage is yours to cover; once it reaches our fulfilment partner we refund the item to your original payment method within 5 business days.',
+      ),
+      el('h3', {}, 'What we cannot take back'),
+      el(
+        'p',
+        {},
+        'Opened sticker sets, and caps that have been worn or lost their tags. Pick sets ship from our overseas print partner, so they are covered for defects and errors only — sending a $16 set back across the Pacific costs more than the set does.',
       ),
       el('h3', {}, 'Questions'),
       el('p', {}, 'Email us any time at ', el('a', { href: 'mailto:maestro.armoniaconnect@gmail.com' }, 'maestro.armoniaconnect@gmail.com'), ' or use the contact form.'),
@@ -745,7 +763,7 @@ const INFO = {
       el('h3', {}, 'Windbreakers'),
       el('p', {}, 'Machine wash cold on a gentle cycle, zip closed. Hang to dry. Do not iron; the water-resistant finish does not like heat.'),
       el('h3', {}, 'Stickers, picks & bottles'),
-      el('p', {}, 'Apply stickers to a clean, dry, smooth surface. Wipe fingerpicks with a soft cloth after playing. Hand wash bottles — the foil emblem prefers it.'),
+      el('p', {}, 'Apply stickers to a clean, dry, smooth surface. Wipe picks with a soft cloth after playing — foil stamping stays crisp when it is not left loose in a case with keys. Hand wash bottles; the foil emblem prefers it.'),
     ],
   },
   privacy: {
@@ -772,7 +790,7 @@ const INFO = {
         'Full ',
         el('a', { href: '/terms.html', target: '_blank', rel: 'noopener' }, 'terms and conditions'),
         ' and ',
-        el('a', { href: '/refund-policy.html', target: '_blank', rel: 'noopener' }, 'refund policy'),
+        el('a', { href: '/store/shipping#returns', target: '_blank', rel: 'noopener' }, 'returns policy'),
         '.',
       ]),
     ],
