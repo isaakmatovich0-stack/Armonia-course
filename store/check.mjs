@@ -165,5 +165,22 @@ if (fs.existsSync(bundleFile)) {
   }
 }
 
+/* The page config carries a second, independent copy of the product image
+   maps (each product's `images` / `backImages`). Those are data, not bundle
+   code, so a missed rebase there breaks products the bundle check cannot see.
+   Every generated store page is checked, for both forms of the path. */
+for (const name of PAGES.filter((p) => p.startsWith('store/'))) {
+  const file = path.join(ROOT, 'public', name);
+  if (!fs.existsSync(file)) continue;
+  const html = fs.readFileSync(file, 'utf8');
+  const stray = (html.match(/(?<!store)\/images\//g) || []).length;
+  if (stray) {
+    failures += 1;
+    console.log(`  ✗ ${name}: ${stray} image reference(s) still point at /images/`);
+  } else {
+    console.log(`  ✓ ${name}: page image paths are rebased`);
+  }
+}
+
 console.log(failures ? `\n${failures} problem${failures === 1 ? '' : 's'} found.` : '\nAll good.');
 process.exit(failures ? 1 : 0);

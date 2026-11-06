@@ -66,6 +66,39 @@ const write = (file, data) => {
 
 /* ─────────────────────────────── extraction ─────────────────────────────── */
 
+/* ───────────────────────────── image rebasing ───────────────────────────── */
+
+/**
+ * The Studio export addresses its images as `/images/x.webp` (its own hosting
+ * root). This site publishes them under `/store/images/`, so every reference
+ * has to be rebased — including the per-product `images` / `backImages` maps,
+ * which are plain data and are therefore NOT covered by the bundle patch.
+ *
+ * This runs on both paths: when extracting from a fresh export, and every time
+ * the catalogue is loaded from disk to render the page. Missing one of those
+ * is how eight products ended up with 404s while the page looked fine.
+ */
+function rebaseImagesDeep(value) {
+  if (typeof value === 'string') {
+    return value.startsWith('/images/') ? `/store/images/${value.slice('/images/'.length)}` : value;
+  }
+  if (Array.isArray(value)) return value.map(rebaseImagesDeep);
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const [key, inner] of Object.entries(value)) out[key] = rebaseImagesDeep(inner);
+    return out;
+  }
+  return value;
+}
+
+function rebaseCatalogImages(catalog) {
+  if (!catalog || typeof catalog !== 'object') return catalog;
+  if (Array.isArray(catalog.products)) catalog.products = rebaseImagesDeep(catalog.products);
+  if (Array.isArray(catalog.elements)) catalog.elements = rebaseImagesDeep(catalog.elements);
+  if (catalog.brand && typeof catalog.brand === 'object') catalog.brand = rebaseImagesDeep(catalog.brand);
+  return catalog;
+}
+
 function extractExport(exportPath) {
   const html = fs.readFileSync(exportPath, 'utf8');
   const pick = (regex, what) => {
@@ -153,6 +186,7 @@ function extractExport(exportPath) {
     description:
       'Wear your connection. Signature caps, everyday tees, hoodies, windbreakers, fingerpicks and sticker sets from the Armonia Connect collection. Free US shipping over $75.',
   };
+  rebaseCatalogImages(catalog);
   write(OUT.catalog, `${JSON.stringify(catalog, null, 2)}\n`);
 
   /* — app bundle: the pristine export; main() applies the hooks when publishing — */
@@ -470,7 +504,7 @@ async function main() {
         process.exit(1);
       }
     }
-    config = JSON.parse(fs.readFileSync(OUT.catalog, 'utf8'));
+    config = rebaseCatalogImages(JSON.parse(fs.readFileSync(OUT.catalog, 'utf8')));
     const licensesMatch = fs.readFileSync(OUT.page, 'utf8').match(/<script type="application\/json" id="open-source-licenses">([\s\S]*?)<\/script>/);
     licenses = licensesMatch ? licensesMatch[1] : null;
   }
