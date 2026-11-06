@@ -36,6 +36,7 @@ import {
   normalizeItems,
   loadCatalog,
   isCheckoutLive,
+  refreshCatalog,
   productImageUrls,
 } from '../../lib/store/catalog.js';
 import { resolveBag, saveCart, loadPromo, cartCookie, isValidCartId } from '../../lib/store/cart.js';
@@ -156,7 +157,10 @@ export default async function handler(req, res) {
     /* ── catalog ─────────────────────────────────────────────────────── */
     if (route === 'catalog') {
       if (method !== 'GET') return clientError(res, 405, 'Method not allowed.');
-      res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
+      // Prices are editable from the admin now, so this can no longer be cached
+      // for minutes: a stale CDN entry means a customer pays last week's price.
+      await refreshCatalog();
+      res.setHeader('Cache-Control', 'no-store');
       return res.status(200).json(publicCatalog());
     }
 
@@ -168,6 +172,7 @@ export default async function handler(req, res) {
 
     /* ── bag ─────────────────────────────────────────────────────────── */
     if (route === 'bag') {
+      await refreshCatalog();
       if (method === 'GET') {
         const { cart, bag } = await resolveBag(req, { create: false });
         if (!cart) return res.status(200).json({ ...bagResponse(priceBag([])), live: isCheckoutLive() });
@@ -241,6 +246,7 @@ export default async function handler(req, res) {
       if (method !== 'POST') return clientError(res, 405, 'Method not allowed.');
 
       const stripeApi = stripe();
+      await refreshCatalog();
       const { cart, items, bag } = await resolveBag(req, { create: false });
       if (cart) tagCart(res, cart);
       if (!bag || bag.lines.length === 0) {

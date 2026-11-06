@@ -1016,6 +1016,60 @@ async function loadCatalog() {
   }
 }
 
+/**
+ * Re-read the server's prices every minute, and whenever the tab becomes
+ * visible again. Prices are editable in the admin now, so a page left open
+ * overnight would otherwise sell at yesterday's price until it was refreshed.
+ * The bag is re-priced from the same payload, so the number in the drawer
+ * matches the number Stripe will charge.
+ */
+function startPriceWatch() {
+  if (state.priceWatch) return;
+  let last = JSON.stringify(Array.from(state.catalog.values()));
+
+  const tick = async () => {
+    if (document.visibilityState === 'hidden') return;
+    try {
+      await loadCatalog();
+      const now = JSON.stringify(Array.from(state.catalog.values()));
+      if (now === last) return;
+      last = now;
+      // The bundle renders from its own config object, which loadCatalog() has
+      // already updated in place, so the next React render is correct on its
+      // own — but React has no reason to re-render until something else moves.
+      // Repainting the leaf price nodes means a price change is visible without
+      // a reload, and nothing else in the tree depends on those nodes.
+      repaintPrices();
+      loadBag();
+    } catch (err) {
+      /* transient network trouble: try again on the next tick */
+    }
+  };
+
+  state.priceWatch = setInterval(tick, 60000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') tick();
+  });
+  window.addEventListener('focus', tick);
+}
+
+function repaintPrices() {
+  state.products.forEach((product) => {
+    const live = catalogProduct(product.id);
+    if (!live || typeof live.priceCents !== 'number') return;
+
+    // money() takes cents — passing dollars here would render a $68 hoodie as
+    // $0.68, and only for the second between a price change and the next render.
+    document.querySelectorAll(`[data-product-id="${CSS.escape(product.id)}"] .product-price`).forEach((node) => {
+      node.textContent = money(live.priceCents);
+    });
+    const modal = document.querySelector(`[data-editor-product="${CSS.escape(product.id)}"] .modal-price`);
+    if (modal && modal.firstChild && modal.firstChild.nodeType === Node.TEXT_NODE) {
+      modal.firstChild.nodeValue = money(live.priceCents);
+    }
+  });
+}
+
 function injectStyles() {
   if (document.getElementById('store-live-styles')) return;
   const style = document.createElement('style');
@@ -1165,6 +1219,7 @@ function start(bridge) {
   /* ── Data ── */
   const params = new URLSearchParams(window.location.search);
   loadCatalog().then(() => {
+    startPriceWatch();
     loadBag().then(() => {
       loadShipping();
       if (params.get('checkout') === 'success' && params.get('session_id')) showOrderConfirmation(params.get('session_id'));

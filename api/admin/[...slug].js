@@ -16,7 +16,9 @@ import { supabase } from '../../lib/supabase.js';
 import { hashPassword, verifyPassword } from '../../lib/password.js';
 import { sendAdminVerificationEmail, sendGeneratedCodeEmail, sendGeneratedCodeBatchEmail } from '../../lib/email.js';
 import { generateAccessCode } from '../../lib/generateCode.js';
-import { listOrders as listStoreOrders, updateOrderStatus as updateStoreOrderStatus } from '../../lib/store/db.js';
+import { listOrders as listStoreOrders, updateOrderStatus as updateStoreOrderStatus,
+         listProducts, updateProduct, getSettings, updateSettings } from '../../lib/store/db.js';
+import { clearCatalogCache } from '../../lib/store/catalog.js';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 
@@ -380,6 +382,161 @@ export default async function handler(req, res) {
       } catch (error) {
         console.error('Store order update error:', error);
         return res.status(500).json({ error: 'Could not update the order.' });
+      }
+    }
+    return res.status(405).json({ error: 'Method not allowed.' });
+  }
+
+  // ── /api/admin/store-products ──
+  // The product + price editor. This is the write path for everything the store
+  // sells, so every field is validated here rather than trusted from the form:
+  // the admin UI is the only caller today, but a wrong price_cents is a real
+  // charge, and a wrong colours array is a product nobody can add to a bag.
+  if (route === 'store-products') {
+    if (req.method === 'GET') {
+      try {
+        const [rows, settings] = await Promise.all([listProducts(), getSettings()]);
+        return res.status(200).json({
+          products: rows || [],
+          settings: settings || { shipping_fee_cents: 600, free_shipping_cents: 7500 },
+          migrated: Boolean(rows && rows.length),
+        });
+      } catch (err) {
+        console.error('Store products fetch error:', err);
+        return res.status(500).json({ error: 'Could not load store products.' });
+      }
+    }
+
+    if (req.method === 'PATCH') {
+      const body = req.body || {};
+      const id = typeof body.id === 'string' ? body.id.trim() : '';
+      if (!id) return res.status(400).json({ error: 'A product id is required.' });
+
+      const patch = {};
+      const fail = (message) => res.status(400).json({ error: message });
+
+      if (body.name !== undefined) {
+        const name = String(body.name).trim();
+        if (!name) return fail('A product needs a name.');
+        if (name.length > 120) return fail('That name is too long.');
+        patch.name = name;
+      }
+      if (body.shortName !== undefined) patch.short_name = String(body.shortName).trim().slice(0, 60) || null;
+      if (body.subtitle !== undefined) patch.subtitle = String(body.subtitle).trim().slice(0, 160) || null;
+      if (body.description !== undefined) patch.description = String(body.description).trim().slice(0, 2000) || null;
+      if (body.fit !== undefined) patch.fit = String(body.fit).trim().slice(0, 600) || null;
+      if (body.badge !== undefined) patch.badge = String(body.badge).trim().slice(0, 60) || null;
+      if (body.category !== undefined) patch.category = String(body.category).trim().slice(0, 60) || null;
+
+      if (body.priceCents !== undefined) {
+        const cents = Number(body.priceCents);
+        if (!Number.isInteger(cents) || cents < 50 || cents > 500000) {
+          return fail('Price must be a whole number of cents between 50 and 500,000.');
+        }
+        patch.price_cents = cents;
+      }
+      if (body.costCents !== undefined) {
+        if (body.costCents === null || body.costCents === '') patch.cost_cents = null;
+        else {
+          const cost = Number(body.costCents);
+          if (!Number.isInteger(cost) || cost < 0 || cost > 500000) return fail('Cost must be a whole number of cents.');
+          patch.cost_cents = cost;
+        }
+      }
+      if (body.compareAtCents !== undefined) {
+        if (body.compareAtCents === null || body.compareAtCents === '') patch.compare_at_cents = null;
+        else {
+          const cmp = Number(body.compareAtCents);
+          if (!Number.isInteger(cmp) || cmp < 0) return fail('Compare-at price must be a whole number of cents.');
+          patch.compare_at_cents = cmp;
+        }
+      }
+
+      if (body.colors !== undefined) {
+        if (!Array.isArray(body.colors) || body.colors.length === 0) return fail('A product needs at least one colour.');
+        const colors = body.colors.map((c) => String(c).trim()).filter(Boolean);
+        if (colors.length !== body.colors.length) return fail('Colour keys cannot be blank.');
+        patch.colors = colors;
+      }
+      if (body.sizes !== undefined) {
+        if (!Array.isArray(body.sizes) || body.sizes.length === 0) return fail('A product needs at least one size.');
+        patch.sizes = body.sizes.map((x) => String(x).trim()).filter(Boolean);
+      }
+      if (body.details !== undefined) {
+        if (!Array.isArray(body.details)) return fail('Details must be a list.');
+        patch.details = body.details.map((d) => String(d).trim()).filter(Boolean).slice(0, 20);
+      }
+      if (body.images !== undefined) {
+        if (typeof body.images !== 'object' || body.images === null) return fail('Images must be an object of colour → path.');
+        const images = {};
+        for (const [color, path] of Object.entries(body.images)) {
+          if (!path) continue;
+          if (!/^\/store\/images\/[A-Za-z0-9._-]+$/.test(String(path))) {
+            return fail(`Image for "${color}" must be a path under /store/images/.`);
+          }
+          images[color] = String(path);
+        }
+        patch.images = images;
+      }
+      if (body.inStock !== undefined) patch.in_stock = Boolean(body.inStock);
+      if (body.sortOrder !== undefined) {
+        const order = Number(body.sortOrder);
+        if (!Number.isInteger(order) || order < 0) return fail('Sort order must be a whole number.');
+        patch.sort_order = order;
+      }
+
+      if (!Object.keys(patch).length) return fail('Nothing to update.');
+
+      try {
+        const updated = await updateProduct(id, patch);
+        if (!updated) {
+          return res.status(404).json({
+            error: 'That product is not in the database yet. Run supabase/schema-v15.sql first.',
+          });
+        }
+        clearCatalogCache(); // the next request must see the new price, not a cached one
+        return res.status(200).json({ ok: true, product: updated });
+      } catch (err) {
+        console.error('Store product update error:', err);
+        return res.status(500).json({ error: 'Could not save that product.' });
+      }
+    }
+    return res.status(405).json({ error: 'Method not allowed.' });
+  }
+
+  // ── /api/admin/store-settings ──
+  // Shipping is editable too: the fee and the free-shipping threshold are the
+  // two numbers customers notice most, and they are not prices of any product.
+  if (route === 'store-settings') {
+    if (req.method === 'GET') {
+      const settings = await getSettings();
+      return res.status(200).json({ settings: settings || { shipping_fee_cents: 600, free_shipping_cents: 7500 } });
+    }
+    if (req.method === 'PATCH') {
+      const body = req.body || {};
+      const patch = {};
+      if (body.shippingFeeCents !== undefined) {
+        const cents = Number(body.shippingFeeCents);
+        if (!Number.isInteger(cents) || cents < 0 || cents > 100000) {
+          return res.status(400).json({ error: 'Shipping fee must be between 0 and 100,000 cents.' });
+        }
+        patch.shipping_fee_cents = cents;
+      }
+      if (body.freeShippingCents !== undefined) {
+        const cents = Number(body.freeShippingCents);
+        if (!Number.isInteger(cents) || cents < 0 || cents > 100000) {
+          return res.status(400).json({ error: 'Free-shipping threshold must be between 0 and 100,000 cents.' });
+        }
+        patch.free_shipping_cents = cents;
+      }
+      if (!Object.keys(patch).length) return res.status(400).json({ error: 'Nothing to update.' });
+      try {
+        const settings = await updateSettings(patch);
+        clearCatalogCache();
+        return res.status(200).json({ ok: true, settings });
+      } catch (err) {
+        console.error('Store settings update error:', err);
+        return res.status(500).json({ error: 'Could not save those settings.' });
       }
     }
     return res.status(405).json({ error: 'Method not allowed.' });
