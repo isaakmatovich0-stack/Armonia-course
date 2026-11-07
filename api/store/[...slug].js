@@ -50,15 +50,16 @@ import {
   logContactMessage,
   isLocalMode,
   findOrderByNumber,
+  listOrders as listStoreOrders,
 } from '../../lib/store/db.js';
 import { orderFromStripeSession, upsertOrder, findOrderBySession, publicOrder, itemsForMetadata } from '../../lib/store/orders.js';
 import {
+  sendStoreShippingEmail,
   sendStoreOrderConfirmation,
   sendStoreOrderNotification,
   sendStoreContactNotification,
-  sendStoreShippingEmail,
 } from '../../lib/email.js';
-import { submitToSupplier, applyShipment } from '../../lib/store/fulfilment.js';
+import { submitToSupplier, applyShipment, syncPrintkkShipments } from '../../lib/store/fulfilment.js';
 import { eventEffect } from '../../lib/suppliers/printful.js';
 
 /* ── Stripe webhooks need the untouched request body ───────────────────── */
@@ -500,6 +501,45 @@ export default async function handler(req, res) {
         return clientError(res, 500, 'Could not send your message. Please email us at maestro.armoniaconnect@gmail.com.');
       }
       return res.status(200).json({ ok: true });
+    }
+
+    /* ── Supplier sync (PrintKK) ─────────────────────────────────────
+       PrintKK has no webhooks, so this is polled by Vercel Cron instead:
+       it asks for tracking on orders sitting at PrintKK and writes back
+       anything that has shipped. Guarded by CRON_SECRET, because Vercel
+       also lets anyone hit the path directly. */
+    if (route === 'supplier-sync') {
+      if (method !== 'GET' && method !== 'POST') return clientError(res, 405, 'Method not allowed.');
+
+      const expected = process.env.CRON_SECRET || '';
+      const header = req.headers.authorization || '';
+      const provided = header.startsWith('Bearer ') ? header.slice(7) : String(req.query.secret || '');
+      // Vercel signs cron invocations with CRON_SECRET in the Authorization
+      // header. If no secret is configured we refuse rather than leave an open
+      // endpoint that anyone could use to hammer the supplier API.
+      if (!expected || provided !== expected) {
+        return res.status(401).json({ error: 'Not authorized.' });
+      }
+
+      try {
+        const orders = await listStoreOrders({ limit: 200 });
+        const result = await syncPrintkkShipments(orders);
+        for (const order of result.updated || []) {
+          await sendStoreShippingEmail({
+            to: order.email,
+            name: order.name,
+            orderNumber: order.number,
+            carrier: order.carrier,
+            trackingNumber: order.tracking_number,
+            trackingUrl: order.tracking_url,
+            items: order.items || [],
+          }).catch((err) => console.error('[store] shipping email failed', err));
+        }
+        return res.status(200).json({ ok: true, checked: result.checked, shipped: (result.updated || []).length });
+      } catch (err) {
+        console.error('[store] supplier sync failed', err);
+        return res.status(500).json({ error: 'Sync failed.' });
+      }
     }
 
     /* ── Supplier webhook (Printful) ──────────────────────────────────
