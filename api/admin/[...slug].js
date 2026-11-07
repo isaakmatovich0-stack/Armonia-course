@@ -20,7 +20,8 @@ import { listOrders as listStoreOrders, updateOrderStatus as updateStoreOrderSta
          listProducts, updateProduct, getSettings, updateSettings } from '../../lib/store/db.js';
 import { clearCatalogCache } from '../../lib/store/catalog.js';
 import { submitToSupplier, supplierStatus, cancelFulfilment } from '../../lib/store/fulfilment.js';
-import { health as supplierHealth, cancelOrder as cancelSupplierOrder } from '../../lib/suppliers/printful.js';
+import { health as printfulHealth, cancelOrder as cancelSupplierOrder } from '../../lib/suppliers/printful.js';
+import { health as printkkHealth } from '../../lib/suppliers/printkk.js';
 import { findOrderByNumber } from '../../lib/store/db.js';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
@@ -555,15 +556,23 @@ export default async function handler(req, res) {
   if (route === 'store-fulfilment') {
     if (req.method === 'GET') {
       const status = supplierStatus();
-      const health = await supplierHealth();
-      return res.status(200).json({ ...status, health });
+      // Ping both. A supplier that is unconfigured is not an error — it is
+      // simply not part of fulfilment yet — so its health is reported without
+      // making the whole panel look broken.
+      const [printfulResult, printkkResult] = await Promise.all([
+        status.suppliers.printful ? printfulHealth() : Promise.resolve({ configured: false }),
+        status.suppliers.printkk ? printkkHealth() : Promise.resolve({ configured: false }),
+      ]);
+      return res.status(200).json({ ...status, health: { printful: printfulResult, printkk: printkkResult } });
     }
 
     if (req.method === 'POST') {
       const { orderNumber } = req.body || {};
       if (!orderNumber) return res.status(400).json({ error: 'An order number is required.' });
       if (!supplierStatus().configured) {
-        return res.status(400).json({ error: 'PRINTFUL_API_TOKEN is not set, so there is nothing to send the order to.' });
+        return res.status(400).json({
+          error: 'No supplier is configured yet. Set PRINTFUL_API_TOKEN and/or PRINTKK_API_KEY + PRINTKK_SECRET_KEY.',
+        });
       }
       try {
         const order = await findOrderByNumber(String(orderNumber).trim());

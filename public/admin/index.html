@@ -416,6 +416,7 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
           </div>
         </div>
         <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:20px;">Every paid order from the store, newest first. Click an order to see exactly what to pack and where to send it.</p>
+        <div id="supplierPanel" style="border:1px solid var(--border-gold); padding:14px 16px; margin-bottom:18px; font-size:0.8rem; color:var(--text-muted); line-height:1.9;"></div>
         <div id="ordersStats" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:24px;"></div>
         <div id="ordersList"></div>
       </section>
@@ -1041,7 +1042,38 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
       return `<span style="font-size:0.66rem; letter-spacing:1px; text-transform:uppercase; color:${colour}; min-width:92px; text-align:right;">${label}</span>`;
     }
 
+    /**
+     * Which supplier can take an order right now, and which products have no
+     * variant mapped. This is the first thing to look at when a paid order is
+     * sitting unsent, so it is shown above the order list rather than hidden.
+     */
+    async function loadSupplierPanel() {
+      const panel = document.getElementById('supplierPanel');
+      if (!panel) return;
+      try {
+        const data = await adminFetch('/api/admin/store-fulfilment');
+        const dot = (ok) => `<span style="color:${ok ? '#8fd18f' : '#e8a8a8'};">${ok ? '✓' : '✗'}</span>`;
+        const printful = data.suppliers?.printful;
+        const printkk = data.suppliers?.printkk;
+        const pf = data.health?.printful || {};
+        const pk = data.health?.printkk || {};
+        const detail = (h) => {
+          if (!h.configured) return 'no credentials';
+          if (h.ok) return 'reachable';
+          return h.error ? `not reachable — ${h.error}` : 'unknown';
+        };
+        panel.innerHTML = `
+          <strong style="color:var(--cream);">Fulfilment</strong><br>
+          ${dot(printful)} Printful — ${detail(pf)}${data.draft ? ' · <em>draft mode, nothing is printed</em>' : ''}<br>
+          ${dot(printkk)} PrintKK — ${detail(pk)}${data.autoPay ? ' · <em>auto-pay on, orders cost money immediately</em>' : ' · orders are created unpaid'}<br>
+          <span style="color:var(--text-muted);">Products marked <em>no variant mapped</em> under Products &amp; Prices cannot be sent yet.</span>`;
+      } catch (err) {
+        panel.innerHTML = `<span style="color:#e8a8a8;">Could not read supplier status — ${err.message}</span>`;
+      }
+    }
+
     async function loadStoreOrders() {
+      loadSupplierPanel();
       const list = document.getElementById('ordersList');
       const stats = document.getElementById('ordersStats');
       list.innerHTML = '<p style="color:var(--text-muted); font-size:0.85rem;">Loading orders…</p>';
