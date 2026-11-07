@@ -200,6 +200,9 @@ export default async function handler(req, res) {
           const catalog = loadCatalog();
           const product = catalog.byId.get(String(body.productId || ''));
           if (!product) return clientError(res, 400, 'That product is no longer available.');
+          // The catalogue is cached, so this check matters: a product switched
+          // out of stock in the admin must not be addable from a stale page.
+          if (product.inStock === false) return clientError(res, 400, 'That product is currently out of stock.');
           const color = String(body.color || product.colors[0]);
           const size = String(body.size || product.sizes[0]);
           if (!product.colors.includes(color)) return clientError(res, 400, 'That colour is not available.');
