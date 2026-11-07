@@ -482,6 +482,35 @@ export default async function handler(req, res) {
         patch.images = images;
       }
       if (body.inStock !== undefined) patch.in_stock = Boolean(body.inStock);
+
+      // The supplier mapping. Keys are "productId|color|size", or
+      // "productId|*|*" when one variant covers every colour/size. Values are
+      // the supplier's own ids — opaque to us, so they are only checked for
+      // shape, never invented.
+      if (body.supplier !== undefined) {
+        const supplier = body.supplier === null ? null : String(body.supplier).trim();
+        if (supplier && !['printful', 'printkk'].includes(supplier)) {
+          return fail('Supplier must be printful or printkk.');
+        }
+        patch.supplier = supplier || null;
+      }
+      if (body.supplierVariants !== undefined) {
+        if (typeof body.supplierVariants !== 'object' || body.supplierVariants === null) {
+          return fail('Supplier variants must be an object.');
+        }
+        const variants = {};
+        for (const [key, value] of Object.entries(body.supplierVariants)) {
+          if (value === '' || value === null || value === undefined) continue;
+          if (!/^[A-Za-z0-9-]+\|(\*|[A-Za-z0-9 .&-]+)\|(\*|[A-Za-z0-9 .&-]+)$/.test(key)) {
+            return fail(`"${key}" is not a valid variant key (expected product|colour|size).`);
+          }
+          const id = String(value).trim();
+          if (!/^[0-9]{1,20}$/.test(id)) return fail(`The supplier id for "${key}" must be numeric.`);
+          variants[key] = id;
+        }
+        patch.supplier_variants = variants;
+      }
+
       if (body.sortOrder !== undefined) {
         const order = Number(body.sortOrder);
         if (!Number.isInteger(order) || order < 0) return fail('Sort order must be a whole number.');
@@ -494,7 +523,7 @@ export default async function handler(req, res) {
         const updated = await updateProduct(id, patch);
         if (!updated) {
           return res.status(404).json({
-            error: 'That product is not in the database yet. Run supabase/schema-v15.sql first.',
+            error: `"${id}" is not in the products table. Run supabase/schema-v15.sql, then reload this panel.`,
           });
         }
         clearCatalogCache(); // the next request must see the new price, not a cached one

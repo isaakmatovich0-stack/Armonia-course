@@ -867,11 +867,29 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
                       style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:9px 11px; font-size:0.86rem; resize:vertical;">${(p.description || '').replace(/</g, '&lt;')}</textarea>
           </div>
 
+          <details style="margin-top:12px;">
+            <summary style="cursor:pointer; font-size:0.74rem; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-muted);">Supplier variants</summary>
+            <p style="font-size:0.78rem; color:var(--text-muted); margin:8px 0; line-height:1.7;">
+              One line per variant, as <code>colour|size=id</code>. Use <code>*</code> for "every", e.g.
+              <code>*|*=99901</code> when a single supplier variant covers all colours.
+              Ids come from the supplier's dashboard; we never guess them.
+            </p>
+            <textarea rows="3" data-field="variants" data-id="${p.id}"
+                      placeholder="ink|Set of 6=99901&amp;ivory|Set of 6=99902"
+                      style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:9px 11px; font-size:0.82rem; font-family:monospace; resize:vertical;">${Object.entries(p.supplier_variants || {}).map(([k, v]) => {
+                        const parts = k.split('|');
+                        return parts.length === 3 ? `${parts[1]}|${parts[2]}=${v}` : '';
+                      }).filter(Boolean).join('\n')}</textarea>
+          </details>
+
           <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap; margin-top:14px;">
             <label style="display:flex; align-items:center; gap:7px; font-size:0.82rem; color:var(--cream); cursor:pointer;">
               <input type="checkbox" data-field="inStock" data-id="${p.id}" ${p.in_stock ? 'checked' : ''}> In stock
             </label>
             <span style="font-size:0.78rem; color:var(--text-muted);">${p.colors.length} colour(s) · ${p.sizes.join(', ')}</span>
+            <span style="font-size:0.78rem; color:${Object.keys(p.supplier_variants || {}).length ? '#8fd18f' : 'var(--text-muted)'};">
+              ${p.supplier || (p.id === 'connect-picks' ? 'printkk' : 'printful')}${Object.keys(p.supplier_variants || {}).length ? ` · ${Object.keys(p.supplier_variants).length} variant(s)` : ' · no variant mapped'}
+            </span>
             <span data-saved-for="${p.id}" style="color:var(--gold-light); font-size:0.8rem; display:none;">✓ Saved</span>
             <button type="button" data-save-product="${p.id}"
                     style="margin-left:auto; background:var(--gold); color:var(--charcoal); border:none; padding:9px 18px; font-weight:600; cursor:pointer; font-size:0.82rem;">Save</button>
@@ -939,6 +957,22 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
           payload.badge = field('badge').value;
           payload.description = field('description').value;
           payload.inStock = field('inStock').checked;
+
+          // "colour|size=id" per line → the product|colour|size map the API wants
+          const variantsInput = field('variants');
+          if (variantsInput) {
+            const map = {};
+            for (const line of variantsInput.value.split(/\n+/)) {
+              const trimmed = line.trim();
+              if (!trimmed) continue;
+              const [left, right] = trimmed.split('=');
+              if (!left || !right) { button.textContent = 'Check the variants'; return; }
+              const [color, ...sizeParts] = left.split('|');
+              const size = sizeParts.join('|').trim();
+              map[`${id}|${(color || '*').trim()}|${size || '*'}`] = right.trim();
+            }
+            payload.supplierVariants = map;
+          }
 
           button.disabled = true;
           const original = button.textContent;
