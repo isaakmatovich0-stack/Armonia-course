@@ -19,7 +19,7 @@ import { generateAccessCode } from '../../lib/generateCode.js';
 import { listOrders as listStoreOrders, updateOrderStatus as updateStoreOrderStatus,
          listProducts, updateProduct, getSettings, updateSettings } from '../../lib/store/db.js';
 import { clearCatalogCache } from '../../lib/store/catalog.js';
-import { submitToSupplier, supplierStatus } from '../../lib/store/fulfilment.js';
+import { submitToSupplier, supplierStatus, cancelFulfilment } from '../../lib/store/fulfilment.js';
 import { health as supplierHealth, cancelOrder as cancelSupplierOrder } from '../../lib/suppliers/printful.js';
 import { findOrderByNumber } from '../../lib/store/db.js';
 import jwt from 'jsonwebtoken';
@@ -381,7 +381,18 @@ export default async function handler(req, res) {
       try {
         const updated = await updateStoreOrderStatus(id, status);
         if (!updated) return res.status(404).json({ error: 'That order no longer exists.' });
-        return res.status(200).json({ ok: true, id, status });
+
+        // A refund or cancellation has to reach the supplier too, or the parcel
+        // is still printed and shipped after the money went back. The order is
+        // already updated at this point, so a supplier failure is reported
+        // rather than rolled back — silently ignoring it is the one thing we
+        // cannot do, because it costs real money per order.
+        let supplier = null;
+        if (status === 'refunded' || status === 'cancelled') {
+          supplier = await cancelFulfilment(updated).catch((err) => ({ failed: [{ error: err.message }] }));
+        }
+
+        return res.status(200).json({ ok: true, id, status, supplier });
       } catch (error) {
         console.error('Store order update error:', error);
         return res.status(500).json({ error: 'Could not update the order.' });
