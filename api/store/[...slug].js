@@ -49,9 +49,17 @@ import {
   addSubscriber,
   logContactMessage,
   isLocalMode,
+  findOrderByNumber,
 } from '../../lib/store/db.js';
 import { orderFromStripeSession, upsertOrder, findOrderBySession, publicOrder, itemsForMetadata } from '../../lib/store/orders.js';
-import { sendStoreOrderConfirmation, sendStoreOrderNotification, sendStoreContactNotification } from '../../lib/email.js';
+import {
+  sendStoreOrderConfirmation,
+  sendStoreOrderNotification,
+  sendStoreContactNotification,
+  sendStoreShippingEmail,
+} from '../../lib/email.js';
+import { submitToSupplier, applyShipment } from '../../lib/store/fulfilment.js';
+import { eventEffect } from '../../lib/suppliers/printful.js';
 
 /* ── Stripe webhooks need the untouched request body ───────────────────── */
 export const config = {
@@ -494,6 +502,70 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
+    /* ── Supplier webhook (Printful) ──────────────────────────────────
+       Printful has no signing secret, so the URL carries a shared token
+       (PRINTFUL_WEBHOOK_TOKEN). Without that a stranger could POST a fake
+       "shipped" event and mark orders complete — the token is the only thing
+       standing between the public internet and our order book. */
+    if (route === 'supplier-webhook') {
+      if (method !== 'POST') return clientError(res, 405, 'Method not allowed.');
+
+      const expected = process.env.PRINTFUL_WEBHOOK_TOKEN || '';
+      const provided = String(req.query.token || req.query.t || '');
+      if (!expected) {
+        console.error('[store] supplier webhook hit but PRINTFUL_WEBHOOK_TOKEN is not set');
+        return res.status(503).json({ error: 'Supplier webhook is not configured.' });
+      }
+      if (provided !== expected) {
+        console.warn('[store] supplier webhook rejected: bad token');
+        return res.status(401).json({ error: 'Not authorized.' });
+      }
+
+      const body = jsonBody(req);
+      const type = String(body.type || '');
+      const effect = eventEffect(type);
+      if (!effect) return res.status(200).json({ received: true, ignored: type || 'unknown' });
+
+      const shipment = body.data && body.data.shipment ? body.data.shipment : {};
+      const externalId = (body.data && body.data.order && body.data.order.external_id) || null;
+      if (!externalId) {
+        console.warn('[store] supplier webhook had no external_id', type);
+        return res.status(200).json({ received: true, ignored: 'no external_id' });
+      }
+
+      let order;
+      try {
+        order = await findOrderByNumber(externalId);
+      } catch (err) {
+        console.error('[store] supplier webhook lookup failed', err);
+        return res.status(500).json({ error: 'Could not look up that order.' });
+      }
+      if (!order) {
+        // Not ours, or a stale event. 200 so Printful stops retrying.
+        console.warn('[store] supplier webhook for unknown order', externalId);
+        return res.status(200).json({ received: true, ignored: 'unknown order' });
+      }
+
+      try {
+        const updated = await applyShipment(order, body, effect);
+        if (effect.notify && updated) {
+          await sendStoreShippingEmail({
+            to: updated.email,
+            name: updated.name,
+            orderNumber: updated.number,
+            carrier: updated.carrier,
+            trackingNumber: updated.tracking_number,
+            trackingUrl: updated.tracking_url,
+            items: updated.items || [],
+          }).catch((err) => console.error('[store] shipping email failed', err));
+        }
+        return res.status(200).json({ received: true, order: order.number, status: effect.fulfilment });
+      } catch (err) {
+        console.error('[store] supplier webhook apply failed', err);
+        return res.status(500).json({ error: 'Could not update that order.' });
+      }
+    }
+
     /* ── Stripe webhook ──────────────────────────────────────────────── */
     if (route === 'webhook') {
       if (method !== 'POST') return clientError(res, 405, 'Method not allowed.');
@@ -567,6 +639,18 @@ export default async function handler(req, res) {
                 totalCents: order.amount_total,
                 shippingAddress: order.shipping_address,
               }).catch((err) => console.error('[store] shop alert failed', err));
+            }
+            // Fulfilment: hand the order to the supplier. A failure here must
+            // not fail the webhook — the money is already taken and the order is
+            // recorded, so the admin retries from the Store Orders panel rather
+            // than Stripe replaying an event whose side effects all succeeded.
+            if (created && order) {
+              await submitToSupplier(order)
+                .then((result) => {
+                  if (!result.ok && !result.skipped) console.error('[store] supplier submit failed:', result.error);
+                  else if (result.skipped) console.log('[store] supplier submit skipped:', result.reason);
+                })
+                .catch((err) => console.error('[store] supplier submit threw:', err));
             }
             return res.status(200).json({ received: true, order: order ? order.number : null });
           } catch (err) {

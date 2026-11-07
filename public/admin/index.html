@@ -999,6 +999,14 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
 
     const money = (cents) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((Number(cents) || 0) / 100);
 
+    function fulfilmentBadge(order) {
+      const state = order.fulfilment_status;
+      if (!state) return '<span style="font-size:0.66rem; letter-spacing:1px; text-transform:uppercase; color:var(--text-muted); min-width:92px; text-align:right;">not sent</span>';
+      const colour = state === 'shipped' ? '#8fd18f' : state === 'failed' ? '#e8a8a8' : state === 'needs_mapping' ? '#e5be73' : 'var(--gold-light)';
+      const label = state === 'needs_mapping' ? 'needs mapping' : state;
+      return `<span style="font-size:0.66rem; letter-spacing:1px; text-transform:uppercase; color:${colour}; min-width:92px; text-align:right;">${label}</span>`;
+    }
+
     async function loadStoreOrders() {
       const list = document.getElementById('ordersList');
       const stats = document.getElementById('ordersStats');
@@ -1047,6 +1055,7 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
               <span style="font-size:0.82rem; color:var(--text-muted); min-width:80px;">${items.reduce((n, i) => n + (i.quantity || 0), 0)} ${items.reduce((n, i) => n + (i.quantity || 0), 0) === 1 ? 'item' : 'items'}</span>
               <strong style="font-size:0.95rem; min-width:70px; text-align:right;">${money(order.amount_total)}</strong>
               <span style="font-size:0.68rem; letter-spacing:1.2px; text-transform:uppercase; color:${statusColor}; min-width:80px; text-align:right;">${order.status}</span>
+              ${fulfilmentBadge(order)}
             </button>
             <div id="orderDetail-${index}" style="display:none; padding:18px 16px; border-top:1px solid var(--border-gold); background:var(--charcoal-2);">
               <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:22px;">
@@ -1075,13 +1084,43 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
                   </p>
                 </div>
               </div>
+              ${order.fulfilment_status || order.tracking_number || order.fulfilment_error ? `
+              <div style="margin-top:18px; padding:14px 16px; border:1px solid var(--border-gold); background:rgba(229,190,115,0.04);">
+                <p style="font-size:0.68rem; letter-spacing:1.4px; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px;">Supplier</p>
+                <p style="font-size:0.85rem; line-height:1.8; color:var(--cream);">
+                  ${order.supplier ? `${order.supplier} · ` : ''}${order.fulfilment_status || 'not sent'}
+                  ${order.supplier_order_id ? `<br><span style="color:var(--text-muted); font-size:0.78rem;">Supplier order ${order.supplier_order_id}</span>` : ''}
+                  ${order.tracking_number ? `<br><span style="color:var(--text-muted); font-size:0.78rem;">${order.carrier || ''} ${order.tracking_number}</span>` : ''}
+                  ${order.tracking_url ? `<br><a href="${order.tracking_url}" target="_blank" rel="noopener" style="color:var(--gold-light); font-size:0.78rem;">Track parcel ↗</a>` : ''}
+                  ${order.fulfilment_error ? `<br><span style="color:#e8a8a8; font-size:0.78rem;">${order.fulfilment_error}</span>` : ''}
+                </p>
+              </div>` : ''}
               <div style="display:flex; gap:8px; margin-top:18px; flex-wrap:wrap;">
+                <button type="button" data-send-supplier="${order.number}" style="background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:7px 14px; font-size:0.75rem; cursor:pointer;">Send to supplier</button>
                 ${['paid', 'packed', 'shipped', 'refunded'].map(status => `<button type="button" data-order-status="${status}" data-order-id="${order.id}" style="background:${order.status === status ? 'var(--gold)' : 'transparent'}; color:${order.status === status ? 'var(--charcoal)' : 'var(--gold-light)'}; border:1px solid var(--border-gold); padding:7px 14px; font-size:0.75rem; text-transform:capitalize; cursor:pointer;">${status}</button>`).join('')}
                 <a href="mailto:${order.email || ''}?subject=${encodeURIComponent('Your Armonia Connect order ' + order.number)}" style="margin-left:auto; align-self:center; font-size:0.78rem; color:var(--gold-light); text-decoration:underline;">Email customer</a>
               </div>
             </div>
           </div>`;
       }).join('');
+
+      list.querySelectorAll('[data-send-supplier]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          const number = button.dataset.sendSupplier;
+          if (!confirm(`Send ${number} to the supplier now?`)) return;
+          const original = button.textContent;
+          button.disabled = true;
+          button.textContent = 'Sending…';
+          try {
+            const res = await adminFetch('/api/admin/store-fulfilment', { method: 'POST', body: JSON.stringify({ orderNumber: number }) });
+            button.textContent = res.skipped ? 'Already sent' : 'Sent ✓';
+            setTimeout(loadStoreOrders, 900);
+          } catch (err) {
+            button.textContent = err.message.slice(0, 34);
+            setTimeout(() => { button.textContent = original; button.disabled = false; }, 3600);
+          }
+        });
+      });
 
       list.querySelectorAll('[data-order-toggle]').forEach(button => {
         button.addEventListener('click', () => {

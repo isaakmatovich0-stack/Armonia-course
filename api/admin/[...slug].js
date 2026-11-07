@@ -19,6 +19,9 @@ import { generateAccessCode } from '../../lib/generateCode.js';
 import { listOrders as listStoreOrders, updateOrderStatus as updateStoreOrderStatus,
          listProducts, updateProduct, getSettings, updateSettings } from '../../lib/store/db.js';
 import { clearCatalogCache } from '../../lib/store/catalog.js';
+import { submitToSupplier, supplierStatus } from '../../lib/store/fulfilment.js';
+import { health as supplierHealth, cancelOrder as cancelSupplierOrder } from '../../lib/suppliers/printful.js';
+import { findOrderByNumber } from '../../lib/store/db.js';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 
@@ -499,6 +502,38 @@ export default async function handler(req, res) {
       } catch (err) {
         console.error('Store product update error:', err);
         return res.status(500).json({ error: 'Could not save that product.' });
+      }
+    }
+    return res.status(405).json({ error: 'Method not allowed.' });
+  }
+
+  // ── /api/admin/store-fulfilment ──
+  // The supplier integration's control panel: is it configured, and can a
+  // stuck order be pushed through by hand. The automatic path runs from the
+  // Stripe webhook; this exists for the case where the supplier was down at the
+  // moment the money arrived.
+  if (route === 'store-fulfilment') {
+    if (req.method === 'GET') {
+      const status = supplierStatus();
+      const health = await supplierHealth();
+      return res.status(200).json({ ...status, health });
+    }
+
+    if (req.method === 'POST') {
+      const { orderNumber } = req.body || {};
+      if (!orderNumber) return res.status(400).json({ error: 'An order number is required.' });
+      if (!supplierStatus().configured) {
+        return res.status(400).json({ error: 'PRINTFUL_API_TOKEN is not set, so there is nothing to send the order to.' });
+      }
+      try {
+        const order = await findOrderByNumber(String(orderNumber).trim());
+        if (!order) return res.status(404).json({ error: 'That order number is not in the order book.' });
+        const result = await submitToSupplier(order);
+        if (!result.ok) return res.status(400).json({ error: result.reason || result.error || 'Could not submit that order.' });
+        return res.status(200).json({ ok: true, supplierOrderId: result.id, status: result.status, skipped: Boolean(result.skipped) });
+      } catch (err) {
+        console.error('Supplier submit error:', err);
+        return res.status(500).json({ error: 'Could not submit that order.' });
       }
     }
     return res.status(405).json({ error: 'Method not allowed.' });
