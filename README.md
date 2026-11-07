@@ -284,8 +284,12 @@ What that looks like in practice:
   subscribed to `package_shipped`, `order_failed`, `order_canceled`.
 - `PRINTKK_API_KEY` and `PRINTKK_SECRET_KEY`. Requests are HMAC-signed with the
   secret, so both are required.
-- `CRON_SECRET`, which Vercel Cron uses to call `/api/store/supplier-sync` every
-  15 minutes (declared in `vercel.json`) to collect PrintKK tracking.
+- `CRON_SECRET`, which Vercel Cron uses to call `/api/store/supplier-sync` to
+  collect PrintKK tracking. The schedule in `vercel.json` is **daily**, because
+  Vercel's free Hobby plan rejects any cron that runs more than once a day —
+  and a rejected schedule fails the whole deployment. Tracking still reaches
+  the customer the same day: their order page polls on demand when it is
+  opened, so the cron is a backstop for orders nobody looks at.
 - In **Products & Prices → Supplier variants**, paste the supplier id for each
   colour/size as `colour|size=id`, or `*|*=id` when one variant covers all.
   Ids come from the supplier dashboards; they are never guessed.

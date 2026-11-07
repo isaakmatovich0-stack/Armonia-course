@@ -67,7 +67,7 @@
   "crons": [
     {
       "path": "/api/store/supplier-sync",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 14 * * *"
     }
   ]
 }

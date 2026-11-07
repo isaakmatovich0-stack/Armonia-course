@@ -391,8 +391,22 @@ export default async function handler(req, res) {
       const sessionId = url.searchParams.get('session_id');
       if (!sessionId || !/^cs_[A-Za-z0-9_]+$/.test(sessionId)) return clientError(res, 400, 'Missing order reference.');
 
-      const row = await findOrderBySession(sessionId);
-      if (row) return res.status(200).json({ ...publicOrder(row), pending: false });
+      let row = await findOrderBySession(sessionId);
+      if (row) {
+        // PrintKK tracking is pulled, not pushed, and a nightly cron would mean
+        // a customer learning about their parcel up to a day late. Checking the
+        // order is exactly the moment to look, and syncPrintkkShipments
+        // throttles so this cannot become a poll loop.
+        if (String(row.supplier_order_id || '').includes('printkk:')) {
+          try {
+            const synced = await syncPrintkkShipments([row]);
+            row = (synced.updated && synced.updated[0]) || row;
+          } catch (err) {
+            console.warn('[store] printkk sync on order view failed', err.message);
+          }
+        }
+        return res.status(200).json({ ...publicOrder(row), pending: false });
+      }
 
       // Webhook may not have landed yet — tell the page to keep polling.
       const stripeApi = stripe();
@@ -523,7 +537,7 @@ export default async function handler(req, res) {
 
       try {
         const orders = await listStoreOrders({ limit: 200 });
-        const result = await syncPrintkkShipments(orders);
+        const result = await syncPrintkkShipments(orders, { ignoreThrottle: true });
         for (const order of result.updated || []) {
           await sendStoreShippingEmail({
             to: order.email,
