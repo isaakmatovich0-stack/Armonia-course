@@ -3,7 +3,7 @@
   "site": {
     "brandName": "Armonia Connect",
     "title": "Armonia Connect — Shop the Collection",
-    "description": "Wear your connection. Signature caps, everyday tees, hoodies, windbreakers, fingerpicks and sticker sets from the Armonia Connect collection. Free US shipping over $75.",
+    "description": "Wear your connection. Signature caps, everyday tees, hoodies, windbreakers, guitar pick sets and stickers from the Armonia Connect collection. Free US shipping over $75.",
     "lang": "en",
     "noindex": false,
     "showEditor": false,
@@ -188,16 +188,16 @@
         "2XL"
       ],
       "images": {
-        "ink": "/images/windbreaker-front-ink.webp",
-        "ivory": "/images/windbreaker-front-ivory.webp",
-        "sky": "/images/windbreaker-front-sky.webp",
-        "orange": "/images/windbreaker-front-orange.webp"
+        "ink": "/store/images/windbreaker-front-ink.webp",
+        "ivory": "/store/images/windbreaker-front-ivory.webp",
+        "sky": "/store/images/windbreaker-front-sky.webp",
+        "orange": "/store/images/windbreaker-front-orange.webp"
       },
       "backImages": {
-        "ink": "/images/windbreaker-back-ink.webp",
-        "ivory": "/images/windbreaker-back-ivory.webp",
-        "sky": "/images/windbreaker-back-sky.webp",
-        "orange": "/images/windbreaker-back-orange.webp"
+        "ink": "/store/images/windbreaker-back-ink.webp",
+        "ivory": "/store/images/windbreaker-back-ivory.webp",
+        "sky": "/store/images/windbreaker-back-sky.webp",
+        "orange": "/store/images/windbreaker-back-orange.webp"
       }
     },
     {
@@ -226,28 +226,28 @@
         "Set of 2"
       ],
       "images": {
-        "ink": "/images/stickers-ink.webp",
-        "ivory": "/images/stickers-ivory.webp"
+        "ink": "/store/images/stickers-ink.webp",
+        "ivory": "/store/images/stickers-ivory.webp"
       }
     },
     {
-      "id": "connect-fingerpicks",
-      "name": "The Connect Fingerpicks",
-      "shortName": "Connect Fingerpicks",
+      "id": "connect-picks",
+      "name": "The Connect Pick Set",
+      "shortName": "Connect Pick Set",
       "price": 16,
       "category": "Accessories",
-      "type": "fingerpicks",
+      "type": "picks",
       "initialColor": "ivory",
-      "badge": "ACOUSTIC ESSENTIAL",
-      "subtitle": "Upright contoured acrylic fingerpicks",
-      "description": "Crafted for effortless tone and tactile warmth. Precision-molded contoured acrylic picks standing upright and stamped with the Armonia Connect metallic emblem, designed for smooth acoustic attack and responsive fingerstyle play.",
+      "badge": "STAGE ESSENTIAL",
+      "subtitle": "Six celluloid picks with the emblem",
+      "description": "The sound of the collection, in your pocket. Six premium celluloid picks in three gauges — two light for strumming, two medium for everything in between, two heavy for lead lines — each foil-stamped with the Armonia Connect emblem, in a slim pick wallet.",
       "details": [
-        "Upright contoured ergonomic acrylic silhouette",
-        "Foil-stamped Armonia Connect emblem on pick body",
-        "Smooth beveled attack edge for balanced tone",
-        "Available in Ivory Clear, Midnight Smoke, Autumn Amber, and Founders Limited Sky"
+        "Six picks in three gauges: 2 × .46mm, 2 × .73mm, 2 × 1.0mm",
+        "Foil-stamped Armonia Connect emblem on every pick",
+        "Standard 351 shape with a smooth, bevelled edge",
+        "Slim pick wallet included"
       ],
-      "fit": "Ergonomic contour hugs fingertips naturally. Standard medium-fit fingerpick sizing.",
+      "fit": "Standard 351 shape, the shape most players already know. The .46mm bends easily for strumming; the 1.0mm holds its attack for lead work.",
       "colors": [
         "ivory",
         "ink",
@@ -255,13 +255,13 @@
         "orange"
       ],
       "sizes": [
-        "Set of 3"
+        "Set of 6"
       ],
       "images": {
-        "ivory": "/images/fingerpicks-ivory.webp",
-        "ink": "/images/fingerpicks-ink.webp",
-        "orange": "/images/fingerpicks-orange.webp",
-        "sky": "/images/fingerpicks-sky.webp"
+        "ivory": "/store/images/picks-ivory.webp",
+        "ink": "/store/images/picks-ink.webp",
+        "sky": "/store/images/picks-sky.webp",
+        "orange": "/store/images/picks-orange.webp"
       }
     }
   ],

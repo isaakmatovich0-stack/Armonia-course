@@ -135,6 +135,7 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
       <div class="tab" data-panel="lessons">Lessons</div>
       <div class="tab" data-panel="updates">Course Updates <span id="updatesTabBadge" class="tab-badge" style="display:none;"></span></div>
       <div class="tab" data-panel="orders">Store Orders <span id="ordersTabBadge" class="tab-badge" style="display:none;"></span></div>
+      <div class="tab" data-panel="products">Products &amp; Prices</div>
       <div class="tab" data-panel="announcements">Post Announcement</div>
       <div class="tab" data-panel="content">Site Text</div>
       <div class="tab-divider"></div>
@@ -415,8 +416,45 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
           </div>
         </div>
         <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:20px;">Every paid order from the store, newest first. Click an order to see exactly what to pack and where to send it.</p>
+        <div id="supplierPanel" style="border:1px solid var(--border-gold); padding:14px 16px; margin-bottom:18px; font-size:0.8rem; color:var(--text-muted); line-height:1.9;"></div>
         <div id="ordersStats" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:24px;"></div>
         <div id="ordersList"></div>
+      </section>
+
+      <section class="panel" id="panel-products">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:10px;">
+          <h2 style="font-family:var(--font-display); font-size:1.3rem;">Products &amp; Prices</h2>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button type="button" id="refreshProductsBtn" style="background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:8px 16px; font-size:0.82rem; cursor:pointer;">Refresh</button>
+            <a href="/store/" target="_blank" rel="noopener" style="border:1px solid var(--border-gold); color:var(--gold-light); padding:8px 16px; font-size:0.82rem; text-decoration:none;">View store</a>
+          </div>
+        </div>
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:18px; max-width:640px;">
+          Edit a price and it takes effect the moment you save — no redeploy, and the storefront picks it up within a minute. Checkout always charges the amount stored here, never what a browser sends.
+        </p>
+
+        <div id="productsNotice"></div>
+
+        <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; border:1px solid var(--border-gold); padding:16px; margin-bottom:22px;">
+          <div style="flex:1; min-width:150px;">
+            <label style="display:block; font-size:0.7rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px;">Standard shipping</label>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span style="color:var(--text-muted);">$</span>
+              <input type="number" min="0" step="0.01" id="shippingFeeInput" style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px 12px; font-size:0.9rem;">
+            </div>
+          </div>
+          <div style="flex:1; min-width:150px;">
+            <label style="display:block; font-size:0.7rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px;">Free shipping over</label>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span style="color:var(--text-muted);">$</span>
+              <input type="number" min="0" step="0.01" id="freeShippingInput" style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px 12px; font-size:0.9rem;">
+            </div>
+          </div>
+          <button type="button" id="saveShippingBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:11px 20px; font-weight:600; cursor:pointer; font-size:0.85rem;">Save shipping</button>
+          <span id="shippingSaved" style="color:var(--gold-light); font-size:0.82rem; display:none;">✓ Saved</span>
+        </div>
+
+        <div id="productsList"></div>
       </section>
 
       <section class="panel" id="panel-announcements">
@@ -767,15 +805,275 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
         if (tab.dataset.panel === 'messages') { renderInbox(); }
         if (tab.dataset.panel === 'updates') { loadCourseUpdates(); }
         if (tab.dataset.panel === 'orders') { loadStoreOrders(); }
+        if (tab.dataset.panel === 'products') { loadStoreProducts(); }
       });
     });
+
+    // ── Products & Prices ──
+    // The editor writes straight to /api/admin/store-products. Every input is
+    // local until Save, so a stray keystroke can never half-update a product —
+    // and the server re-validates everything regardless of what this form sends.
+    let storeProducts = [];
+    let productDrafts = {};
+
+    function productCard(p) {
+      const draft = productDrafts[p.id];
+      const price = draft && draft.price !== undefined ? draft.price : (p.price_cents / 100).toFixed(2);
+      const cost = p.cost_cents == null ? '' : (p.cost_cents / 100).toFixed(2);
+      const marginCents = p.cost_cents == null ? null : p.price_cents - p.cost_cents;
+      const marginLabel = marginCents == null
+        ? '—'
+        : `${money(marginCents)} (${Math.round((marginCents / Math.max(1, p.price_cents)) * 100)}%)`;
+      const colourName = (k) => (storeColours[k] && storeColours[k].name) || k;
+
+      return `
+        <div style="border:1px solid var(--border-gold); padding:18px; margin-bottom:14px;" data-product-card="${p.id}">
+          <div style="display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap;">
+            <img src="${(p.images && (p.images[p.colors[0]] || Object.values(p.images)[0])) || ''}"
+                 alt="" style="width:74px; height:82px; object-fit:cover; background:var(--charcoal-3); border:1px solid var(--border-gold); flex-shrink:0;">
+            <div style="flex:1; min-width:220px;">
+              <div style="display:flex; justify-content:space-between; gap:10px; align-items:baseline; flex-wrap:wrap;">
+                <strong style="font-family:var(--font-serif); color:var(--gold-light); font-size:1.02rem;">${p.name}</strong>
+                <span style="font-size:0.72rem; color:var(--text-muted); font-family:monospace;">${p.id}</span>
+              </div>
+              <p style="font-size:0.8rem; color:var(--text-muted); margin:5px 0 0;">${p.subtitle || ''}</p>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-top:16px;">
+            <div>
+              <label style="display:block; font-size:0.68rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted); margin-bottom:5px;">Price</label>
+              <input type="number" min="0.50" step="0.01" value="${price}" data-field="price" data-id="${p.id}"
+                     style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:9px 11px; font-size:0.9rem;">
+            </div>
+            <div>
+              <label style="display:block; font-size:0.68rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted); margin-bottom:5px;">Supplier cost</label>
+              <input type="number" min="0" step="0.01" value="${cost}" placeholder="—" data-field="cost" data-id="${p.id}"
+                     style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:9px 11px; font-size:0.9rem;">
+            </div>
+            <div>
+              <label style="display:block; font-size:0.68rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted); margin-bottom:5px;">Badge</label>
+              <input type="text" value="${(p.badge || '').replace(/"/g, '&quot;')}" maxlength="60" data-field="badge" data-id="${p.id}"
+                     style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:9px 11px; font-size:0.9rem;">
+            </div>
+            <div>
+              <label style="display:block; font-size:0.68rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted); margin-bottom:5px;">Margin</label>
+              <div style="padding:9px 0; font-size:0.9rem; color:${marginCents != null && marginCents > 0 ? '#8fd18f' : 'var(--text-muted)'};">${marginLabel}</div>
+            </div>
+          </div>
+
+          <div style="margin-top:14px;">
+            <label style="display:block; font-size:0.68rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted); margin-bottom:5px;">Description</label>
+            <textarea rows="2" data-field="description" data-id="${p.id}"
+                      style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:9px 11px; font-size:0.86rem; resize:vertical;">${(p.description || '').replace(/</g, '&lt;')}</textarea>
+          </div>
+
+          <details style="margin-top:12px;">
+            <summary style="cursor:pointer; font-size:0.74rem; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-muted);">Supplier variants</summary>
+            <p style="font-size:0.78rem; color:var(--text-muted); margin:8px 0; line-height:1.7;">
+              One line per variant, as <code>colour|size=id</code>. Use <code>*</code> for "every", e.g.
+              <code>*|*=99901</code> when a single supplier variant covers all colours.
+              Ids come from the supplier's dashboard; we never guess them.
+            </p>
+            <textarea rows="3" data-field="variants" data-id="${p.id}"
+                      placeholder="ink|Set of 6=99901&amp;ivory|Set of 6=99902"
+                      style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:9px 11px; font-size:0.82rem; font-family:monospace; resize:vertical;">${Object.entries(p.supplier_variants || {}).map(([k, v]) => {
+                        const parts = k.split('|');
+                        return parts.length === 3 ? `${parts[1]}|${parts[2]}=${v}` : '';
+                      }).filter(Boolean).join('\n')}</textarea>
+          </details>
+
+          <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap; margin-top:14px;">
+            <label style="display:flex; align-items:center; gap:7px; font-size:0.82rem; color:var(--cream); cursor:pointer;">
+              <input type="checkbox" data-field="inStock" data-id="${p.id}" ${p.in_stock ? 'checked' : ''}> In stock
+            </label>
+            <span style="font-size:0.78rem; color:var(--text-muted);">${p.colors.length} colour(s) · ${p.sizes.join(', ')}</span>
+            <span style="font-size:0.78rem; color:${Object.keys(p.supplier_variants || {}).length ? '#8fd18f' : 'var(--text-muted)'};">
+              ${p.supplier || (p.id === 'connect-picks' ? 'printkk' : 'printful')}${Object.keys(p.supplier_variants || {}).length ? ` · ${Object.keys(p.supplier_variants).length} variant(s)` : ' · no variant mapped'}
+            </span>
+            <span data-saved-for="${p.id}" style="color:var(--gold-light); font-size:0.8rem; display:none;">✓ Saved</span>
+            <button type="button" data-save-product="${p.id}"
+                    style="margin-left:auto; background:var(--gold); color:var(--charcoal); border:none; padding:9px 18px; font-weight:600; cursor:pointer; font-size:0.82rem;">Save</button>
+          </div>
+        </div>`;
+    }
+
+    let storeColours = {};
+
+    async function loadStoreProducts() {
+      const list = document.getElementById('productsList');
+      const notice = document.getElementById('productsNotice');
+      list.innerHTML = '<p style="color:var(--text-muted); font-size:0.85rem;">Loading products…</p>';
+      notice.innerHTML = '';
+      try {
+        const data = await adminFetch('/api/admin/store-products');
+        storeProducts = data.products || [];
+        storeColours = { sky: { name: 'Founders Limited' }, ink: { name: 'Ink black' }, ivory: { name: 'Cloud white' }, orange: { name: 'Autumn Orange' } };
+        productDrafts = {};
+
+        if (!data.migrated) {
+          notice.innerHTML = `<div style="border:1px solid #e8a8a8; padding:16px; margin-bottom:16px; color:#e8a8a8; font-size:0.85rem;">
+            The product table is empty, so the store is still pricing from <code>store/catalog.json</code>.
+            Run <code>supabase/schema-v15.sql</code> in Supabase, then come back — nothing else needs to change.
+          </div>`;
+          list.innerHTML = '';
+          return;
+        }
+
+        const shipping = data.settings || {};
+        document.getElementById('shippingFeeInput').value = ((shipping.shipping_fee_cents ?? 600) / 100).toFixed(2);
+        document.getElementById('freeShippingInput').value = ((shipping.free_shipping_cents ?? 7500) / 100).toFixed(2);
+
+        list.innerHTML = storeProducts.map(productCard).join('');
+        wireProductInputs();
+      } catch (err) {
+        list.innerHTML = `<p style="color:#e8a8a8; font-size:0.85rem;">${err.message}</p>`;
+      }
+    }
+
+    function wireProductInputs() {
+      document.querySelectorAll('#productsList [data-field]').forEach((input) => {
+        input.addEventListener('input', () => {
+          const id = input.dataset.id;
+          productDrafts[id] = productDrafts[id] || {};
+          productDrafts[id][input.dataset.field] = input.value;
+        });
+      });
+
+      document.querySelectorAll('[data-save-product]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          const id = button.dataset.saveProduct;
+          const card = button.closest('[data-product-card]');
+          const field = (name) => card.querySelector(`[data-field="${name}"]`);
+          const payload = { id };
+
+          const price = Number(field('price').value);
+          if (!Number.isFinite(price) || price <= 0) { button.textContent = 'Check the price'; return; }
+          payload.priceCents = Math.round(price * 100);
+
+          const costRaw = field('cost').value.trim();
+          payload.costCents = costRaw === '' ? null : Math.round(Number(costRaw) * 100);
+          if (payload.costCents !== null && !Number.isFinite(payload.costCents)) { button.textContent = 'Check the cost'; return; }
+
+          payload.badge = field('badge').value;
+          payload.description = field('description').value;
+          payload.inStock = field('inStock').checked;
+
+          // "colour|size=id" per line → the product|colour|size map the API wants
+          const variantsInput = field('variants');
+          if (variantsInput) {
+            const map = {};
+            for (const line of variantsInput.value.split(/\n+/)) {
+              const trimmed = line.trim();
+              if (!trimmed) continue;
+              const [left, right] = trimmed.split('=');
+              if (!left || !right) { button.textContent = 'Check the variants'; return; }
+              const [color, ...sizeParts] = left.split('|');
+              const size = sizeParts.join('|').trim();
+              map[`${id}|${(color || '*').trim()}|${size || '*'}`] = right.trim();
+            }
+            payload.supplierVariants = map;
+          }
+
+          button.disabled = true;
+          const original = button.textContent;
+          button.textContent = 'Saving…';
+          try {
+            const res = await adminFetch('/api/admin/store-products', { method: 'PATCH', body: JSON.stringify(payload) });
+            const row = res.product;
+            const saved = card.querySelector(`[data-saved-for="${id}"]`);
+            if (saved) { saved.style.display = 'inline'; setTimeout(() => { saved.style.display = 'none'; }, 2500); }
+            const index = storeProducts.findIndex((p) => p.id === id);
+            if (index !== -1) storeProducts[index] = row;
+            // refresh the margin read-out without a full reload
+            const marginCell = card.querySelectorAll('div[style*="padding:9px 0"]')[0];
+            if (marginCell && row.cost_cents != null) {
+              const cents = row.price_cents - row.cost_cents;
+              marginCell.textContent = `${money(cents)} (${Math.round((cents / Math.max(1, row.price_cents)) * 100)}%)`;
+              marginCell.style.color = cents > 0 ? '#8fd18f' : 'var(--text-muted)';
+            }
+            delete productDrafts[id];
+          } catch (err) {
+            button.textContent = err.message.slice(0, 40);
+            setTimeout(() => { button.textContent = original; }, 3200);
+            button.disabled = false;
+            return;
+          }
+          button.textContent = original;
+          button.disabled = false;
+        });
+      });
+    }
+
+    document.getElementById('saveShippingBtn')?.addEventListener('click', async () => {
+      const fee = Number(document.getElementById('shippingFeeInput').value);
+      const free = Number(document.getElementById('freeShippingInput').value);
+      const note = document.getElementById('shippingSaved');
+      const btn = document.getElementById('saveShippingBtn');
+      if (!Number.isFinite(fee) || !Number.isFinite(free)) return;
+      btn.disabled = true;
+      btn.textContent = 'Saving…';
+      try {
+        await adminFetch('/api/admin/store-settings', {
+          method: 'PATCH',
+          body: JSON.stringify({ shippingFeeCents: Math.round(fee * 100), freeShippingCents: Math.round(free * 100) }),
+        });
+        note.style.display = 'inline';
+        setTimeout(() => { note.style.display = 'none'; }, 2500);
+      } catch (err) {
+        alert(err.message);
+      }
+      btn.textContent = 'Save shipping';
+      btn.disabled = false;
+    });
+
+    document.getElementById('refreshProductsBtn')?.addEventListener('click', loadStoreProducts);
 
     // ── Store Orders ──
     let storeOrders = [];
 
     const money = (cents) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((Number(cents) || 0) / 100);
 
+    function fulfilmentBadge(order) {
+      const state = order.fulfilment_status;
+      if (!state) return '<span style="font-size:0.66rem; letter-spacing:1px; text-transform:uppercase; color:var(--text-muted); min-width:92px; text-align:right;">not sent</span>';
+      const colour = state === 'shipped' ? '#8fd18f' : state === 'failed' ? '#e8a8a8' : state === 'needs_mapping' ? '#e5be73' : 'var(--gold-light)';
+      const label = state === 'needs_mapping' ? 'needs mapping' : state;
+      return `<span style="font-size:0.66rem; letter-spacing:1px; text-transform:uppercase; color:${colour}; min-width:92px; text-align:right;">${label}</span>`;
+    }
+
+    /**
+     * Which supplier can take an order right now, and which products have no
+     * variant mapped. This is the first thing to look at when a paid order is
+     * sitting unsent, so it is shown above the order list rather than hidden.
+     */
+    async function loadSupplierPanel() {
+      const panel = document.getElementById('supplierPanel');
+      if (!panel) return;
+      try {
+        const data = await adminFetch('/api/admin/store-fulfilment');
+        const dot = (ok) => `<span style="color:${ok ? '#8fd18f' : '#e8a8a8'};">${ok ? '✓' : '✗'}</span>`;
+        const printful = data.suppliers?.printful;
+        const printkk = data.suppliers?.printkk;
+        const pf = data.health?.printful || {};
+        const pk = data.health?.printkk || {};
+        const detail = (h) => {
+          if (!h.configured) return 'no credentials';
+          if (h.ok) return 'reachable';
+          return h.error ? `not reachable — ${h.error}` : 'unknown';
+        };
+        panel.innerHTML = `
+          <strong style="color:var(--cream);">Fulfilment</strong><br>
+          ${dot(printful)} Printful — ${detail(pf)}${data.draft ? ' · <em>draft mode, nothing is printed</em>' : ''}<br>
+          ${dot(printkk)} PrintKK — ${detail(pk)}${data.autoPay ? ' · <em>auto-pay on, orders cost money immediately</em>' : ' · orders are created unpaid'}<br>
+          <span style="color:var(--text-muted);">Products marked <em>no variant mapped</em> under Products &amp; Prices cannot be sent yet.</span>`;
+      } catch (err) {
+        panel.innerHTML = `<span style="color:#e8a8a8;">Could not read supplier status — ${err.message}</span>`;
+      }
+    }
+
     async function loadStoreOrders() {
+      loadSupplierPanel();
       const list = document.getElementById('ordersList');
       const stats = document.getElementById('ordersStats');
       list.innerHTML = '<p style="color:var(--text-muted); font-size:0.85rem;">Loading orders…</p>';
@@ -823,6 +1121,7 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
               <span style="font-size:0.82rem; color:var(--text-muted); min-width:80px;">${items.reduce((n, i) => n + (i.quantity || 0), 0)} ${items.reduce((n, i) => n + (i.quantity || 0), 0) === 1 ? 'item' : 'items'}</span>
               <strong style="font-size:0.95rem; min-width:70px; text-align:right;">${money(order.amount_total)}</strong>
               <span style="font-size:0.68rem; letter-spacing:1.2px; text-transform:uppercase; color:${statusColor}; min-width:80px; text-align:right;">${order.status}</span>
+              ${fulfilmentBadge(order)}
             </button>
             <div id="orderDetail-${index}" style="display:none; padding:18px 16px; border-top:1px solid var(--border-gold); background:var(--charcoal-2);">
               <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:22px;">
@@ -851,13 +1150,43 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
                   </p>
                 </div>
               </div>
+              ${order.fulfilment_status || order.tracking_number || order.fulfilment_error ? `
+              <div style="margin-top:18px; padding:14px 16px; border:1px solid var(--border-gold); background:rgba(229,190,115,0.04);">
+                <p style="font-size:0.68rem; letter-spacing:1.4px; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px;">Supplier</p>
+                <p style="font-size:0.85rem; line-height:1.8; color:var(--cream);">
+                  ${order.supplier ? `${order.supplier} · ` : ''}${order.fulfilment_status || 'not sent'}
+                  ${order.supplier_order_id ? `<br><span style="color:var(--text-muted); font-size:0.78rem;">Supplier order ${order.supplier_order_id}</span>` : ''}
+                  ${order.tracking_number ? `<br><span style="color:var(--text-muted); font-size:0.78rem;">${order.carrier || ''} ${order.tracking_number}</span>` : ''}
+                  ${order.tracking_url ? `<br><a href="${order.tracking_url}" target="_blank" rel="noopener" style="color:var(--gold-light); font-size:0.78rem;">Track parcel ↗</a>` : ''}
+                  ${order.fulfilment_error ? `<br><span style="color:#e8a8a8; font-size:0.78rem;">${order.fulfilment_error}</span>` : ''}
+                </p>
+              </div>` : ''}
               <div style="display:flex; gap:8px; margin-top:18px; flex-wrap:wrap;">
+                <button type="button" data-send-supplier="${order.number}" style="background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:7px 14px; font-size:0.75rem; cursor:pointer;">Send to supplier</button>
                 ${['paid', 'packed', 'shipped', 'refunded'].map(status => `<button type="button" data-order-status="${status}" data-order-id="${order.id}" style="background:${order.status === status ? 'var(--gold)' : 'transparent'}; color:${order.status === status ? 'var(--charcoal)' : 'var(--gold-light)'}; border:1px solid var(--border-gold); padding:7px 14px; font-size:0.75rem; text-transform:capitalize; cursor:pointer;">${status}</button>`).join('')}
                 <a href="mailto:${order.email || ''}?subject=${encodeURIComponent('Your Armonia Connect order ' + order.number)}" style="margin-left:auto; align-self:center; font-size:0.78rem; color:var(--gold-light); text-decoration:underline;">Email customer</a>
               </div>
             </div>
           </div>`;
       }).join('');
+
+      list.querySelectorAll('[data-send-supplier]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          const number = button.dataset.sendSupplier;
+          if (!confirm(`Send ${number} to the supplier now?`)) return;
+          const original = button.textContent;
+          button.disabled = true;
+          button.textContent = 'Sending…';
+          try {
+            const res = await adminFetch('/api/admin/store-fulfilment', { method: 'POST', body: JSON.stringify({ orderNumber: number }) });
+            button.textContent = res.skipped ? 'Already sent' : 'Sent ✓';
+            setTimeout(loadStoreOrders, 900);
+          } catch (err) {
+            button.textContent = err.message.slice(0, 34);
+            setTimeout(() => { button.textContent = original; button.disabled = false; }, 3600);
+          }
+        });
+      });
 
       list.querySelectorAll('[data-order-toggle]').forEach(button => {
         button.addEventListener('click', () => {

@@ -162,7 +162,8 @@ Stripe account with the course.
 | `/store/shipping` | shipping & returns page (linked from the footer + the cart) |
 | `/store/care` | product care page |
 | `/store/contact` | real contact form → lands in your inbox |
-| `/admin/` → **Store Orders** | every paid order, with what to pack, where to send it, and status buttons |
+| `/admin/` → **Store Orders** | every paid order, with what to pack, where to send it, supplier state, tracking and status buttons |
+| `/admin/` → **Products & Prices** | edit any product and price live — no redeploy; also shipping fee, free-shipping threshold and supplier variant ids |
 
 ### One-time setup
 
@@ -171,7 +172,14 @@ Stripe account with the course.
    `store_orders`, `store_checkout_sessions`, `store_promo_codes` and
    `store_subscribers`, and seeds a `WELCOME10` code you can test with.
    (Already applied to your project if the store was set up for you.)
-2. **Register the store webhook** — Stripe → Developers → Webhooks → Add
+2. **Run the product schema** — Supabase → SQL Editor → paste
+   `supabase/schema-v15.sql` → Run. That moves products and shipping rules out
+   of `store/catalog.json` and into the database, which is what makes
+   **Products & Prices** editable, and adds the fulfilment/tracking columns to
+   `store_orders`. Safe to re-run; it never overwrites a price you have changed.
+   Until it is run, the store keeps pricing from the committed catalogue file,
+   so nothing breaks in the meantime.
+3. **Register the store webhook** — Stripe → Developers → Webhooks → Add
    endpoint:
    - URL: `https://armoniaconnect.com/api/store/webhook`
    - Event: `checkout.session.completed` (add `checkout.session.expired` if you
@@ -184,8 +192,10 @@ Stripe account with the course.
      is a separate Stripe webhook with its own secret, so if you put the store's
      secret in `STRIPE_WEBHOOK_SECRET` and nowhere else, course sales stop
      verifying — that's the one setup to avoid.
-3. **Nothing else.** `STRIPE_SECRET_KEY`, `SUPABASE_*`, `RESEND_API_KEY` and
-   `FROM_EMAIL` are already used by the course, so the store inherits them. Deploy.
+4. **Nothing else to be live.** `STRIPE_SECRET_KEY`, `SUPABASE_*`,
+   `RESEND_API_KEY` and `FROM_EMAIL` are already used by the course, so the
+   store inherits them. Deploy — the store sells from that point.
+5. **Add the suppliers when you want hands-off fulfilment** (see below).
 
 Without `STRIPE_SECRET_KEY` the store still works — catalog, bag, prices,
 favorites — it just says checkout isn't switched on yet instead of taking money.
@@ -221,9 +231,75 @@ It writes `public/store/` (page, stylesheet, fonts, 43 images), regenerates the
 policy pages, and copies the app bundle + live runtime into place. Pure
 `node`, no dependencies. Run it after editing anything in `store/`.
 
-`store/catalog.json` is the source of truth for products, prices and colours —
-and `api/store` prices every order from that same file, so the page and the
-server can never disagree.
+Products and prices now live in the database (`store_products`), which is what
+lets you edit them from **/admin/ → Products & Prices** with no deploy. A change
+is visible on the storefront within a minute (it re-polls) and is charged on the
+very next checkout.
+
+`store/catalog.json` is still the *design* source: it is what the build writes
+into the page, and it is the fallback the server prices from if the database has
+not been migrated or cannot be reached. So the flow is:
+
+| Want to change… | Do this |
+| --- | --- |
+| a price, stock, badge, description | /admin/ → Products & Prices → Save |
+| the shipping fee or free-shipping threshold | /admin/ → Products & Prices → Save shipping |
+| which supplier variant makes a product | /admin/ → Products & Prices → Supplier variants |
+| a colour, size, image or the product line-up itself | edit `store/catalog.json` or re-export, then `node store/build-store.mjs` |
+| something permanent that a Studio re-export would undo | `PRODUCT_OVERRIDES` in `store/build-store.mjs` |
+
+Prices are always re-computed on the server, so a browser editing them in
+devtools changes nothing about what Stripe is asked to charge.
+
+### Fulfilment (the shop ships itself)
+
+Paid orders are handed to a supplier automatically; you do not touch them. Two
+suppliers are in play because no single print-on-demand service makes everything
+in the collection:
+
+| Supplier | Products | Mechanism |
+| --- | --- | --- |
+| **Printful** | caps, tees, hoodies, windbreakers, stickers | order created + confirmed on payment; `package_shipped` webhook returns tracking |
+| **PrintKK** | the pick set (Printful has no guitar picks) | order created and left unpaid unless `PRINTKK_AUTO_PAY=1`; tracking is **polled** because PrintKK has no webhooks |
+
+What that looks like in practice:
+
+1. Stripe reports a paid order → it is recorded, then sent to whichever supplier
+   owns each line. A mixed order becomes two parcels, and each supplier only
+   ever sees its own lines.
+2. When a supplier reports shipment, the order flips to `shipped` with the
+   carrier, tracking number and tracking URL, and the customer gets a tracking
+   email.
+3. Anything that cannot be sent is **not** silently dropped: the order shows
+   `needs mapping`, `failed` or `partially_submitted` in Store Orders with the
+   reason, and **Send to supplier** retries it.
+4. Refunding an order also cancels it at the supplier, so you are not charged
+   for printing something you already refunded. An already-shipped parcel can
+   only be handled as a return, and the admin says so.
+
+**Setup, once:**
+
+- `PRINTFUL_API_TOKEN` in Vercel. Then in Printful add a webhook pointing at
+  `https://armoniaconnect.com/api/store/supplier-webhook?token=<PRINTFUL_WEBHOOK_TOKEN>`
+  subscribed to `package_shipped`, `order_failed`, `order_canceled` and
+  `package_returned` (the last one matters because returns come back through
+  the supplier, and the admin should say so rather than showing "shipped").
+- `PRINTKK_API_KEY` and `PRINTKK_SECRET_KEY`. Requests are HMAC-signed with the
+  secret, so both are required.
+- `CRON_SECRET`, which Vercel Cron uses to call `/api/store/supplier-sync` to
+  collect PrintKK tracking. The schedule in `vercel.json` is **daily**, because
+  Vercel's free Hobby plan rejects any cron that runs more than once a day —
+  and a rejected schedule fails the whole deployment. Tracking still reaches
+  the customer the same day: their order page polls on demand when it is
+  opened, so the cron is a backstop for orders nobody looks at.
+- In **Products & Prices → Supplier variants**, paste the supplier id for each
+  colour/size as `colour|size=id`, or `*|*=id` when one variant covers all.
+  Ids come from the supplier dashboards; they are never guessed.
+
+**Test it without printing anything:** set `PRINTFUL_DRAFT=1` and leave
+`PRINTKK_AUTO_PAY` unset. A real order then creates a draft at Printful and an
+unpaid order at PrintKK — you can confirm the mapping end to end for the price
+of a Stripe test charge, before anything ships.
 
 ### Discount codes
 
