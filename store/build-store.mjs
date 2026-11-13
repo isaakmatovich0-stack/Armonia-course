@@ -66,6 +66,114 @@ const write = (file, data) => {
 
 /* ─────────────────────────────── extraction ─────────────────────────────── */
 
+/* ───────────────────────────── image rebasing ───────────────────────────── */
+
+/**
+ * The Studio export addresses its images as `/images/x.webp` (its own hosting
+ * root). This site publishes them under `/store/images/`, so every reference
+ * has to be rebased — including the per-product `images` / `backImages` maps,
+ * which are plain data and are therefore NOT covered by the bundle patch.
+ *
+ * This runs on both paths: when extracting from a fresh export, and every time
+ * the catalogue is loaded from disk to render the page. Missing one of those
+ * is how eight products ended up with 404s while the page looked fine.
+ */
+function rebaseImagesDeep(value) {
+  if (typeof value === 'string') {
+    return value.startsWith('/images/') ? `/store/images/${value.slice('/images/'.length)}` : value;
+  }
+  if (Array.isArray(value)) return value.map(rebaseImagesDeep);
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const [key, inner] of Object.entries(value)) out[key] = rebaseImagesDeep(inner);
+    return out;
+  }
+  return value;
+}
+
+/* ───────────────────────────── product overrides ────────────────────────── */
+
+/**
+ * Products that differ from the Studio export on purpose.
+ *
+ * The export is the design source, but the store sells physical goods and the
+ * supplier catalogue decides what can actually be printed. The pick set is the
+ * case in point: the export sells "upright contoured acrylic fingerpicks",
+ * which no print-on-demand supplier makes. We sell a standard 6-pick set in the
+ * same colours instead, and this keeps that decision from being silently undone
+ * the next time someone runs `--export` with an older Studio file.
+ *
+ * Keyed by product id. Entries are merged over the export's record, so anything
+ * not listed here keeps coming straight from Studio.
+ */
+const PRODUCT_OVERRIDES = {
+  'connect-fingerpicks': {
+    id: 'connect-picks',
+    name: 'The Connect Pick Set',
+    shortName: 'Connect Pick Set',
+    price: 16,
+    category: 'Accessories',
+    type: 'picks',
+    initialColor: 'ivory',
+    badge: 'STAGE ESSENTIAL',
+    subtitle: 'Six celluloid picks with the emblem',
+    description:
+      'The sound of the collection, in your pocket. Six premium celluloid picks in three gauges — two light for strumming, two medium for everything in between, two heavy for lead lines — each foil-stamped with the Armonia Connect emblem, in a slim pick wallet.',
+    details: [
+      'Six picks in three gauges: 2 × .46mm, 2 × .73mm, 2 × 1.0mm',
+      'Foil-stamped Armonia Connect emblem on every pick',
+      'Standard 351 shape with a smooth, bevelled edge',
+      'Slim pick wallet included',
+    ],
+    fit: 'Standard 351 shape, the shape most players already know. The .46mm bends easily for strumming; the 1.0mm holds its attack for lead work.',
+    colors: ['ivory', 'ink', 'sky', 'orange'],
+    sizes: ['Set of 6'],
+    images: {
+      ivory: '/store/images/picks-ivory.webp',
+      ink: '/store/images/picks-ink.webp',
+      sky: '/store/images/picks-sky.webp',
+      orange: '/store/images/picks-orange.webp',
+    },
+  },
+};
+
+const SITE_COPY = {
+  title: 'Armonia Connect — Shop the Collection',
+  description:
+    'Wear your connection. Signature caps, everyday tees, hoodies, windbreakers, guitar pick sets and stickers from the Armonia Connect collection. Free US shipping over $75.',
+};
+
+function applySiteCopy(catalog) {
+  if (!catalog || typeof catalog !== 'object') return catalog;
+  catalog.site = { ...(catalog.site || {}), ...SITE_COPY, noindex: false };
+  return catalog;
+}
+
+function applyProductOverrides(catalog) {
+  if (!catalog || !Array.isArray(catalog.products)) return catalog;
+  const seen = new Set();
+  catalog.products = catalog.products.map((product) => {
+    const override = PRODUCT_OVERRIDES[product.id];
+    if (!override) return product;
+    seen.add(product.id);
+    return { ...product, ...override };
+  });
+  for (const [id, override] of Object.entries(PRODUCT_OVERRIDES)) {
+    if (!seen.has(id) && !catalog.products.some((p) => p.id === override.id)) {
+      catalog.products.push({ ...override });
+    }
+  }
+  return catalog;
+}
+
+function rebaseCatalogImages(catalog) {
+  if (!catalog || typeof catalog !== 'object') return catalog;
+  if (Array.isArray(catalog.products)) catalog.products = rebaseImagesDeep(catalog.products);
+  if (Array.isArray(catalog.elements)) catalog.elements = rebaseImagesDeep(catalog.elements);
+  if (catalog.brand && typeof catalog.brand === 'object') catalog.brand = rebaseImagesDeep(catalog.brand);
+  return catalog;
+}
+
 function extractExport(exportPath) {
   const html = fs.readFileSync(exportPath, 'utf8');
   const pick = (regex, what) => {
@@ -146,13 +254,9 @@ function extractExport(exportPath) {
   const catalog = JSON.parse(JSON.stringify(config));
   delete catalog.assets;
   catalog.brand = { ...(catalog.brand || {}), logo: '/store/images/brand-logo.webp', favicon: '/store/images/favicon-store.png' };
-  catalog.site = {
-    ...(catalog.site || {}),
-    noindex: false,
-    title: 'Armonia Connect — Shop the Collection',
-    description:
-      'Wear your connection. Signature caps, everyday tees, hoodies, windbreakers, fingerpicks and sticker sets from the Armonia Connect collection. Free US shipping over $75.',
-  };
+  applySiteCopy(catalog);
+  applyProductOverrides(catalog);
+  rebaseCatalogImages(catalog);
   write(OUT.catalog, `${JSON.stringify(catalog, null, 2)}\n`);
 
   /* — app bundle: the pristine export; main() applies the hooks when publishing — */
@@ -196,7 +300,7 @@ const PATCHES = [
     // bundle's own money formatters, so live prices keep flowing through.
     name: 'shipping accordion copy',
     find: `children:["Launch plan: ",Fe(Gc)," standard US shipping, free for orders"," ",Fe(ba),"+. A 30-day return window is planned for unworn goods. This is a preview collection; fulfillment and final policies will be connected before launch."]`,
-    replace: `children:["Standard US shipping is ",Fe(Gc),", free on orders"," ",Fe(ba),"+. Unworn, unused goods can be returned within 30 days of delivery — we send a prepaid label for US orders, and tracking lands in your inbox the moment your parcel ships."]`,
+    replace: `children:["Standard US shipping is ",Fe(Gc),", free on orders"," ",Fe(ba),"+. You have 30 days to return unworn goods, handled at our US fulfilment partner — and if anything arrives damaged or wrong, send a photo and we replace it free."]`,
   },
   {
     // Footer's "STORE PREVIEW" badge is a leftover from the demo export. The
@@ -280,7 +384,7 @@ async function renderPages() {
     OUT.shipping,
     page({
       title: 'Shipping & returns',
-      description: 'Shipping times, costs and the 30-day return policy for Armonia Connect orders.',
+      description: 'Shipping times, costs and the 30-day return policy for Armonia Connect orders. Returns are handled at our US fulfilment partner.',
       eyebrow: 'The good-to-know details',
       heading: 'Shipping & returns.',
       current: 'shipping',
@@ -288,7 +392,7 @@ async function renderPages() {
       <div class="grid">
         <div class="card"><h3 style="margin-top:0">Ships from the US</h3><p style="margin:0">Packed in 2–4 business days, with tracking by email the moment it leaves.</p></div>
         <div class="card"><h3 style="margin-top:0">Free over $75</h3><p style="margin:0">$6 flat standard shipping. Free on orders of $75 or more.</p></div>
-        <div class="card"><h3 style="margin-top:0">30-day returns</h3><p style="margin:0">Unworn items, prepaid label for US orders, refunded within 5 business days.</p></div>
+        <div class="card"><h3 style="margin-top:0">30-day returns</h3><p style="margin:0">Returns land at our US fulfilment partner, never overseas. Refunded within 5 business days of arrival.</p></div>
       </div>
 
       <div class="rule">${'<svg viewBox="0 0 100 100" fill="currentColor" aria-hidden="true"><path d="M50 0C50 33 67 50 100 50C67 50 50 67 50 100C50 67 33 50 0 50C33 50 50 33 50 0Z"/></svg>'}<i></i></div>
@@ -298,16 +402,29 @@ async function renderPages() {
       <p>You’ll get a confirmation as soon as you order and a tracking link as soon as your parcel is on its way. We ship within the United States only for now.</p>
 
       <h2 id="returns">Returns &amp; exchanges</h2>
-      <p>If something isn’t right, you have <strong>30 days from delivery</strong> to return unworn, unused items in their original condition and packaging. We’ll send a prepaid return label for US orders.</p>
-      <ul>
-        <li>Email the address on your receipt (or <a class="link" href="/store/contact">use this form</a>) with your order number.</li>
-        <li>We’ll reply with a prepaid label and drop-off instructions.</li>
-        <li>Refunds go back to your original payment method within 5 business days of the return arriving.</li>
-      </ul>
-      <p>Exchanges work the same way: tell us the size or colour you’d like and we’ll reserve it while your return travels back. Sticker sets and fingerpicks can only be returned if the packaging is unopened, and caps must be unworn with the original tags.</p>
+      <p>You have <strong>30 days from delivery</strong>. Returns are handled at our fulfilment partner’s US facility, so wherever you are, nothing goes back overseas.</p>
 
-      <h2>Something arrived damaged?</h2>
-      <p>Send a photo within 7 days of delivery and we’ll replace it or refund it — your choice. That’s on us, not on you.</p>
+      <h3>Damaged, misprinted or the wrong item</h3>
+      <p>Send a photo within 30 days and we’ll replace it free or refund you — your choice. Don’t post it back; there’s no point paying return shipping on something we got wrong.</p>
+
+      <h3>Changed your mind, or the size is off</h3>
+      <ul>
+        <li>Items must be unworn, unused and in their original packaging.</li>
+        <li>Email the address on your receipt (or <a class="link" href="/store/contact">use this form</a>) with your order number and we’ll send return instructions.</li>
+        <li>Return postage is yours to cover.</li>
+        <li>Once it reaches our fulfilment partner we refund the item to your original payment method within 5 business days.</li>
+      </ul>
+
+      <h3>Exchanges</h3>
+      <p>Tell us the size or colour you’d like and we’ll reserve it while your return travels back. If you’d rather not wait, order the new size and return the original — the refund lands as soon as it’s received.</p>
+
+      <h3>What we can’t take back</h3>
+      <ul>
+        <li>Opened sticker sets, and caps that have been worn or lost their tags.</li>
+        <li>Pick sets are covered for defects and errors only. They ship from our overseas print partner, so posting a $16 set back costs more than the set — we’ll reprint it instead.</li>
+      </ul>
+
+      <p>Anything unclear? <a class="link" href="/store/contact">Send us a note</a> and a real person will answer.</p>
 
       <p style="margin-top:30px"><a class="cta" href="/store/">Back to the collection</a></p>
       `,
@@ -338,8 +455,8 @@ async function renderPages() {
         <p>Spot clean with mild soap and cold water, reshape the cap while damp, and let it air dry. No bleach, no washing machine.</p>
       </div>
       <div class="card">
-        <h2 style="margin-top:0">Stickers, fingerpicks &amp; bottles</h2>
-        <p>Apply stickers to a clean, dry, smooth surface and press from the middle out. Wipe fingerpicks with a soft cloth after playing. Hand wash bottles — the foil emblem prefers it.</p>
+        <h2 style="margin-top:0">Stickers, picks &amp; bottles</h2>
+        <p>Apply stickers to a clean, dry, smooth surface and press from the middle out. Wipe picks with a soft cloth after playing — foil stamping stays crisp when it isn't left in a case with keys. Hand wash bottles; the foil emblem prefers it.</p>
       </div>
       <p style="margin-top:30px"><a class="cta" href="/store/">Back to the collection</a></p>
       `,
@@ -370,7 +487,7 @@ async function renderPages() {
       <ul>
         <li><strong>Where’s my order?</strong> Tracking is emailed at dispatch — check your spam folder, then send us the order number (AC-XXXXXX).</li>
         <li><strong>Sizing:</strong> the tees and hoodies are a relaxed unisex fit. Garment chest widths (laid flat) are in the size guide on each product page.</li>
-        <li><strong>Returns:</strong> everything you need is on the <a class="link" href="/store/shipping#returns">shipping &amp; returns</a> page.</li>
+        <li><strong>Returns &amp; exchanges:</strong> you have 30 days. Everything you need is on the <a class="link" href="/store/shipping#returns">shipping &amp; returns</a> page.</li>
       </ul>
       `,
     }),
@@ -470,7 +587,7 @@ async function main() {
         process.exit(1);
       }
     }
-    config = JSON.parse(fs.readFileSync(OUT.catalog, 'utf8'));
+    config = rebaseCatalogImages(applyProductOverrides(applySiteCopy(JSON.parse(fs.readFileSync(OUT.catalog, 'utf8')))));
     const licensesMatch = fs.readFileSync(OUT.page, 'utf8').match(/<script type="application\/json" id="open-source-licenses">([\s\S]*?)<\/script>/);
     licenses = licensesMatch ? licensesMatch[1] : null;
   }
@@ -485,6 +602,15 @@ async function main() {
   const appCode = patchAppCode(fs.readFileSync(OUT.bundle, 'utf8'));
   write(path.join(ROOT, 'public/store/frontend.js'), `${appCode}\n${BRIDGE_HOOK}`);
   if (fs.existsSync(OUT.runtime)) write(OUT.runtimePublic, fs.readFileSync(OUT.runtime));
+
+  /* Keep the on-disk catalogue in step with the page. lib/store/catalog.js
+     prices every order from OUT.catalog, so if the build can rewrite the page
+     but not the catalogue, the storefront shows one product and Stripe is
+     asked to charge for another. Rewriting it here makes that impossible. */
+  write(
+    OUT.catalog,
+    `${JSON.stringify(rebaseCatalogImages(applyProductOverrides(applySiteCopy(JSON.parse(fs.readFileSync(OUT.catalog, 'utf8'))))), null, 2)}\n`,
+  );
 
   write(OUT.page, renderPage(config, { licenses }));
   await renderPages();
