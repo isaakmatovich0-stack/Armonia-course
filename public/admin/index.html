@@ -1062,11 +1062,21 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
           if (h.ok) return 'reachable';
           return h.error ? `not reachable — ${h.error}` : 'unknown';
         };
+        const items = (data.checklist || []).map((item) => `
+          <div style="margin:3px 0;">
+            ${dot(item.done)}
+            <span style="color:${item.done ? 'var(--text-muted)' : 'var(--cream)'};">${item.label}</span>
+            ${item.done ? '' : `<br><span style="color:var(--text-muted); margin-left:18px;">${item.hint}</span>`}
+          </div>`).join('');
         panel.innerHTML = `
-          <strong style="color:var(--cream);">Fulfilment</strong><br>
-          ${dot(printful)} Printful — ${detail(pf)}${data.draft ? ' · <em>draft mode, nothing is printed</em>' : ''}<br>
-          ${dot(printkk)} PrintKK — ${detail(pk)}${data.autoPay ? ' · <em>auto-pay on, orders cost money immediately</em>' : ' · orders are created unpaid'}<br>
-          <span style="color:var(--text-muted);">Products marked <em>no variant mapped</em> under Products &amp; Prices cannot be sent yet.</span>`;
+          <strong style="color:${data.ready ? '#8fd18f' : 'var(--gold-light)'};">
+            ${data.ready ? 'Fulfilment is ready' : `Setup: ${(data.checklist || []).filter((i) => !i.done).length} step(s) left`}
+          </strong><br>
+          ${items}
+          <div style="margin-top:8px;">
+            ${dot(printful)} Printful — ${detail(pf)}${data.draft ? ' · <em>draft mode, nothing is printed</em>' : ''}<br>
+            ${dot(printkk)} PrintKK — ${detail(pk)}${data.autoPay ? ' · <em>auto-pay on, orders cost money immediately</em>' : ' · orders are created unpaid'}
+          </div>`;
       } catch (err) {
         panel.innerHTML = `<span style="color:#e8a8a8;">Could not read supplier status — ${err.message}</span>`;
       }

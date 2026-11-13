@@ -563,7 +563,53 @@ export default async function handler(req, res) {
         status.suppliers.printful ? printfulHealth() : Promise.resolve({ configured: false }),
         status.suppliers.printkk ? printkkHealth() : Promise.resolve({ configured: false }),
       ]);
-      return res.status(200).json({ ...status, health: { printful: printfulResult, printkk: printkkResult } });
+      // A setup checklist, computed rather than written down, so it can never
+      // drift from what the code actually needs. Each item says what is
+      // missing and what to do about it.
+      const products = (await listProducts().catch(() => null)) || [];
+      const unmapped = products
+        .filter((row) => row.in_stock !== false && !Object.keys(row.supplier_variants || {}).length)
+        .map((row) => row.id);
+      const checklist = [
+        {
+          key: 'printful',
+          done: status.suppliers.printful,
+          label: 'Printful credentials',
+          hint: 'Set PRINTFUL_API_TOKEN in Vercel, then redeploy.',
+        },
+        {
+          key: 'printkk',
+          done: status.suppliers.printkk,
+          label: 'PrintKK credentials',
+          hint: 'Set PRINTKK_API_KEY and PRINTKK_SECRET_KEY in Vercel, then redeploy.',
+        },
+        {
+          key: 'webhook',
+          done: status.webhookReady,
+          label: 'Printful webhook token',
+          hint: 'Set PRINTFUL_WEBHOOK_TOKEN, then add the webhook in Printful pointing at /api/store/supplier-webhook?token=<that value>.',
+        },
+        {
+          key: 'cron',
+          done: status.cronReady,
+          label: 'Cron secret',
+          hint: 'Set CRON_SECRET so the daily PrintKK tracking poll can authenticate.',
+        },
+        {
+          key: 'variants',
+          done: products.length > 0 && unmapped.length === 0,
+          label: 'Every product has a supplier variant',
+          hint: unmapped.length
+            ? `Still to map: ${unmapped.join(', ')}. Do it under Products & Prices → Supplier variants.`
+            : 'Map each product under Products & Prices → Supplier variants.',
+        },
+      ];
+      return res.status(200).json({
+        ...status,
+        health: { printful: printfulResult, printkk: printkkResult },
+        checklist,
+        ready: checklist.every((item) => item.done),
+      });
     }
 
     if (req.method === 'POST') {
