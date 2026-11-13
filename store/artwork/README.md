@@ -50,6 +50,8 @@ garment that otherwise uses two. Say the word and I will add it in
 
 ## Still yours to do
 
+> The full, ordered handoff now lives in `HANDOFF.md` in this folder.
+
 ### 1. Create the Printful products — ~30 min
 
 For **cap, tee, hoodie, windbreaker, stickers**:
