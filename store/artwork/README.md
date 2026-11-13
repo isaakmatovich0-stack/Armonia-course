@@ -79,7 +79,7 @@ The URL and token are already generated for you. In Printful → **Settings → 
 Webhooks → Add webhook**:
 
 - **URL:** `https://armoniaconnect.com/api/store/supplier-webhook?token=0dff2e23677577d19ab3bb5840532f67`
-- **Events:** `package_shipped`, `order_failed`, `order_canceled`
+- **Events:** `package_shipped`, `order_failed`, `order_canceled`, `package_returned`
 
 ### 3. PrintKK account and keys — 15 min
 

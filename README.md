@@ -281,7 +281,9 @@ What that looks like in practice:
 
 - `PRINTFUL_API_TOKEN` in Vercel. Then in Printful add a webhook pointing at
   `https://armoniaconnect.com/api/store/supplier-webhook?token=<PRINTFUL_WEBHOOK_TOKEN>`
-  subscribed to `package_shipped`, `order_failed`, `order_canceled`.
+  subscribed to `package_shipped`, `order_failed`, `order_canceled` and
+  `package_returned` (the last one matters because returns come back through
+  the supplier, and the admin should say so rather than showing "shipped").
 - `PRINTKK_API_KEY` and `PRINTKK_SECRET_KEY`. Requests are HMAC-signed with the
   secret, so both are required.
 - `CRON_SECRET`, which Vercel Cron uses to call `/api/store/supplier-sync` to
