@@ -1330,9 +1330,62 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
           <div style="margin-top:8px;">
             ${dot(printful)} Printful — ${detail(pf)}${data.draft ? ' · <em>draft mode, nothing is printed</em>' : ''}<br>
             ${dot(printkk)} PrintKK — ${detail(pk)}${data.autoPay ? ' · <em>auto-pay on, orders cost money immediately</em>' : ' · orders are created unpaid'}
+          </div>
+          <div id="webhookStatus" style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border-gold); font-size:0.8rem; color:var(--text-muted);">
+            Checking Printful webhook…
           </div>`;
+        loadWebhookStatus();
       } catch (err) {
         panel.innerHTML = `<span style="color:#e8a8a8;">Could not read supplier status — ${err.message}</span>`;
+      }
+    }
+
+    // Printful has no webhook screen in its dashboard — it is an API-only
+    // setting. So the panel reads the current config and offers to fix it,
+    // rather than sending the user to a page that does not exist.
+    async function loadWebhookStatus() {
+      const box = document.getElementById('webhookStatus');
+      if (!box) return;
+      try {
+        const data = await adminFetch('/api/admin/store-webhook');
+        if (data.ok) {
+          box.innerHTML = `<span style="color:#8fd18f;">✓ Webhook registered</span> — tracking numbers will reach the admin.
+            <div style="margin-top:3px; font-family:monospace; font-size:0.72rem; word-break:break-all; color:var(--text-muted);">${data.current ? data.current.url.replace(/token=[^&]+/, 'token=••••') : ''}</div>
+            <div style="margin-top:3px;">Events: ${(data.events || []).join(', ')}</div>`;
+          return;
+        }
+        box.innerHTML = `
+          <span style="color:#e8a8a8;">✗ Webhook not registered</span> — ${data.reason || ''}
+          ${data.current ? `<div style="margin-top:3px; font-family:monospace; font-size:0.72rem; word-break:break-all;">Printful currently points at: ${data.current.url}</div>` : ''}
+          <div style="margin-top:8px;">
+            <button type="button" id="registerWebhookBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:7px 14px; font-weight:600; cursor:pointer; font-size:0.78rem;">Register webhook with Printful</button>
+            <span id="registerWebhookStatus" style="margin-left:10px;"></span>
+          </div>
+          <div style="margin-top:6px; font-size:0.74rem;">
+            This replaces any webhook already set up in your Printful account — Printful allows only one per store.
+          </div>`;
+        document.getElementById('registerWebhookBtn').addEventListener('click', registerWebhook);
+      } catch (err) {
+        box.innerHTML = `<span style="color:#e8a8a8;">Could not read webhook status — ${err.message}</span>`;
+      }
+    }
+
+    async function registerWebhook() {
+      const status = document.getElementById('registerWebhookStatus');
+      const button = document.getElementById('registerWebhookBtn');
+      if (!window.confirm('Register the webhook with Printful? This replaces any webhook already configured on the store.')) return;
+      button.disabled = true;
+      status.textContent = 'Registering…';
+      try {
+        const res = await adminFetch('/api/admin/store-webhook', { method: 'POST' });
+        status.style.color = '#8fd18f';
+        status.textContent = 'Registered.';
+        await loadWebhookStatus();
+        void res;
+      } catch (err) {
+        status.style.color = '#e8a8a8';
+        status.textContent = err.message;
+        button.disabled = false;
       }
     }
 

@@ -33,67 +33,65 @@ wrong environment.
 
 ## 2. The webhook — needed for tracking numbers to arrive
 
-This is the part that is easy to get subtly wrong, because **it fails silently**.
-Printful will accept a webhook URL that does not work, keep trying, and report
-nothing to you. Meanwhile every parcel ships and no customer ever gets a
-tracking number.
+**Printful has no webhook screen.** There is no Settings → Webhooks page. A
+webhook is an API-only setting (`POST /webhooks`), which is why every guide that
+says "go to the dashboard and add a webhook URL" is describing something you
+cannot do. This is the single most misleading thing about setting Printful up.
 
-### What to enter
+So the store registers it for you.
 
-Printful → **Settings → API → Webhooks → Add webhook**
+### The one-click way
 
-| Field | Value |
-| --- | --- |
-| URL | `https://armoniaconnect.com/api/store/supplier-webhook?token=0dff2e23677577d19ab3bb5840532f67` |
-| Events | `package_shipped`, `order_failed`, `order_canceled`, `package_returned` |
+1. `/admin/` → **Store Orders**
+2. The supplier panel shows either `✓ Webhook registered` or `✗ Webhook not registered`
+3. If it is red, press **Register webhook with Printful**
+4. It goes green, and shows the events and the URL it registered
 
-That long string is your `PRINTFUL_WEBHOOK_TOKEN`. It is already set in Vercel.
-The endpoint compares it before doing anything, because the URL is public and
-anyone could otherwise POST fake tracking numbers into your orders.
+That is the whole step. It calls `POST /webhooks` with our URL and the four
+events, from the server, using the API token.
 
-### The four events, and why each one matters
+### What it registers
 
-| Event | What we do | What happens if it is missing |
-| --- | --- | --- |
-| `package_shipped` | writes the tracking number and carrier onto the order | the customer never learns their parcel is coming |
-| `order_failed` | marks the order failed and surfaces it in admin | a paid order dies quietly |
-| `order_canceled` | same, as cancelled | you keep a completed-looking order that was never made |
-| `package_returned` | flags the return | a returned parcel looks delivered forever |
+```
+https://armoniaconnect.com/api/store/supplier-webhook?token=<PRINTFUL_WEBHOOK_TOKEN>
+```
 
-All four are needed. Two is not half as good as four; it is a system where some
-failures are visible and others are not, which is worse than none.
+Events: `package_shipped`, `order_failed`, `order_canceled`, `package_returned`
 
-### Three things that break it, in order of how often they happen
+The token is `PRINTFUL_WEBHOOK_TOKEN`, already set in Vercel. It is in the URL
+because Printful has no signing secret, so the URL is the only thing that can
+prove an event is really from Printful. Treat it as disposable: it is stored in
+Printful's UI and appears in their logs, so if it leaks, change the variable,
+redeploy, and register again.
 
-**1. The token is wrong.** The endpoint answers `{"error":"Method not allowed."}`
-to a browser GET regardless of the token — that is deliberate, so a probe cannot
-tell a right token from a wrong one. It will not tell you the token is bad. To
-check it properly, use Printful's own **Send test** button on the webhook; a
-working endpoint answers `200`.
+### Three things that break it
 
-**2. The order was placed before the webhook existed.** Printful only sends
-events for orders created after the webhook is added. Orders placed before it
-will never produce a tracking number automatically — check those by hand.
+**1. Only one webhook exists per store.** Registering replaces whatever was
+there — including one you set up by hand for another purpose. The admin warns
+before doing it. If you had a webhook for something else, it is gone.
 
-**3. The domain does not match.** `armoniaconnect.com` and `www.armoniaconnect.com`
-are different hosts to Printful. Use the bare domain, exactly as written above.
-A 301 redirect counts as a failure, because Printful does not follow it.
+**2. The URL must be the production host.** The registration pins
+`armoniaconnect.com`, deliberately ignoring whatever host the admin happened to
+be open on. A preview deployment's URL works until that deployment is replaced,
+then stops delivering events with no error.
 
-### How to prove it works without shipping anything
+**3. Orders placed before registration never produce events.** Printful only
+sends events for orders created after the webhook exists. Anything older must be
+tracked by hand.
 
-1. Place a test order through the real storefront, using `PRINTFUL_DRAFT=1` so
-   Printful creates the order as a draft and never charges or prints it.
-2. In Printful, open that draft order and confirm it is there.
-3. Delete the draft in Printful. A `order_canceled` event fires, our row
-   updates, and `/admin/` → Store Orders shows it.
-4. If nothing appears, open Vercel → **Logs** → filter `supplier-webhook`. Every
-   delivery logs either `webhook ok` or the reason it was rejected: bad token,
-   unknown external id, or a signature mismatch.
+### How to prove it works, without shipping anything
 
-Do this once. It is the only way to know the token is right, because a wrong
-token and a right token are indistinguishable from outside.
+1. Set `PRINTFUL_DRAFT=1` in Vercel, redeploy.
+2. Buy a tee through the real storefront.
+3. In Printful, confirm the order exists as a **draft** — it is not charged and
+   not printed.
+4. Delete the draft in Printful. That fires `order_canceled`.
+5. `/admin/` → Store Orders should show the order as cancelled, not fulfilled.
+6. If nothing changes: Vercel → **Logs** → filter `supplier-webhook`. Every
+   delivery logs either success or the exact rejection reason.
 
----
+That exercise is the only way to know the token in the URL is right, because a
+wrong token and a right one look identical from outside.
 
 ## 3. After both are connected
 

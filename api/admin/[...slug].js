@@ -564,6 +564,67 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed.' });
   }
 
+  // ── /api/admin/store-webhook ──
+  // Printful has no webhook screen in its dashboard; the only way to register
+  // one is POST /webhooks. So the admin does it, rather than telling the user to
+  // go to a page that does not exist.
+  //
+  // GET   → what Printful currently has, plus the URL we would register
+  // POST  → register it (replacing any existing config — Printful allows one)
+  if (route === 'store-webhook') {
+    // The registered URL must be the canonical production host, never the host
+    // this request happened to arrive on. Registering a preview deployment's URL
+    // works until that deployment is replaced, then silently stops delivering.
+    const canonicalHost = (() => {
+      const explicit = process.env.SITE_URL;
+      if (explicit) return String(explicit).replace(/\/+$/, '');
+      const host = String(req.headers['x-forwarded-host'] || req.headers.host || '');
+      if (host.endsWith('.vercel.app')) return 'https://armoniaconnect.com';
+      return host ? `https://${host}` : undefined;
+    })();
+
+    if (req.method === 'GET') {
+      const wanted = webhookUrl(canonicalHost);
+      if (!process.env.PRINTFUL_API_TOKEN) {
+        return res.status(200).json({ ok: false, reason: 'PRINTFUL_API_TOKEN is not set.', wanted, events: WEBHOOK_EVENTS });
+      }
+      try {
+        const current = await getWebhook();
+        const matches = Boolean(current.configured && wanted && current.url === wanted);
+        return res.status(200).json({
+          ok: matches,
+          current: current.configured ? { url: current.url, types: current.types || [] } : null,
+          wanted,
+          events: WEBHOOK_EVENTS,
+          reason: matches
+            ? null
+            : current.configured
+              ? 'Printful is pointing somewhere else, so tracking numbers will not reach the admin.'
+              : 'No webhook is configured, so tracking numbers will never arrive.',
+        });
+      } catch (err) {
+        return res.status(502).json({ ok: false, reason: `Could not read webhook settings: ${err.message}`, wanted });
+      }
+    }
+
+    if (req.method === 'POST') {
+      const url = webhookUrl(canonicalHost);
+      if (!url) {
+        return res.status(400).json({
+          error: 'PRINTFUL_WEBHOOK_TOKEN is not set. Add it in Vercel and redeploy — the URL carries it, so there is nothing to register without it.',
+        });
+      }
+      try {
+        const result = await setWebhook(url, WEBHOOK_EVENTS);
+        console.log('[admin] Printful webhook registered', result.url, WEBHOOK_EVENTS.join(','));
+        return res.status(200).json({ ok: true, url: result.url, types: result.types || WEBHOOK_EVENTS });
+      } catch (err) {
+        return res.status(502).json({ error: `Printful rejected the webhook: ${err.message}` });
+      }
+    }
+    return res.status(405).json({ error: 'Method not allowed.' });
+  }
+
   // ── /api/admin/store-sync ──
   // Rebuilds colours and sizes from what the Printful store actually contains.
   // GET returns a plan and changes nothing — the diff is the point, because a
@@ -810,7 +871,7 @@ export default async function handler(req, res) {
           key: 'webhook',
           done: status.webhookReady,
           label: 'Printful webhook token',
-          hint: 'Set PRINTFUL_WEBHOOK_TOKEN, then add the webhook in Printful pointing at /api/store/supplier-webhook?token=<that value>.',
+          hint: 'Set PRINTFUL_WEBHOOK_TOKEN, then press Register webhook with Printful below. Printful has no dashboard screen for this.',
         },
         {
           key: 'cron',

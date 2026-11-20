@@ -99,11 +99,14 @@ API and fill the mapping myself.
 
 ### 2. Register the Printful webhook — 3 min
 
-The URL and token are already generated for you. In Printful → **Settings → API →
-Webhooks → Add webhook**:
+Printful has **no webhook screen in its dashboard** — it is an API-only setting.
+Use **/admin/ → Store Orders → Register webhook with Printful**, which posts our
+URL and all four events for you:
 
-- **URL:** `https://armoniaconnect.com/api/store/supplier-webhook?token=0dff2e23677577d19ab3bb5840532f67`
-- **Events:** `package_shipped`, `order_failed`, `order_canceled`, `package_returned`
+`package_shipped`, `order_failed`, `order_canceled`, `package_returned`
+
+Printful allows one webhook per store, so this replaces any existing config. See
+`PRINTFUL-SETUP.md` for the failure modes.
 
 ### 3. PrintKK account and keys — 15 min
 
