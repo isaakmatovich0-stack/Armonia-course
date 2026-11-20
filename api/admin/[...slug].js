@@ -17,7 +17,7 @@ import { hashPassword, verifyPassword } from '../../lib/password.js';
 import { sendAdminVerificationEmail, sendGeneratedCodeEmail, sendGeneratedCodeBatchEmail } from '../../lib/email.js';
 import { generateAccessCode } from '../../lib/generateCode.js';
 import { listOrders as listStoreOrders, updateOrderStatus as updateStoreOrderStatus,
-         listProducts, updateProduct, getSettings, updateSettings } from '../../lib/store/db.js';
+         listProducts, updateProduct, createProduct, getSettings, updateSettings } from '../../lib/store/db.js';
 import { clearCatalogCache } from '../../lib/store/catalog.js';
 import { submitToSupplier, supplierStatus, cancelFulfilment } from '../../lib/store/fulfilment.js';
 import { health as printfulHealth, cancelOrder as cancelSupplierOrder,
@@ -35,6 +35,21 @@ const VALID_INSTRUMENTS = ['vihuela', 'guitarra', 'guitarra-de-golpe', 'guitarro
 const VALID_SECTIONS = ['etude', 'practice_technique', 'performance'];
 const INSTRUMENT_DISPLAY = { vihuela: 'Vihuela', guitarra: 'Guitarra', 'guitarra-de-golpe': 'Guitarra de Golpe', guitarron: 'Guitarrón' };
 const SECTION_DISPLAY = { etude: 'etude', practice_technique: 'practice technique lesson', performance: 'performance track' };
+
+// Which storefront renderer a new product gets. `type` drives both the image
+// path and the sizing UI, and the frontend only knows these five (see the image
+// map in store/frontend.bundle.js) — an unknown type falls back to the
+// "add your product photo" placeholder rather than breaking.
+function typeFor(name) {
+  const n = String(name || '').toLowerCase();
+  if (n.includes('cap') || n.includes('hat') || n.includes('beanie')) return 'cap';
+  if (n.includes('hoodie')) return 'hoodie';
+  if (n.includes('windbreaker') || n.includes('jacket')) return 'windbreaker';
+  if (n.includes('tee') || n.includes('shirt') || n.includes('t-shirt')) return 'tee';
+  if (n.includes('pick')) return 'picks';
+  if (n.includes('sticker')) return 'stickers';
+  return 'custom';
+}
 
 export default async function handler(req, res) {
   // Derive the route from the URL path (e.g. /api/admin/lessons -> "lessons")
@@ -545,6 +560,104 @@ export default async function handler(req, res) {
         console.error('Store product update error:', err);
         return res.status(500).json({ error: 'Could not save that product.' });
       }
+    }
+    return res.status(405).json({ error: 'Method not allowed.' });
+  }
+
+  // ── /api/admin/store-sync ──
+  // Rebuilds colours and sizes from what the Printful store actually contains.
+  // GET returns a plan and changes nothing — the diff is the point, because a
+  // sync that silently rewrites a live product can remove a colour people are
+  // about to buy. POST applies a plan the human has seen.
+  if (route === 'store-sync') {
+    const buildPlan = async () => {
+      const { refreshCatalog } = await import('../../lib/store/catalog.js');
+      const cat = await refreshCatalog({ force: true });
+      const rows = await listProducts();
+      const printfulProducts = await listSyncProducts();
+      // Colours live in store/catalog.json, not in a table, so the current map
+      // comes from the assembled catalogue.
+      return buildSyncPlan(printfulProducts, rows || [], cat.colors || {});
+    };
+
+    if (req.method === 'GET') {
+      try {
+        return res.status(200).json(await buildPlan());
+      } catch (err) {
+        console.error('Store sync preview error:', err);
+        return res.status(502).json({ error: `Could not read your Printful store: ${err.message}` });
+      }
+    }
+
+    if (req.method === 'POST') {
+      const body = req.body || {};
+      if (body.confirm !== true) {
+        return res.status(400).json({ error: 'Send { confirm: true } after reviewing the plan.' });
+      }
+      // Accepts which product ids to apply. Anything not listed is left alone,
+      // so a plan reviewed yesterday cannot surprise-change a product today.
+      const ids = Array.isArray(body.ids) ? body.ids.map(String) : null;
+
+      let plan;
+      try {
+        plan = await buildPlan();   // recomputed, never trusted from the client
+      } catch (err) {
+        return res.status(502).json({ error: `Could not read your Printful store: ${err.message}` });
+      }
+
+      const applied = [];
+      const skipped = [];
+      const failures = [];
+      const existingRows = await listProducts();
+
+      for (const item of plan.products) {
+        if (ids && !ids.includes(item.id)) { skipped.push(item.id); continue; }
+        const current = existingRows.find((r) => r.id === item.id);
+
+        try {
+          if (item.isNew) {
+            // Only auto-create what Printful can actually price. A product with
+            // no retail price would appear in the store at zero.
+            if (!item.priceCents) {
+              skipped.push(item.id);
+              failures.push({ id: item.id, error: 'Printful returned no price for this product.' });
+              continue;
+            }
+            await createProduct({
+              id: item.id,
+              name: item.name,
+              subtitle: '',
+              description: '',
+              type: typeFor(item.printfulName),
+              priceCents: item.priceCents,
+              costCents: null,
+              colors: item.colors,
+              sizes: item.sizes,
+              images: item.image ? { [item.colors[0]]: item.image } : {},
+              backImages: {},
+              inStock: false,   // never go on sale unannounced
+              supplier: 'printful',
+              sortOrder: (existingRows.length + applied.length) + 1,
+            });
+            applied.push({ id: item.id, action: 'created' });
+            continue;
+          }
+
+          const patch = {};
+          if (item.changes.colors) patch.colors = item.changes.colors.to;
+          if (item.changes.sizes) patch.sizes = item.changes.sizes.to;
+          if (item.changes.supplier) patch.supplier = 'printful';
+          if (!Object.keys(patch).length) { skipped.push(item.id); continue; }
+          void current;
+          await updateProduct(item.id, patch);
+          applied.push({ id: item.id, action: 'updated', keys: Object.keys(patch) });
+        } catch (err) {
+          failures.push({ id: item.id, error: err.message });
+        }
+      }
+
+      clearCatalogCache();
+      return res.status(200).json({ ok: failures.length === 0, applied, skipped, failures });
     }
     return res.status(405).json({ error: 'Method not allowed.' });
   }

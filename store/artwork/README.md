@@ -21,6 +21,11 @@ All derived from your `LOGO GOLD.png`: the emblem was 829 × 1254 px inside a na
 background, cropped, keyed out to true transparency, then scaled. Edges checked
 against ink, ivory and sky.
 
+### Connecting print on demand
+
+`PRINTFUL-SETUP.md` in this folder covers the API token, the webhook (including
+the three ways it fails silently), and the order to do them in.
+
 ### Which cap file to upload
 
 Use **`cap-lockup-gold-embroidery.png`** on the cap. It is the lockup with the

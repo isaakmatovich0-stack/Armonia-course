@@ -433,7 +433,10 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
           Edit a price and it takes effect the moment you save — no redeploy, and the storefront picks it up within a minute. Checkout always charges the amount stored here, never what a browser sends.
         </p>
 
-                <button type="button" id="importVariantsBtn" style="background:transparent; color:var(--gold-light); border:1px solid var(--border-gold); padding:9px 16px; font-size:0.82rem; cursor:pointer;">Import variants from Printful</button>
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button type="button" id="syncStoreBtn" style="background:transparent; color:var(--gold-light); border:1px solid var(--border-gold); padding:9px 16px; font-size:0.82rem; cursor:pointer;">Sync colours &amp; sizes from Printful</button>
+          <button type="button" id="importVariantsBtn" style="background:transparent; color:var(--gold-light); border:1px solid var(--border-gold); padding:9px 16px; font-size:0.82rem; cursor:pointer;">Import variants from Printful</button>
+        </div>
 <div id="productsNotice"></div>
 
         <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; border:1px solid var(--border-gold); padding:16px; margin-bottom:22px;">
@@ -901,6 +904,131 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
     }
 
     let storeColours = {};
+
+    // ── Store sync ──
+    // Reads the Printful store and shows what would change. Nothing is written
+    // until the human presses Apply, and Apply names the exact products it will
+    // touch. The scary case is a sync that quietly removes a colour we sell, so
+    // those are called out at the top in red rather than buried in a table.
+    async function previewStoreSync() {
+      const box = document.getElementById('variantImport');
+      const button = document.getElementById('syncStoreBtn');
+      box.style.display = 'block';
+      box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      box.innerHTML = '<p style="font-size:0.85rem; color:var(--text-muted);">Reading your Printful store…</p>';
+      button.disabled = true;
+      try {
+        const plan = await adminFetch('/api/admin/store-sync');
+        renderStoreSync(plan);
+      } catch (err) {
+        box.innerHTML = `<p style="font-size:0.85rem; color:#e8a8a8;">${err.message}</p>`;
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    function renderStoreSync(plan) {
+      const box = document.getElementById('variantImport');
+      const s = plan.summary || {};
+      const blockers = (plan.warnings || []).filter((w) => w.kind === 'removed-options');
+      const unknown = (plan.warnings || []).filter((w) => w.kind === 'unknown-colour');
+
+      const productRows = (plan.products || []).map((p) => {
+        const c = p.changes || {};
+        const line = (label, chg) => chg
+          ? `<div style="font-size:0.78rem; color:var(--text-muted); margin-top:3px;">
+               ${label}: <span style="color:#e8a8a8; text-decoration:line-through;">${(chg.from || []).join(', ') || '—'}</span>
+               → <span style="color:#8fd18f;">${(chg.to || []).join(', ') || '—'}</span>
+             </div>`
+          : '';
+        return `<div style="padding:9px 0; border-bottom:1px solid var(--border-gold);">
+          <div style="display:flex; gap:10px; align-items:baseline; flex-wrap:wrap;">
+            <strong style="font-size:0.85rem; color:${p.isNew ? '#8fd18f' : 'var(--cream)'};">${p.name}</strong>
+            ${p.isNew ? '<span style="font-size:0.7rem; color:#8fd18f;">NEW — created hidden, not on sale</span>' : ''}
+            <span style="font-size:0.72rem; color:var(--text-muted);">${p.confidence === 'id' ? 'matched by id' : p.confidence === 'name' ? 'matched by name — check' : 'new product'}</span>
+            <span style="font-size:0.72rem; color:var(--text-muted); margin-left:auto;">Printful: ${p.printfulName} · ${p.variantCount} variant(s)</span>
+          </div>
+          ${line('Colours', c.colors)}
+          ${line('Sizes', c.sizes)}
+          ${c.priceNote ? `<div style="font-size:0.76rem; color:var(--text-muted); margin-top:3px;">Price left alone — ours ${money(c.priceNote.ours || 0)}, Printful retail ${money(c.priceNote.printfulRetail)}</div>` : ''}
+        </div>`;
+      }).join('');
+
+      const orphanRows = (plan.orphans || []).map((o) =>
+        `<div style="font-size:0.78rem; color:#e8a8a8; padding:5px 0;">• ${o.message}</div>`).join('');
+
+      box.innerHTML = `
+        <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:baseline; margin-bottom:10px;">
+          <strong style="font-size:0.92rem; color:var(--cream);">What this would change</strong>
+          <span style="font-size:0.76rem; color:var(--text-muted);">
+            ${s.matched || 0} matched · ${s.added || 0} new · ${s.changed || 0} changed
+          </span>
+        </div>
+
+        ${blockers.length ? `<div style="border:1px solid #e8a8a8; padding:12px; margin-bottom:12px;">
+          <strong style="font-size:0.82rem; color:#e8a8a8;">This would stop you selling things</strong>
+          ${blockers.map((b) => `<div style="font-size:0.78rem; color:var(--text-muted); margin-top:6px;">${b.message}</div>`).join('')}
+          <div style="font-size:0.75rem; color:var(--text-muted); margin-top:8px;">
+            Either add those variants in Printful, or accept that they go.
+          </div>
+        </div>` : ''}
+
+        ${unknown.length ? `<div style="border:1px solid var(--border-gold); padding:12px; margin-bottom:12px;">
+          <strong style="font-size:0.82rem; color:var(--gold-light);">Colours with no swatch</strong>
+          ${unknown.map((b) => `<div style="font-size:0.78rem; color:var(--text-muted); margin-top:6px;">${b.message}</div>`).join('')}
+        </div>` : ''}
+
+        ${orphanRows ? `<div style="border:1px solid #e8a8a8; padding:12px; margin-bottom:12px;">
+          <strong style="font-size:0.82rem; color:#e8a8a8;">On sale but not in Printful</strong>
+          ${orphanRows}
+        </div>` : ''}
+
+        <div style="max-height:340px; overflow:auto;">${productRows || '<p style="font-size:0.82rem; color:var(--text-muted);">Printful returned no products.</p>'}</div>
+
+        <div style="display:flex; gap:12px; align-items:center; margin-top:14px; flex-wrap:wrap;">
+          <button type="button" id="applyStoreSync" style="background:var(--gold); color:var(--charcoal); border:none; padding:9px 18px; font-weight:600; cursor:pointer; font-size:0.82rem;">Apply these changes</button>
+          <span id="storeSyncStatus" style="font-size:0.8rem; color:var(--text-muted);">
+            Colours and sizes only. Prices, copy and artwork are untouched.
+          </span>
+        </div>`;
+
+      document.getElementById('applyStoreSync').addEventListener('click', () => applyStoreSync((plan.products || []).map((p) => p.id)));
+    }
+
+    async function applyStoreSync(ids) {
+      const status = document.getElementById('storeSyncStatus');
+      const button = document.getElementById('applyStoreSync');
+      const confirmed = window.confirm(
+        `Apply colours and sizes for ${ids.length} product(s)?\n\n` +
+        `This changes the live store. Products with no Printful match are not touched.`
+      );
+      if (!confirmed) return;
+      button.disabled = true;
+      status.style.color = 'var(--text-muted)';
+      status.textContent = 'Applying…';
+      try {
+        const res = await adminFetch('/api/admin/store-sync', {
+          method: 'POST',
+          body: JSON.stringify({ confirm: true, ids }),
+        });
+        const bits = [`${res.applied.length} applied`];
+        if (res.skipped.length) bits.push(`${res.skipped.length} unchanged`);
+        if (res.failures.length) bits.push(`${res.failures.length} failed`);
+        status.style.color = res.failures.length ? '#e8a8a8' : '#8fd18f';
+        status.textContent = bits.join(' · ');
+        if (res.failures.length) {
+          status.textContent += ' — ' + res.failures.map((f) => `${f.id}: ${f.error}`).join('; ');
+        }
+        await loadStoreProducts();
+      } catch (err) {
+        status.style.color = '#e8a8a8';
+        status.textContent = err.message;
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    document.getElementById('syncStoreBtn')?.addEventListener('click', previewStoreSync);
 
     // ── Variant import ──
     // Printful mints an opaque sync_variant_id per colour/size, and its colour
