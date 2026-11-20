@@ -433,7 +433,8 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
           Edit a price and it takes effect the moment you save — no redeploy, and the storefront picks it up within a minute. Checkout always charges the amount stored here, never what a browser sends.
         </p>
 
-        <div id="productsNotice"></div>
+                <button type="button" id="importVariantsBtn" style="background:transparent; color:var(--gold-light); border:1px solid var(--border-gold); padding:9px 16px; font-size:0.82rem; cursor:pointer;">Import variants from Printful</button>
+<div id="productsNotice"></div>
 
         <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; border:1px solid var(--border-gold); padding:16px; margin-bottom:22px;">
           <div style="flex:1; min-width:150px;">
@@ -454,6 +455,7 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
           <span id="shippingSaved" style="color:var(--gold-light); font-size:0.82rem; display:none;">✓ Saved</span>
         </div>
 
+        <div id="variantImport" style="display:none; border:1px solid var(--border-gold); padding:16px; margin-bottom:18px; background:var(--charcoal-3);"></div>
         <div id="productsList"></div>
       </section>
 
@@ -899,6 +901,130 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
     }
 
     let storeColours = {};
+
+    // ── Variant import ──
+    // Printful mints an opaque sync_variant_id per colour/size, and its colour
+    // names ("Black") do not match ours ("ink"). Neither can be guessed safely,
+    // so this shows every Printful variant as a row with a colour picker, and
+    // saves only what has been filled in. Saving with a blank row is refused by
+    // the server on purpose — a half-saved map looks finished and then fails on
+    // the first real order.
+    async function openVariantImport() {
+      const box = document.getElementById('variantImport');
+      const button = document.getElementById('importVariantsBtn');
+      box.style.display = 'block';
+      box.innerHTML = '<p style="font-size:0.85rem; color:var(--text-muted);">Reading your Printful store…</p>';
+      button.disabled = true;
+      try {
+        const data = await adminFetch('/api/admin/store-variants');
+        renderVariantImport(data);
+      } catch (err) {
+        box.innerHTML = `<p style="font-size:0.85rem; color:#e8a8a8;">${err.message}</p>
+          <p style="font-size:0.78rem; color:var(--text-muted); margin-top:8px;">
+            If this says the token is missing, set <code>PRINTFUL_API_TOKEN</code> in Vercel and redeploy.
+            If it says it could not read the store, check the token has the orders and products scopes.</p>`;
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    function renderVariantImport(data) {
+      const box = document.getElementById('variantImport');
+      const suggestions = data.suggestions || [];
+      const mapped = data.mapped || {};
+      const colourOptions = Object.entries(storeColours);
+
+      if (!suggestions.length) {
+        box.innerHTML = `<p style="font-size:0.85rem; color:var(--cream);">Printful returned no products.</p>
+          <p style="font-size:0.8rem; color:var(--text-muted); margin-top:6px;">Create the products in your Printful store first, then press Import again.</p>`;
+        return;
+      }
+
+      const rows = [];
+      for (const s of suggestions) {
+        if (!s.productId) {
+          rows.push(`<div style="border-left:2px solid #e8a8a8; padding:8px 12px; margin:10px 0;">
+            <strong style="font-size:0.85rem; color:#e8a8a8;">${s.printfulProduct}</strong>
+            <p style="font-size:0.78rem; color:var(--text-muted); margin:4px 0 0;">${s.note}</p></div>`);
+          continue;
+        }
+        rows.push(`<div style="margin:14px 0 6px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:baseline;">
+          <strong style="font-size:0.86rem; color:var(--gold-light);">${s.ourProduct}</strong>
+          <span style="font-size:0.74rem; color:var(--text-muted);">Printful calls it "${s.printfulProduct}" · ${s.confidence === 'high' ? 'matched by id' : 'matched by name — check it'}</span>
+        </div>`);
+        for (const v of s.variants) {
+          const key = `${s.productId}|${v.colour || ''}|${v.size}`;
+          const existing = mapped[s.productId + '|' + (v.colour||'') + '|' + v.size];
+          rows.push(`<div style="display:flex; gap:10px; align-items:center; padding:6px 0; border-bottom:1px solid var(--border-gold);" data-variant-row
+            data-product="${s.productId}" data-sync="${v.syncVariantId}" data-size="${v.size}" data-name="${(v.variantName||'').replace(/"/g,'')}">
+            <span style="font-family:monospace; font-size:0.76rem; color:var(--text-muted); width:74px;">${v.syncVariantId}</span>
+            <span style="font-size:0.8rem; color:var(--cream); flex:1; min-width:120px;">${v.variantName || ''}
+              ${v.size === '*' ? '<em style="color:var(--text-muted);"> (one size)</em>' : ''}</span>
+            <span style="font-size:0.74rem; color:var(--text-muted);">Printful: ${v.printfulColour}</span>
+            <select data-colour-pick style="background:var(--charcoal); border:1px solid var(--border-gold); color:var(--cream); padding:5px 8px; font-size:0.8rem;">
+              <option value="">— pick colour —</option>
+              ${colourOptions.map(([k, c]) => `<option value="${k}" ${v.colour === k ? 'selected' : ''}>${c.name} (${k})</option>`).join('')}
+            </select>
+            ${existing ? '<span style="font-size:0.72rem; color:#8fd18f;">already mapped</span>' : ''}
+          </div>`);
+        }
+      }
+
+      box.innerHTML = `
+        <div style="display:flex; justify-content:space-between; gap:12px; align-items:baseline; flex-wrap:wrap; margin-bottom:10px;">
+          <strong style="font-size:0.9rem; color:var(--cream);">Variants in your Printful store</strong>
+          <span style="font-size:0.76rem; color:var(--text-muted);">${data.mappedCount || 0} already mapped</span>
+        </div>
+        <p style="font-size:0.78rem; color:var(--text-muted); line-height:1.7; margin:0 0 10px;">
+          Given the colour for each one. Your store sells ink, ivory, sky and orange; Printful calls
+          those blanks Black, Natural, White and Red — so this cannot be filled in automatically.
+          Rows left blank are not saved, and the save will be refused until every row has a colour.
+        </p>
+        ${rows.join('')}
+        <div style="display:flex; gap:12px; align-items:center; margin-top:14px;">
+          <button type="button" id="saveVariantImport" style="background:var(--gold); color:var(--charcoal); border:none; padding:9px 18px; font-weight:600; cursor:pointer; font-size:0.82rem;">Save mappings</button>
+          <span id="variantImportStatus" style="font-size:0.8rem; color:var(--text-muted);"></span>
+        </div>`;
+
+      document.getElementById('saveVariantImport').addEventListener('click', saveVariantImport);
+    }
+
+    async function saveVariantImport() {
+      const status = document.getElementById('variantImportStatus');
+      const button = document.getElementById('saveVariantImport');
+      const rows = [...document.querySelectorAll('[data-variant-row]')].map((row) => ({
+        productId: row.dataset.product,
+        syncVariantId: row.dataset.sync,
+        size: row.dataset.size,
+        variantName: row.dataset.name,
+        colour: row.querySelector('[data-colour-pick]').value,
+      }));
+
+      const blanks = rows.filter((r) => !r.colour);
+      if (blanks.length) {
+        status.style.color = '#e8a8a8';
+        status.textContent = `${blanks.length} row(s) still need a colour.`;
+        return;
+      }
+
+      button.disabled = true;
+      status.style.color = 'var(--text-muted)';
+      status.textContent = 'Saving…';
+      try {
+        const res = await adminFetch('/api/admin/store-variants', { method: 'POST', body: JSON.stringify({ confirmed: rows }) });
+        status.style.color = '#8fd18f';
+        status.textContent = `Saved ${rows.length} mapping(s) across ${res.saved.length} product(s).`;
+        await loadStoreProducts();
+      } catch (err) {
+        status.style.color = '#e8a8a8';
+        status.textContent = err.message;
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    document.getElementById('importVariantsBtn')?.addEventListener('click', openVariantImport);
+
 
     async function loadStoreProducts() {
       const list = document.getElementById('productsList');

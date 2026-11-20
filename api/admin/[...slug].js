@@ -20,7 +20,8 @@ import { listOrders as listStoreOrders, updateOrderStatus as updateStoreOrderSta
          listProducts, updateProduct, getSettings, updateSettings } from '../../lib/store/db.js';
 import { clearCatalogCache } from '../../lib/store/catalog.js';
 import { submitToSupplier, supplierStatus, cancelFulfilment } from '../../lib/store/fulfilment.js';
-import { health as printfulHealth, cancelOrder as cancelSupplierOrder } from '../../lib/suppliers/printful.js';
+import { health as printfulHealth, cancelOrder as cancelSupplierOrder,
+         listSyncProducts, suggestMapping } from '../../lib/suppliers/printful.js';
 import { health as printkkHealth } from '../../lib/suppliers/printkk.js';
 import { findOrderByNumber } from '../../lib/store/db.js';
 import jwt from 'jsonwebtoken';
@@ -543,6 +544,115 @@ export default async function handler(req, res) {
       } catch (err) {
         console.error('Store product update error:', err);
         return res.status(500).json({ error: 'Could not save that product.' });
+      }
+    }
+    return res.status(405).json({ error: 'Method not allowed.' });
+  }
+
+  // ── /api/admin/store-variants ──
+  // Bridges the gap between "the product is in Printful" and "our order can be
+  // fulfilled". Printful mints an opaque sync_variant_id per colour/size that
+  // cannot be computed from the catalog id, so this reads the store, proposes a
+  // product|colour|size key for every variant, and saves only what a human has
+  // confirmed. Nothing is written on GET — a guessed mapping would ship the
+  // wrong garment, which costs more than the minute this takes.
+  if (route === 'store-variants') {
+    if (req.method === 'GET') {
+      try {
+        const [printfulProducts, ourProducts] = await Promise.all([
+          listSyncProducts(),
+          listProducts().catch(() => []),
+        ]);
+        // refreshCatalog(), not loadCatalog(): the sync one always reads
+        // store/catalog.json and would hand back colours from the file even
+        // after they have been edited in this very panel. The mapper needs the
+        // live colour names, because those are the ones orders carry.
+        let normalised = [];
+        try {
+          const { refreshCatalog } = await import('../../lib/store/catalog.js');
+          const cat = await refreshCatalog({ force: true });
+          normalised = cat.products.map((p) => ({ id: p.id, name: p.name, colors: p.colors, sizes: p.sizes }));
+        } catch {
+          normalised = (ourProducts || []).map((p) => ({ id: p.id, name: p.name, colors: p.colors || [], sizes: p.sizes || [] }));
+        }
+        const suggestions = suggestMapping(printfulProducts, normalised);
+        const alreadyMapped = new Map();
+        for (const row of ourProducts || []) {
+          for (const [key, id] of Object.entries(row.supplier_variants || {})) {
+            alreadyMapped.set(key, id);
+          }
+        }
+        return res.status(200).json({
+          printful: printfulProducts.map((p) => ({
+            id: p.id, name: p.name, variantCount: p.variants.length,
+          })),
+          suggestions,
+          mappedCount: alreadyMapped.size,
+          mapped: Object.fromEntries(alreadyMapped),
+        });
+      } catch (err) {
+        console.error('Store variant read error:', err);
+        return res.status(502).json({
+          error: `Could not read your Printful store: ${err.message}`,
+        });
+      }
+    }
+
+    if (req.method === 'POST') {
+      const body = req.body || {};
+      // Accepts { confirmed: [{ productId, key, syncVariantId }] } — the rows a
+      // human has ticked. Grouped per product because that is how it is stored.
+      const confirmed = Array.isArray(body.confirmed) ? body.confirmed : null;
+      if (!confirmed) return res.status(400).json({ error: 'Send { confirmed: [...] }.' });
+
+      const byProduct = new Map();
+      const unplaced = [];
+      for (const row of confirmed) {
+        const productId = String(row.productId || '').trim();
+        const colour = String(row.colour || '').trim();
+        const size = String(row.size || '*').trim() || '*';
+        const id = String(row.syncVariantId || '').trim();
+        if (!productId) return res.status(400).json({ error: 'Every row needs a productId.' });
+        // A row without a colour cannot be turned into an order key. Collecting
+        // these and refusing the whole save is deliberate: a half-saved map
+        // looks finished in the admin and fails at the first real order.
+        if (!colour) { unplaced.push(row.variantName || id); continue; }
+        const key = `${productId}|${colour}|${size}`;
+        if (!/^[A-Za-z0-9-]+\|(\*|[A-Za-z0-9 .&-]+)\|(\*|[A-Za-z0-9 .&-]+)$/.test(key)) {
+          return res.status(400).json({ error: `"${key}" is not a valid variant key (expected product|colour|size).` });
+        }
+        if (!key.startsWith(`${productId}|`)) {
+          return res.status(400).json({ error: `Key "${key}" does not belong to "${productId}".` });
+        }
+        if (!/^[0-9]{1,20}$/.test(id)) {
+          return res.status(400).json({ error: `The Printful id for "${key}" must be numeric.` });
+        }
+        if (!byProduct.has(productId)) byProduct.set(productId, {});
+        byProduct.get(productId)[key] = id;
+      }
+
+      if (unplaced.length) {
+        return res.status(400).json({
+          error: `These Printful variants have no Armonia colour assigned yet: ${unplaced.slice(0, 6).join(', ')}${unplaced.length > 6 ? '…' : ''}. Pick a colour for each, then save.`,
+        });
+      }
+
+      const saved = [];
+      try {
+        for (const [productId, variants] of byProduct) {
+          const updated = await updateProduct(productId, { supplier: 'printful', supplier_variants: variants });
+          if (!updated) {
+            return res.status(404).json({
+              error: `"${productId}" is not in the products table. Run supabase/schema-v15.sql, then reload.`,
+            });
+          }
+          saved.push({ productId, variants: Object.keys(variants).length });
+        }
+        clearCatalogCache();
+        return res.status(200).json({ ok: true, saved });
+      } catch (err) {
+        console.error('Store variant save error:', err);
+        return res.status(500).json({ error: 'Could not save those variant mappings.' });
       }
     }
     return res.status(405).json({ error: 'Method not allowed.' });
