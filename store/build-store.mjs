@@ -311,6 +311,17 @@ const PATCHES = [
     replace: 'className:"preview-label",children:[u.jsx("span",{})," SECURE CHECKOUT"]',
   },
   {
+    // The storefront renders product photographs only for the types in this
+    // list; anything else falls back to the "add your product photo"
+    // placeholder. A beanie has no type of its own, so it would show cap photos
+    // (wrong silhouette) or the placeholder (worse). Extending the list is
+    // harmless for the products already using it.
+    name: 'extra product types',
+    find: 'const mg=["cap","tee","hoodie","windbreaker","picks"]',
+    replace: 'const mg=["cap","tee","hoodie","windbreaker","picks","beanie","stickers"]',
+    every: true,
+  },
+  {
     // The compiled export addresses its images as /images/x.webp (its own
     // hosting root). This site publishes them under /store/images/, so every
     // reference — string literals and template literals alike — is rebased.

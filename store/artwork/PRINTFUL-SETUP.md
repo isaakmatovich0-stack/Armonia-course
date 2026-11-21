@@ -92,13 +92,36 @@ Step 2.
 
 ---
 
-## Step 4 — Match colours to yours
+## Step 4 — Replace the storefront catalogue
+
+The store on the website was designed before any real products existed: names,
+colours and prices that described a collection nobody had ordered. Printful now
+has the real ones, so this replaces rather than merges.
+
+`/admin/` → **Products & Prices** → **Replace catalogue from Printful**
+
+The preview lists exactly what will be created and what will be deleted.
+Names, colours, sizes, prices and photos all come from Printful; prices are
+Printful's retail prices. Nothing is written until you press the button, and the
+button sends back the fingerprint of the plan you were shown — if the store
+changed in between, the apply is refused rather than half-done.
+
+Two things worth knowing:
+
+- **Products arrive out of stock.** A sync that puts new stock on sale without
+  anyone deciding to is a surprise, not a feature. Switch them on when ready.
+- **Deletion only happens after the replacements land.** If creating them fails,
+  the old rows stay.
+
+## Step 4b — Match colours to yours
+
+
 
 Creating a product in Printful does **not** tell our storefront what colours it
 comes in. Do this next, in this order:
 
 1. **Products & Prices → Sync colours & sizes from Printful**
-   Reads the real variants. Shows a diff before writing anything.
+   Only needed if you later add variants in Printful without replacing the catalogue. Shows a diff before writing anything.
    - **Red box** — a colour or size you sell that Printful cannot make. It will
      be removed, because a colour you cannot fulfil is a paid order you cannot
      ship. Read the list before applying.
