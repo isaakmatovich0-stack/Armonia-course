@@ -18,10 +18,13 @@ import { sendAdminVerificationEmail, sendGeneratedCodeEmail, sendGeneratedCodeBa
 import { generateAccessCode } from '../../lib/generateCode.js';
 import { listOrders as listStoreOrders, updateOrderStatus as updateStoreOrderStatus,
          listProducts, updateProduct, createProduct, getSettings, updateSettings } from '../../lib/store/db.js';
-import { clearCatalogCache } from '../../lib/store/catalog.js';
+import { clearCatalogCache, refreshCatalog } from '../../lib/store/catalog.js';
+import { buildSyncPlan } from '../../lib/store/sync.js';
+import { planCreation, applyCreation, loadManifest } from '../../lib/store/create-products.js';
 import { submitToSupplier, supplierStatus, cancelFulfilment } from '../../lib/store/fulfilment.js';
 import { health as printfulHealth, cancelOrder as cancelSupplierOrder,
-         listSyncProducts, suggestMapping } from '../../lib/suppliers/printful.js';
+         listSyncProducts, suggestMapping, getWebhook, setWebhook, webhookUrl,
+         WEBHOOK_EVENTS, createSyncProduct } from '../../lib/suppliers/printful.js';
 import { health as printkkHealth } from '../../lib/suppliers/printkk.js';
 import { findOrderByNumber } from '../../lib/store/db.js';
 import jwt from 'jsonwebtoken';
