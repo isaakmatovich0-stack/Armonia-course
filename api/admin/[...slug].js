@@ -21,6 +21,8 @@ import { listOrders as listStoreOrders, updateOrderStatus as updateStoreOrderSta
 import { clearCatalogCache, refreshCatalog } from '../../lib/store/catalog.js';
 import { buildSyncPlan } from '../../lib/store/sync.js';
 import { planCreation, applyCreation, loadManifest } from '../../lib/store/create-products.js';
+import { planReplace } from '../../lib/store/replace.js';
+import { applyReplace } from '../../lib/store/apply-replace.js';
 import { submitToSupplier, supplierStatus, cancelFulfilment } from '../../lib/store/fulfilment.js';
 import { health as printfulHealth, cancelOrder as cancelSupplierOrder,
          listSyncProducts, suggestMapping, getWebhook, setWebhook, webhookUrl,
@@ -624,6 +626,80 @@ export default async function handler(req, res) {
       } catch (err) {
         return res.status(502).json({ error: `Printful rejected the webhook: ${err.message}` });
       }
+    }
+    return res.status(405).json({ error: 'Method not allowed.' });
+  }
+
+  // ── /api/admin/store-reload ──
+  // Replaces the storefront catalogue with what is in Printful: names verbatim,
+  // Printful's retail prices, Printful's colours, Printful's mockups. This is
+  // the only route here that deletes anything.
+  //
+  // GET  → the plan. No writes.
+  // POST → apply it, but only if the caller sends back the fingerprint of the
+  //        plan a human reviewed. A plan computed against a store that has
+  //        since changed is refused rather than half-applied.
+  if (route === 'store-reload') {
+    const buildPlan = async () => {
+      const [printfulProducts, rows] = await Promise.all([
+        listSyncProducts(),
+        listProducts().catch(() => []),
+      ]);
+      const { refreshCatalog } = await import('../../lib/store/catalog.js');
+      const cat = await refreshCatalog({ force: true });
+      return planReplace(printfulProducts, rows || [], cat.colors || {});
+    };
+
+    if (req.method === 'GET') {
+      try {
+        return res.status(200).json(await buildPlan());
+      } catch (err) {
+        console.error('Store reload preview error:', err);
+        return res.status(502).json({ error: `Could not read your Printful store: ${err.message}` });
+      }
+    }
+
+    if (req.method === 'POST') {
+      const body = req.body || {};
+      let plan;
+      try {
+        plan = await buildPlan();
+      } catch (err) {
+        return res.status(502).json({ error: `Could not read your Printful store: ${err.message}` });
+      }
+
+      if (body.fingerprint && body.fingerprint !== plan.fingerprint) {
+        return res.status(409).json({
+          error: 'The plan has changed since you looked at it — reload and review it again. Nothing was written.',
+          fingerprint: plan.fingerprint,
+        });
+      }
+      if (!body.fingerprint && body.confirm !== true) {
+        return res.status(400).json({ error: 'Send the fingerprint of the plan you reviewed, or { confirm: true }.' });
+      }
+      if (plan.problems.length) {
+        return res.status(400).json({
+          error: 'Some Printful products could not be read, so nothing was written.',
+          problems: plan.problems,
+        });
+      }
+
+      const result = await applyReplace(plan, { dryRun: body.dryRun === true });
+      clearCatalogCache();
+      return res.status(200).json({
+        ok: result.ok,
+        message: result.message || null,
+        created: result.created,
+        updated: result.updated,
+        deleted: result.deleted,
+        failed: result.failed,
+        summary: {
+          created: result.created.length,
+          updated: result.updated.length,
+          deleted: result.deleted.length,
+          failed: result.failed.length,
+        },
+      });
     }
     return res.status(405).json({ error: 'Method not allowed.' });
   }

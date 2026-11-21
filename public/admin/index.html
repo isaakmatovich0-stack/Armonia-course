@@ -434,6 +434,7 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
         </p>
 
                 <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button type="button" id="reloadStoreBtn" style="background:transparent; color:var(--gold-light); border:1px solid #e8a8a8; padding:9px 16px; font-size:0.82rem; cursor:pointer;">Replace catalogue from Printful</button>
           <button type="button" id="createProductsBtn" style="background:transparent; color:var(--gold-light); border:1px solid var(--border-gold); padding:9px 16px; font-size:0.82rem; cursor:pointer;">Create products in Printful</button>
           <button type="button" id="syncStoreBtn" style="background:transparent; color:var(--gold-light); border:1px solid var(--border-gold); padding:9px 16px; font-size:0.82rem; cursor:pointer;">Sync colours &amp; sizes from Printful</button>
           <button type="button" id="importVariantsBtn" style="background:transparent; color:var(--gold-light); border:1px solid var(--border-gold); padding:9px 16px; font-size:0.82rem; cursor:pointer;">Import variants from Printful</button>
@@ -905,6 +906,134 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
     }
 
     let storeColours = {};
+
+    // ── Replace catalogue from Printful ──
+    // The destructive one, so it is built as review-then-apply: the preview
+    // names every product that will be deleted, and the apply sends back the
+    // fingerprint of the plan that was displayed. If the store changed in
+    // between, the server refuses rather than half-applying.
+    let reloadPlan = null;
+
+    async function previewReload() {
+      const box = document.getElementById('variantImport');
+      const button = document.getElementById('reloadStoreBtn');
+      box.style.display = 'block';
+      box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      box.innerHTML = '<p style="font-size:0.85rem; color:var(--text-muted);">Reading your Printful store…</p>';
+      button.disabled = true;
+      try {
+        reloadPlan = await adminFetch('/api/admin/store-reload');
+        renderReloadPlan(reloadPlan);
+      } catch (err) {
+        box.innerHTML = `<p style="font-size:0.85rem; color:#e8a8a8;">${err.message}</p>`;
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    function renderReloadPlan(plan) {
+      const box = document.getElementById('variantImport');
+      const s = plan.summary || {};
+      const money2 = (c) => (c == null ? '—' : '$' + (c / 100).toFixed(2));
+
+      const productRows = (plan.products || []).map((p) => `
+        <tr>
+          <td style="padding:5px 8px; font-size:0.8rem; color:var(--cream);">${p.name}</td>
+          <td style="padding:5px 8px; font-size:0.78rem; color:var(--text-muted);">${p.type}</td>
+          <td style="padding:5px 8px; font-size:0.78rem; color:var(--gold-light); text-align:right;">${money2(p.priceCents)}</td>
+          <td style="padding:5px 8px; font-size:0.76rem; color:var(--text-muted);">${(p.colours || []).join(', ')}</td>
+          <td style="padding:5px 8px; font-size:0.76rem; color:var(--text-muted);">${(p.sizes || []).join(', ')}</td>
+        </tr>`).join('');
+
+      const deleteRows = (plan.deletes || []).map((d) =>
+        `<div style="font-size:0.78rem; color:#e8a8a8; padding:2px 0;">• ${d.name} <span style="color:var(--text-muted);">(${d.id})</span></div>`).join('');
+
+      const problemRows = (plan.problems || []).map((p) =>
+        `<div style="font-size:0.78rem; color:#e8a8a8; padding:2px 0;">• ${p.message}</div>`).join('');
+
+      box.innerHTML = `
+        <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:baseline; margin-bottom:10px;">
+          <strong style="font-size:0.92rem; color:var(--cream);">Replace the catalogue</strong>
+          <span style="font-size:0.76rem; color:var(--text-muted);">
+            ${s.create || 0} created · ${s.update || 0} updated · ${s.delete || 0} deleted
+          </span>
+        </div>
+
+        <p style="font-size:0.78rem; color:var(--text-muted); line-height:1.7; margin:0 0 10px;">
+          Names, colours, sizes, prices and photos all come from Printful. Prices are Printful's
+          retail prices. Everything below arrives <strong>out of stock</strong>, so the shop stays
+          empty until you switch the products on.
+        </p>
+
+        <div style="max-height:300px; overflow:auto; margin-bottom:12px;">
+          <table style="width:100%; border-collapse:collapse;">
+            <thead><tr>
+              <th style="text-align:left; padding:5px 8px; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-muted);">Product</th>
+              <th style="text-align:left; padding:5px 8px; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-muted);">Type</th>
+              <th style="text-align:right; padding:5px 8px; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-muted);">Price</th>
+              <th style="text-align:left; padding:5px 8px; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-muted);">Colours</th>
+              <th style="text-align:left; padding:5px 8px; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-muted);">Sizes</th>
+            </tr></thead>
+            <tbody>${productRows}</tbody>
+          </table>
+        </div>
+
+        ${deleteRows ? `<div style="border:1px solid #e8a8a8; padding:12px; margin-bottom:12px;">
+          <strong style="font-size:0.82rem; color:#e8a8a8;">These will be deleted</strong>
+          <p style="font-size:0.76rem; color:var(--text-muted); margin:6px 0;">No orders have ever been placed, so no order history is lost.</p>
+          ${deleteRows}
+        </div>` : ''}
+
+        ${problemRows ? `<div style="border:1px solid #e8a8a8; padding:12px; margin-bottom:12px;">
+          <strong style="font-size:0.82rem; color:#e8a8a8;">Cannot proceed</strong>${problemRows}
+        </div>` : ''}
+
+        <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+          <button type="button" id="applyReload" style="background:#8c2d0b; color:#fff; border:none; padding:9px 18px; font-weight:600; cursor:pointer; font-size:0.82rem;">
+            Replace the catalogue</button>
+          <span id="reloadStatus" style="font-size:0.8rem; color:var(--text-muted);">
+            This deletes ${s.delete || 0} product(s) and creates ${s.create || 0}.
+          </span>
+        </div>`;
+
+      document.getElementById('applyReload').addEventListener('click', applyReload);
+    }
+
+    async function applyReload() {
+      const status = document.getElementById('reloadStatus');
+      const button = document.getElementById('applyReload');
+      const d = reloadPlan ? (reloadPlan.summary || {}) : {};
+      if (!window.confirm(
+        `Replace the catalogue?\n\n` +
+        `Deletes ${d.delete || 0} product(s) and creates ${d.create || 0}.\n` +
+        `Names, colours and prices will match Printful exactly.\n\n` +
+        `There are no orders in the store, so no sales history is affected.`
+      )) return;
+
+      button.disabled = true;
+      status.style.color = 'var(--text-muted)';
+      status.textContent = 'Replacing…';
+      try {
+        const res = await adminFetch('/api/admin/store-reload', {
+          method: 'POST',
+          body: JSON.stringify({ fingerprint: reloadPlan.fingerprint }),
+        });
+        const s = res.summary || {};
+        status.style.color = res.ok ? '#8fd18f' : '#e8a8a8';
+        status.textContent = `${s.created} created · ${s.updated} updated · ${s.deleted} deleted` +
+          (s.failed ? ` · ${s.failed} failed` : '') + (res.message ? ` — ${res.message}` : '');
+        if (res.failed && res.failed.length) {
+          status.textContent += ' ' + res.failed.map((f) => `${f.id}: ${f.error}`).join('; ');
+        }
+        await loadStoreProducts();
+      } catch (err) {
+        status.style.color = '#e8a8a8';
+        status.textContent = err.message;
+        button.disabled = false;
+      }
+    }
+
+    document.getElementById('reloadStoreBtn')?.addEventListener('click', previewReload);
 
     // ── Create products in Printful ──
     // A new Printful store is empty, and the sync can only read what is already
