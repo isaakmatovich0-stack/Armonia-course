@@ -137,11 +137,59 @@ const PRODUCT_OVERRIDES = {
   },
 };
 
+/*
+ * Build-time site copy. Only values that cannot change without a rebuild.
+ *
+ * `description` deliberately lives in store/catalog.json instead: it has to
+ * list what is actually for sale, and the products change without a code
+ * change — `node store/sync-catalog-file.mjs` derives it from the live rows.
+ * A hardcoded description here is how the page came to advertise "signature
+ * caps, everyday tees, hoodies, guitar pick sets" that no longer existed.
+ */
 const SITE_COPY = {
   title: 'Armonia Connect — Shop the Collection',
-  description:
-    'Wear your connection. Signature caps, everyday tees, hoodies, windbreakers, guitar pick sets and stickers from the Armonia Connect collection. Free US shipping over $75.',
 };
+
+/*
+ * Per-product state that is operational, not design: whether a product is on
+ * sale and what it costs right now.
+ *
+ * WHY THIS EXISTS
+ * store/catalog.json is the page's product list, and the page is generated.
+ * A product switched on in the admin, or re-priced, is a database change — so
+ * without a way to fold that back in, "in stock" would need a code edit or a
+ * hand-edited JSON file. Both drift, and drift here means the page shows a
+ * product the server refuses to sell, or the wrong number.
+ *
+ * `node store/sync-catalog-file.mjs` writes this map from the live rows, and
+ * every build reads it. Hand edits are overwritten by that script — edit the
+ * products in the admin, then run the script.
+ *
+ * A product whose row is in the map but no longer in the catalogue is dropped
+ * rather than re-added: this map carries state, not products.
+ */
+const PRODUCT_STATE = {
+  "sticker": { price: 3.5, inStock: true },
+  "hat-embroidered": { price: 23, inStock: true },
+  "beanie-embroidered": { price: 17, inStock: true },
+  "windbreaker-embroidered": { price: 31, inStock: true },
+  "unisex-classic-tee": { price: 20.5, inStock: true },
+  "hoodie-embroidered": { price: 41.5, inStock: true },
+};
+
+function applyProductState(catalog) {
+  if (!catalog || !Array.isArray(catalog.products)) return catalog;
+  catalog.products = catalog.products.map((product) => {
+    const state = PRODUCT_STATE[product.id];
+    if (!state) return product;
+    const next = { ...product };
+    if (typeof state.price === 'number') next.price = state.price;
+    if (state.inStock === false) next.inStock = false;
+    else delete next.inStock;
+    return next;
+  });
+  return catalog;
+}
 
 function applySiteCopy(catalog) {
   if (!catalog || typeof catalog !== 'object') return catalog;
@@ -158,11 +206,12 @@ function applyProductOverrides(catalog) {
     seen.add(product.id);
     return { ...product, ...override };
   });
-  for (const [id, override] of Object.entries(PRODUCT_OVERRIDES)) {
-    if (!seen.has(id) && !catalog.products.some((p) => p.id === override.id)) {
-      catalog.products.push({ ...override });
-    }
-  }
+  // Deliberately no "add it if it is missing" branch. This map used to append
+  // its entries, which meant that after the catalogue was replaced with the
+  // real Printful products, the build quietly put a deleted product back on the
+  // page — at a price the shop would never charge. An override renames what is
+  // there; if the product is gone, so is the override.
+  void seen;
   return catalog;
 }
 
@@ -319,6 +368,93 @@ const PATCHES = [
     name: 'extra product types',
     find: 'const mg=["cap","tee","hoodie","windbreaker","picks"]',
     replace: 'const mg=["cap","tee","hoodie","windbreaker","picks","beanie","stickers"]',
+    every: true,
+  },
+  {
+    // The hero preloads four product photographs, one per colour. After the
+    // catalogue was replaced with the real Printful products, those files
+    // (cap-hero-sky/ink/ivory/orange.webp) describe a cap that no longer
+    // exists — four 404s on every page load, and a hero that starts blank
+    // while it waits for them. The previews now come from the live catalogue,
+    // so the preload is pointed at the featured product's own photo instead.
+    name: 'hero preload follows the featured product',
+    find: '["sky","ink","ivory","orange"].forEach(_=>{const W=new Image;W.src=Ka(`/images/cap-hero-${_}.webp`)})',
+    replace:
+      '(()=>{const own=(At&&At.images)||{};const first=Object.values(own).find(Boolean);if(!first)return;const W=new Image;W.src=Ka(first)})()',
+    every: true, // the path patch below runs first and rewrites the literal
+  },
+  {
+    // The seasonal layer used to be fourteen autumn leaves with their own
+    // palette baked in. The season now comes from the server (see
+    // store/runtime.js), so this array only has to exist: the layer it fed is
+    // replaced by the runtime's own snowflakes and trees.
+    name: 'retire the autumn leaf palette',
+    find: 'const Uf=[',
+    replace: 'const Uf=[];const _retiredLeafSpecs=[',
+    every: false,
+  },
+  {
+    // ...and the leaf component with it. Kept as a function so any reference
+    // the minifier left behind still resolves, but it renders nothing: leaving
+    // an autumn maple drawn anywhere would be the bug this change fixes.
+    name: 'retire the leaf component',
+    find: 'function Ff({leaf:_}){',
+    replace: 'function Ff({leaf:_}){return null;const _unused=[',
+  },
+  {
+    // The pill was a per-browser preference (localStorage) that could only
+    // ever turn the season *off* for one visitor — invisible to the shop
+    // owner and unable to turn anything on. The admin switch replaces it, so
+    // the pill's state starts off and its toggle is inert.
+    name: 'retire the per-browser flare pill',
+    find: 'armonia-fall-flares',
+    replace: 'armonia-season-retired',
+    every: true, // getItem + setItem in the same component
+  },
+  {
+    // Nothing is drawn from the bundle's own idea of the season any more; the
+    // runtime draws it from the server setting. Flipping these three reads to
+    // false means the built page never renders autumn content, whatever a
+    // stale catalogue says.
+    name: 'season is drawn by the runtime, not the bundle',
+    find: 'site.fallFlares!==!1',
+    replace: 'site.fallFlares===!0&&!1',
+    every: true,
+  },
+  {
+    // "Autumn Orange" named a colour after a season the shop no longer has a
+    // season for, and the same string was also the fall banner's headline.
+    // Renaming the colour is honest; the banner below is never rendered, so
+    // its copy only has to stop claiming a fall drop to anyone reading the JS.
+    name: 'retire the autumn colour name',
+    find: 'Autumn Orange',
+    replace: 'Rust Orange',
+    every: true,
+  },
+  {
+    // The Studio editor's colour-panel label, and a note in its (unreachable on
+    // this site) save dialog. Both name a season the shop does not have.
+    name: 'retire the autumn accent label',
+    find: 'Autumn orange accent',
+    replace: 'Rust accent',
+    every: true,
+  },
+  {
+    name: 'retire the autumn editor note',
+    find: 'All changes, autumn assets, styles, and shopping functionality are preserved in',
+    replace: 'All changes, styles, and shopping functionality are preserved in',
+    every: true,
+  },
+  {
+    name: 'retire the fall drop banner copy',
+    find: '🍁 LIMITED FALL DROP',
+    replace: 'SEASONAL',
+    every: true,
+  },
+  {
+    name: 'retire the fall drop banner line',
+    find: 'The Rust Orange Collection is here for the season • Cozy essentials made to connect',
+    replace: 'Seasonal decorations are drawn by the storefront when they are switched on.',
     every: true,
   },
   {
@@ -598,7 +734,7 @@ async function main() {
         process.exit(1);
       }
     }
-    config = rebaseCatalogImages(applyProductOverrides(applySiteCopy(JSON.parse(fs.readFileSync(OUT.catalog, 'utf8')))));
+    config = rebaseCatalogImages(applyProductState(applyProductOverrides(applySiteCopy(JSON.parse(fs.readFileSync(OUT.catalog, 'utf8'))))));
     const licensesMatch = fs.readFileSync(OUT.page, 'utf8').match(/<script type="application\/json" id="open-source-licenses">([\s\S]*?)<\/script>/);
     licenses = licensesMatch ? licensesMatch[1] : null;
   }
@@ -620,7 +756,7 @@ async function main() {
      asked to charge for another. Rewriting it here makes that impossible. */
   write(
     OUT.catalog,
-    `${JSON.stringify(rebaseCatalogImages(applyProductOverrides(applySiteCopy(JSON.parse(fs.readFileSync(OUT.catalog, 'utf8'))))), null, 2)}\n`,
+    `${JSON.stringify(rebaseCatalogImages(applyProductState(applyProductOverrides(applySiteCopy(JSON.parse(fs.readFileSync(OUT.catalog, 'utf8')))))), null, 2)}\n`,
   );
 
   write(OUT.page, renderPage(config, { licenses }));

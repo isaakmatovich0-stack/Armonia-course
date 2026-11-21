@@ -129,6 +129,7 @@ const state = {
   listeners: new Set(),
   checkoutLive: true,
   busy: false,
+  decoration: null, // { on, name, text } from the server — the season switch
 };
 
 const catalogProduct = (id) => state.catalog.get(id) || null;
@@ -1004,6 +1005,7 @@ async function loadCatalog() {
     });
     state.checkoutLive = payload.checkoutLive !== false;
     state.shipping = state.shipping || payload.shipping || null;
+    applyDecoration(payload.decoration);
     // Keep the bundle's own price table in step with the server.
     if (globalThis.__ARMONIA_CONFIG__ && Array.isArray(globalThis.__ARMONIA_CONFIG__.products)) {
       state.products.forEach((product) => {
@@ -1013,6 +1015,212 @@ async function loadCatalog() {
     }
   } catch (err) {
     console.warn('[store] catalog unavailable, using the page’s own prices:', err.message);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SEASONAL DECORATIONS
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/**
+ * The season is a server setting, so it has to be drawn after the page loads
+ * rather than baked into the page — otherwise turning it off in the admin
+ * would need a redeploy, which is the thing this exists to avoid.
+ *
+ * One switch ("Seasonal decorations") controls every festive surface: the
+ * falling layer in the hero, the seasonal banner, and the trees. They are not
+ * separately switchable on purpose — "decorations on, but half of them" is a
+ * state nobody asked for and nobody would notice was wrong.
+ *
+ * `applyDecoration(payload)` is called from loadCatalog() with whatever the
+ * server says, so it is also how a saved change reaches an open tab: the
+ * price watcher re-reads the catalogue every minute and on focus.
+ */
+const DECORATION_DEFAULT_TEXT = 'Free US shipping over $75 • Order by 15 December for Christmas delivery';
+
+function decorationLayer() {
+  let layer = document.getElementById('armonia-decoration-layer');
+  if (layer) return layer;
+  layer = document.createElement('div');
+  layer.id = 'armonia-decoration-layer';
+  layer.className = 'armonia-decoration-layer';
+  layer.setAttribute('aria-hidden', 'true');
+  // Inserted as the first child of the hero stage so it sits behind the cap
+  // and the orbit rings — a snowflake in front of the product is clutter.
+  const stage = document.querySelector('.hero-stage') || document.querySelector('.hero') || document.body;
+  stage.insertBefore(layer, stage.firstChild);
+  return layer;
+}
+
+/**
+ * Snowflakes and trees, drawn as inline SVG so they cost no requests and
+ * inherit the site's own palette (gold, not the usual primary red/green —
+ * that pairing fights the ink-and-cream storefront).
+ *
+ * Deterministic placement via a seeded pseudo-random: the same page always
+ * looks the same, so a screenshot of the store is reproducible.
+ */
+function decorationFlakes(count) {
+  const flakes = [];
+  let seed = 7;
+  const next = () => {
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    return seed / 2147483648;
+  };
+  const tones = ['#f4f0e4', '#e5be73', '#fbf8ef'];
+  for (let i = 0; i < count; i += 1) {
+    flakes.push({
+      left: Math.round(next() * 96) + '%',
+      size: 8 + Math.round(next() * 14),
+      color: tones[i % tones.length],
+      duration: (9 + next() * 9).toFixed(1) + 's',
+      delay: (next() * 12).toFixed(1) + 's',
+      opacity: 0.35 + next() * 0.4,
+    });
+  }
+  return flakes;
+}
+
+const SNOW_PATH = 'M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1';
+
+/* A small fir: three stacked triangles and a trunk. Deliberately plain — at
+   22px a detailed tree is a green blob. */
+function treeSvg(size, color) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('width', String(size));
+  svg.setAttribute('height', String(size));
+  svg.style.color = color;
+  svg.innerHTML =
+    '<path d="M12 2.5 17 9h-3l3.4 5.6H14l3.4 5.4H6.6L10 14.6H6.6L10 9H7z" fill="currentColor"/>' +
+    '<rect x="11" y="19.4" width="2" height="2.2" fill="currentColor"/>';
+  return svg;
+}
+
+function snowSvg(size, color) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('width', String(size));
+  svg.setAttribute('height', String(size));
+  svg.style.color = color;
+  svg.innerHTML = `<path d="${SNOW_PATH}" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/>`;
+  return svg;
+}
+
+function renderDecoration(decoration) {
+  const layer = decorationLayer();
+  const on = Boolean(decoration && decoration.on);
+  const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (!on) {
+    layer.replaceChildren();
+    layer.classList.remove('is-on');
+    document.documentElement.classList.remove('has-decorations');
+    // The banner is part of "decorations", so switching off has to remove it
+    // too. Clearing the falling layer alone left the seasonal bar sitting at
+    // the top of the page — half off, which is the state this switch exists to
+    // avoid.
+    const stale = document.getElementById('armonia-decoration-banner');
+    if (stale) {
+      stale.hidden = true;
+      stale.remove();
+    }
+    return;
+  }
+
+  document.documentElement.classList.add('has-decorations');
+  layer.classList.add('is-on');
+  layer.replaceChildren();
+
+  // Reduced motion keeps the trees and drops the falling — a celebration that
+  // makes somebody queasy is not a celebration.
+  if (!reduced) {
+    decorationFlakes(18).forEach((flake) => {
+      const node = snowSvg(flake.size, flake.color);
+      node.classList.add('armonia-flake');
+      node.style.left = flake.left;
+      node.style.animationDuration = flake.duration;
+      node.style.animationDelay = flake.delay;
+      node.style.opacity = String(flake.opacity);
+      layer.appendChild(node);
+    });
+  }
+
+  // Two firs at the foot of the stage, mirroring each other so the hero reads
+  // as symmetric rather than as one tree that failed to load.
+  [['left', 46], ['right', 30]].forEach(([side, size]) => {
+    const tree = treeSvg(size, '#e5be73');
+    tree.classList.add('armonia-tree', `is-${side}`);
+    layer.appendChild(tree);
+  });
+
+  const banner = ensureDecorationBanner();
+  if (banner) {
+    const text = (decoration && decoration.text) || DECORATION_DEFAULT_TEXT;
+    banner.querySelector('[data-decoration-text]').textContent = text;
+    banner.hidden = false;
+  }
+}
+
+/**
+ * The seasonal banner. It is one line of copy above the announcement bar and
+ * it lives in the DOM only while the season is on — a dismissed-then-remembered
+ * banner is one more thing to get wrong, so closing it only closes it until
+ * the next page load, and the real control is the admin switch.
+ */
+function ensureDecorationBanner() {
+  let banner = document.getElementById('armonia-decoration-banner');
+  if (banner) return banner;
+  // Above the hero, never inside it. The hero is a fixed-height box with
+  // overflow:hidden, so a banner inserted as its first child is clipped away
+  // entirely — it has to be a sibling that comes before it.
+  const hero = document.getElementById('home') || document.body;
+  banner = document.createElement('div');
+  banner.id = 'armonia-decoration-banner';
+  banner.className = 'armonia-decoration-banner';
+  banner.setAttribute('role', 'status');
+  banner.innerHTML =
+    '<span class="armonia-decoration-tag">CHRISTMAS</span>' +
+    '<span data-decoration-text></span>' +
+    '<button type="button" aria-label="Hide the seasonal banner for this visit">✕</button>';
+  banner.querySelector('button').addEventListener('click', () => {
+    banner.hidden = true;
+    // Remembered for the visit only, so a re-render within this page load does
+    // not resurrect it. The real control is the admin switch: this button is a
+    // courtesy for the shopper, not a setting.
+    try {
+      sessionStorage.setItem('armonia-decoration-banner-hidden', '1');
+    } catch {
+      /* private mode: it will come back on the next page load, which is fine */
+    }
+  });
+  if (hero.parentNode) hero.parentNode.insertBefore(banner, hero);
+  else hero.insertBefore(banner, hero.firstChild);
+  return banner;
+}
+
+/** Called by loadCatalog(). Full re-render each time — the DOM here is small. */
+function applyDecoration(decoration) {
+  const next = {
+    on: Boolean(decoration && decoration.on),
+    name: (decoration && (decoration.name || decoration.decoration)) || 'christmas',
+    text: (decoration && decoration.text) || '',
+  };
+  const changed = JSON.stringify(state.decoration) !== JSON.stringify(next);
+  state.decoration = next;
+  if (!changed) return;
+
+  renderDecoration(next);
+
+  // The banner is built by renderDecoration(), so the "already dismissed this
+  // visit" check has to run after it exists.
+  try {
+    if (sessionStorage.getItem('armonia-decoration-banner-hidden') === '1') {
+      const banner = document.getElementById('armonia-decoration-banner');
+      if (banner) banner.hidden = true;
+    }
+  } catch {
+    /* storage unavailable: show it */
   }
 }
 

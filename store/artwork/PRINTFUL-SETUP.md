@@ -157,6 +157,45 @@ Only then is the store safe to sell from.
 
 ---
 
+## Step 6b — Seasonal decorations
+
+`/admin/` → Products & Prices → **Seasonal decorations** → tick, save.
+
+One switch turns on every festive surface: the falling snow in the hero, the two
+fir trees at the foot of the stage, and the one-line banner. It is saved to the
+database (`store_settings.decorations_on`), so it takes effect on the live site
+within a minute — no deploy, no code change, and it can be turned off in
+December from a phone.
+
+The banner message is the box beside it; leave it empty for the default line.
+
+Two things worth knowing:
+
+- **Reduced motion wins.** A visitor whose device asks for less animation gets
+  the trees and the banner but no falling snow. That is not a bug.
+- **It cannot be baked in.** If a seasonal flag ever reappears inside
+  `public/store/index.html`, `npm run check` fails — a baked flag means the admin
+  switch has stopped controlling that surface.
+
+### After the season, or after switching it off
+
+Nothing to do. Decorations default to **off**: a database that has never been
+told what season it is in shows a plain shop.
+
+### The first time
+
+The setting needs its columns:
+
+```sql
+-- run once, in Supabase → SQL editor
+\i supabase/schema-v16.sql
+```
+
+(or paste the contents of that file). Until it is run, the admin shows a notice
+saying so and the store shows no decorations — it does not break.
+
+---
+
 ## Error reference
 
 | Message | Actually means |
@@ -167,3 +206,7 @@ Only then is the store safe to sell from.
 | `has N stores, so PRINTFUL_STORE_ID must be set` | Good news — set it to one of the ids listed. |
 | `no catalogVariantId` | Step 2 not done for that product. |
 | `Could not read your Printful store` | Usually scopes: the token needs orders and products. |
+| `the page sells N product(s) not in the catalogue` | `npm run check` caught the page advertising deleted products. Run `npm run sync:catalog -- --from <rows.json>`, then `npm run build:store`. |
+| `price drift — X page $N vs catalogue $M` | The built page is older than the catalogue. `npm run build:store`. |
+| `the decorations columns do not exist yet` | Run `supabase/schema-v16.sql`. |
+| `the page bakes a seasonal flag` | A season flag got written into the generated page. Remove it from the slug allow-list in `store/build-store.mjs`; the switch must stay live. |

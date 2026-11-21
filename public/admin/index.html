@@ -461,6 +461,37 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
           <span id="shippingSaved" style="color:var(--gold-light); font-size:0.82rem; display:none;">✓ Saved</span>
         </div>
 
+        <!-- Seasonal decorations. One switch for every festive surface, because
+             "decorations on, but only half of them" is a state nobody wants and
+             nobody would notice was wrong. Saved to the database, so it takes
+             effect on the live store within a minute and needs no deploy. -->
+        <div style="border:1px solid var(--border-gold); padding:16px; margin-bottom:22px;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;">
+            <div style="flex:1; min-width:220px;">
+              <label style="display:block; font-size:0.7rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px;">Seasonal decorations</label>
+              <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:0.9rem; color:var(--cream);">
+                <input type="checkbox" id="decorationsOn" style="width:18px; height:18px; accent-color:var(--gold); cursor:pointer;">
+                <span>Show Christmas decorations on the store</span>
+              </label>
+              <p style="font-size:0.78rem; color:var(--text-muted); margin:8px 0 0; max-width:520px;">
+                Turns the falling snow, the trees and the seasonal banner on or off, together. Visitors who ask their device for reduced motion never see the falling snow, and the storefront keeps working if this is on and somebody has an old browser.
+              </p>
+            </div>
+            <div style="flex:1; min-width:220px;">
+              <label for="decorationTextInput" style="display:block; font-size:0.7rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px;">Banner message</label>
+              <input type="text" id="decorationTextInput" maxlength="160" placeholder="Free US shipping over $75 • Order by 15 December for Christmas delivery"
+                style="width:100%; background:var(--charcoal-3); border:1px solid var(--border-gold); color:var(--cream); padding:10px 12px; font-size:0.9rem;">
+              <p style="font-size:0.78rem; color:var(--text-muted); margin:8px 0 0;">Leave this empty to use the default Christmas line.</p>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:12px; margin-top:14px;">
+            <button type="button" id="saveDecorationsBtn" style="background:var(--gold); color:var(--charcoal); border:none; padding:11px 20px; font-weight:600; cursor:pointer; font-size:0.85rem;">Save decorations</button>
+            <span id="decorationsSaved" style="color:var(--gold-light); font-size:0.82rem; display:none;">✓ Saved — live within a minute</span>
+            <span id="decorationsError" style="color:#e8a8a8; font-size:0.82rem; display:none;"></span>
+          </div>
+          <div id="decorationsNotice" style="display:none; border:1px solid #e8a8a8; color:#e8a8a8; padding:12px; margin-top:14px; font-size:0.82rem;"></div>
+        </div>
+
         <div id="variantImport" style="display:none; border:1px solid var(--border-gold); padding:16px; margin-bottom:18px; background:var(--charcoal-3);"></div>
         <div id="productsList"></div>
       </section>
@@ -1414,6 +1445,7 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
 
         const shipping = data.settings || {};
         document.getElementById('shippingFeeInput').value = ((shipping.shipping_fee_cents ?? 600) / 100).toFixed(2);
+        loadDecorations();
         document.getElementById('freeShippingInput').value = ((shipping.free_shipping_cents ?? 7500) / 100).toFixed(2);
 
         list.innerHTML = storeProducts.map(productCard).join('');
@@ -1517,6 +1549,62 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
       }
       btn.textContent = 'Save shipping';
       btn.disabled = false;
+    });
+
+    /* ── Seasonal decorations ─────────────────────────────────────────────
+       The switch writes to store_settings (schema-v16) and the storefront reads
+       it from /api/store/catalog, so saving here changes the live site without
+       a deploy. Read on load so the checkbox always shows what is *actually*
+       on, not what this tab last thought it saved. */
+    async function loadDecorations() {
+      const box = document.getElementById('decorationsOn');
+      const text = document.getElementById('decorationTextInput');
+      const notice = document.getElementById('decorationsNotice');
+      if (!box) return;
+      notice.style.display = 'none';
+      try {
+        const data = await adminFetch('/api/admin/store-decorations');
+        const d = data.decorations || {};
+        box.checked = Boolean(d.on);
+        text.value = d.text || '';
+        if (d.available === false) {
+          notice.innerHTML = 'The decorations setting has nowhere to live yet. Run <code>supabase/schema-v16.sql</code> in Supabase, then reload this panel. Until then the store shows no decorations.';
+          notice.style.display = 'block';
+          box.disabled = true;
+          document.getElementById('saveDecorationsBtn').disabled = true;
+        }
+      } catch (err) {
+        notice.textContent = `Could not read the decoration setting: ${err.message}`;
+        notice.style.display = 'block';
+      }
+    }
+
+    document.getElementById('saveDecorationsBtn')?.addEventListener('click', async (event) => {
+      const button = event.currentTarget;
+      const box = document.getElementById('decorationsOn');
+      const text = document.getElementById('decorationTextInput');
+      const saved = document.getElementById('decorationsSaved');
+      const error = document.getElementById('decorationsError');
+      error.style.display = 'none';
+      button.disabled = true;
+      button.textContent = 'Saving…';
+      try {
+        await adminFetch('/api/admin/store-decorations', {
+          method: 'PATCH',
+          body: JSON.stringify({ on: box.checked, text: text.value.trim() }),
+        });
+        saved.style.display = 'inline';
+        setTimeout(() => { saved.style.display = 'none'; }, 3500);
+        // The page has its own copy of the setting; refreshing it here means
+        // "View store" in a new tab is right immediately rather than after the
+        // 15-second catalogue cache expires.
+        loadDecorations();
+      } catch (err) {
+        error.textContent = err.message;
+        error.style.display = 'inline';
+      }
+      button.textContent = 'Save decorations';
+      button.disabled = false;
     });
 
     document.getElementById('refreshProductsBtn')?.addEventListener('click', loadStoreProducts);
