@@ -694,7 +694,9 @@ export default async function handler(req, res) {
               costCents: null,
               colors: item.colors,
               sizes: item.sizes,
-              images: item.image ? { [item.colors[0]]: item.image } : {},
+              images: Object.keys(item.images || {}).length
+                ? item.images
+                : (item.image && item.colors.length ? { [item.colors[0]]: item.image } : {}),
               backImages: {},
               inStock: false,   // never go on sale unannounced
               supplier: 'printful',
@@ -708,6 +710,11 @@ export default async function handler(req, res) {
           if (item.changes.colors) patch.colors = item.changes.colors.to;
           if (item.changes.sizes) patch.sizes = item.changes.sizes.to;
           if (item.changes.supplier) patch.supplier = 'printful';
+          if (item.images && Object.keys(item.images).length) {
+            // Merge rather than replace: a colour Printful gave us no mockup for
+            // keeps whatever artwork is already on the storefront.
+            patch.images = { ...(current?.images || {}), ...item.images };
+          }
           if (!Object.keys(patch).length) { skipped.push(item.id); continue; }
           void current;
           await updateProduct(item.id, patch);
