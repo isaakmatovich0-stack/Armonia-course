@@ -823,7 +823,7 @@ export default async function handler(req, res) {
               images: Object.keys(item.images || {}).length
                 ? item.images
                 : (item.image && item.colors.length ? { [item.colors[0]]: item.image } : {}),
-              backImages: {},
+              back_images: {},
               inStock: false,   // never go on sale unannounced
               supplier: 'printful',
               sortOrder: (existingRows.length + applied.length) + 1,

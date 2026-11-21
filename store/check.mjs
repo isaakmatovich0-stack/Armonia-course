@@ -257,5 +257,34 @@ for (const relative of ['api/admin/[...slug].js', 'api/store/[...slug].js']) {
   }
 }
 
+/* The column list in lib/store/db.js must match the schema. PostgREST rejects a
+   whole row for one unknown column, so a typo there fails every product at once
+   with an error that blames the schema. Read both and compare. */
+{
+  const dbSrc = fs.readFileSync(path.join(ROOT, 'lib/store/db.js'), 'utf8');
+  const listMatch = dbSrc.match(/const PRODUCT_COLUMNS = \[([\s\S]*?)\];/);
+  const schemaSrc = fs.readFileSync(path.join(ROOT, 'supabase/schema-v15.sql'), 'utf8');
+  const tableMatch = schemaSrc.match(/create table if not exists store_products \(([\s\S]*?)\n\);/);
+
+  if (!listMatch || !tableMatch) {
+    failures += 1;
+    console.log('  ✗ store_products column list — could not read one side of the comparison');
+  } else {
+    const listed = new Set([...listMatch[1].matchAll(/'([a-z_]+)'/g)].map((m) => m[1]));
+    // Column definitions look like "  name   type ..." at the start of a line.
+    const schemaCols = new Set(
+      [...tableMatch[1].matchAll(/^\s{2}([a-z_]+)\s+[a-z]/gm)].map((m) => m[1])
+    );
+    const missingFromCode = [...schemaCols].filter((c) => !listed.has(c));
+    const notInSchema = [...listed].filter((c) => !schemaCols.has(c));
+    if (missingFromCode.length || notInSchema.length) {
+      failures += 1;
+      console.log(`  ✗ store_products columns drift — code is missing [${missingFromCode.join(', ')}], schema lacks [${notInSchema.join(', ')}]`);
+    } else {
+      console.log(`  ✓ store_products column list matches the schema (${listed.size})`);
+    }
+  }
+}
+
 console.log(failures ? `\n${failures} problem${failures === 1 ? '' : 's'} found.` : '\nAll good.');
 process.exit(failures ? 1 : 0);

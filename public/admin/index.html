@@ -433,10 +433,11 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
           Edit a price and it takes effect the moment you save — no redeploy, and the storefront picks it up within a minute. Checkout always charges the amount stored here, never what a browser sends.
         </p>
 
-                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+          <span style="font-size:0.7rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted);">Printful:</span>
           <button type="button" id="reloadStoreBtn" style="background:transparent; color:var(--gold-light); border:1px solid #e8a8a8; padding:9px 16px; font-size:0.82rem; cursor:pointer;">Replace catalogue from Printful</button>
           <button type="button" id="createProductsBtn" style="background:transparent; color:var(--gold-light); border:1px solid var(--border-gold); padding:9px 16px; font-size:0.82rem; cursor:pointer;">Create products in Printful</button>
-          <button type="button" id="syncStoreBtn" style="background:transparent; color:var(--gold-light); border:1px solid var(--border-gold); padding:9px 16px; font-size:0.82rem; cursor:pointer;">Sync colours &amp; sizes from Printful</button>
+          <button type="button" id="syncStoreBtn" style="background:transparent; color:var(--gold-light); border:1px solid var(--border-gold); padding:9px 16px; font-size:0.82rem; cursor:pointer;">Update colours &amp; sizes only</button>
           <button type="button" id="importVariantsBtn" style="background:transparent; color:var(--gold-light); border:1px solid var(--border-gold); padding:9px 16px; font-size:0.82rem; cursor:pointer;">Import variants from Printful</button>
         </div>
 <div id="productsNotice"></div>
