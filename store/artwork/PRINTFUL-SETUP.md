@@ -1,106 +1,146 @@
-# Connecting Printful
+# Getting Printful from zero to taking orders
 
-Two separate things connect this store to Printful, and they fail in different
-ways. Doing them in this order is the difference between "an order went through"
-and "an order went through and nobody noticed it failed".
+Follow this in order. Each step says what you will see if it worked, and what
+Printful's error actually means if it did not.
 
 ---
 
-## 1. The API token — needed for orders to be placed
+## Step 0 — A store must exist
 
-Printful → **Settings → API → API tokens → Generate token**
+Printful stores almost everything inside a "store": products belong to one,
+orders are placed against one. An account with no store answers
+`This endpoint requires store_id!` — which sounds like a token problem and is
+not. An invalid token returns `401`, never `400`.
 
-- Name it anything (`Armonia Store`).
-- Tick **all scopes**. A token without `orders` cannot place an order, and the
-  error you get back is a 403 that looks like a permission bug in our code.
-- Copy it immediately. Printful shows it once.
+1. Printful → **Stores** (left sidebar)
+2. **Add store**
+3. Find **Manual order platform / API** → **Connect via API**
+   - It is usually below the platform logos; scroll, or look under "Other"
+   - **Do not pick Shopify, Etsy, WooCommerce, Wix** — Printful withholds API
+     access for third-party tools on platform-linked stores
+4. Name it `Armonia Connect` → save
 
-Then Vercel → **Settings → Environment Variables**:
+**You do not need to find the store ID.** With exactly one store the app
+discovers it automatically. Only if you have two or more must you set
+`PRINTFUL_STORE_ID` — and the error message will name them for you.
 
-| Name | Value | Environments |
+---
+
+## Step 1 — Environment variables in Vercel
+
+Vercel → **Settings → Environment Variables**. Tick Production *and* Preview for
+each. **Redeploy after saving** — variables are baked in at build time.
+
+| Name | Value | Needed? |
 | --- | --- | --- |
-| `PRINTFUL_API_TOKEN` | the token | Production **and** Preview |
-| `PRINTFUL_STORE_ID` | only if you have more than one store | Production **and** Preview |
+| `PRINTFUL_API_TOKEN` | your API token | yes |
+| `PRINTFUL_WEBHOOK_TOKEN` | already set | yes |
+| `PRINTFUL_STORE_ID` | a number | only with 2+ stores |
+| `PRINTFUL_DRAFT` | `1` | only during the rehearsal |
 
-Redeploy after saving. Environment variables are baked in at build time, so a
-saved variable does nothing until the next deployment.
-
-**Check it worked:** `/admin/` → Store Orders → the panel reads
-`Printful — reachable`. If it says the token is missing, the variable is on the
-wrong environment.
+Check it: `/admin/` → Store Orders → the panel reads
+`✓ Printful — reachable` and, if it is still empty, `no store in the account yet`.
 
 ---
 
-## 2. The webhook — needed for tracking numbers to arrive
+## Step 2 — Choose your blanks
 
-**Printful has no webhook screen.** There is no Settings → Webhooks page. A
-webhook is an API-only setting (`POST /webhooks`), which is why every guide that
-says "go to the dashboard and add a webhook URL" is describing something you
-cannot do. This is the single most misleading thing about setting Printful up.
+This is the one decision that cannot be automated, and it is genuinely yours:
+which physical garment gets printed on.
 
-So the store registers it for you.
+Open `store/printful-products.json` and fill `catalogVariantId` for each product.
+`catalogVariantId` is the **catalog variant**, not a store variant — it is the
+size/colour combination of a blank.
 
-### The one-click way
+How to find one:
 
-1. `/admin/` → **Store Orders**
-2. The supplier panel shows either `✓ Webhook registered` or `✗ Webhook not registered`
-3. If it is red, press **Register webhook with Printful**
-4. It goes green, and shows the events and the URL it registered
+1. Go to https://developers.printful.com/docs/#tag/Catalog-API
+2. `GET /products` — lists blanks with a `type` and model, e.g.
+   "Bella + Canvas 3001 Unisex Short Sleeve T-Shirt"
+3. `GET /products/{id}` — lists every variant with `id`, `size` and `color`
+4. Pick the one you want and copy its numeric `id`
 
-That is the whole step. It calls `POST /webhooks` with our URL and the four
-events, from the server, using the API token.
+Or, faster, use Printful's own store UI to make **one** product by hand, then
+open it and read the variant id off the URL. Either is fine.
 
-### What it registers
+**Why this is blank on purpose:** a guessed variant id prints a real garment —
+just not the one you chose. A blank id creates nothing and says so. That is the
+right way round.
+
+Put the same number in `catalogProductId` if you want it recorded.
+
+---
+
+## Step 3 — Create the products in Printful
+
+`/admin/` → **Products & Prices** → **Create products in Printful**
+
+You will see, per product, which artwork goes where:
 
 ```
-https://armoniaconnect.com/api/store/supplier-webhook?token=<PRINTFUL_WEBHOOK_TOKEN>
+The Everyday Tee
+  front ← emblem-gold.png (694 KB)
+  back  ← back-cream.png (734 KB)
 ```
 
-Events: `package_shipped`, `order_failed`, `order_canceled`, `package_returned`
+Press **Create N product(s) in Printful**. Nothing is charged; this only adds
+products to your store. Products already there are skipped, so it is safe to
+press twice.
 
-The token is `PRINTFUL_WEBHOOK_TOKEN`, already set in Vercel. It is in the URL
-because Printful has no signing secret, so the URL is the only thing that can
-prove an event is really from Printful. Treat it as disposable: it is stored in
-Printful's UI and appears in their logs, so if it leaks, change the variable,
-redeploy, and register again.
+**If it says "Cannot create yet"** — the blank id is still blank. Go back to
+Step 2.
 
-### Three things that break it
+---
 
-**1. Only one webhook exists per store.** Registering replaces whatever was
-there — including one you set up by hand for another purpose. The admin warns
-before doing it. If you had a webhook for something else, it is gone.
+## Step 4 — Match colours to yours
 
-**2. The URL must be the production host.** The registration pins
-`armoniaconnect.com`, deliberately ignoring whatever host the admin happened to
-be open on. A preview deployment's URL works until that deployment is replaced,
-then stops delivering events with no error.
+Creating a product in Printful does **not** tell our storefront what colours it
+comes in. Do this next, in this order:
 
-**3. Orders placed before registration never produce events.** Printful only
-sends events for orders created after the webhook exists. Anything older must be
-tracked by hand.
+1. **Products & Prices → Sync colours & sizes from Printful**
+   Reads the real variants. Shows a diff before writing anything.
+   - **Red box** — a colour or size you sell that Printful cannot make. It will
+     be removed, because a colour you cannot fulfil is a paid order you cannot
+     ship. Read the list before applying.
+   - **Gold box** — a Printful colour with no swatch. Set a hex later; until
+     then it shows a neutral swatch rather than a made-up colour.
+   - **Orange box** — on sale but not in Printful, so unfulfillable.
+2. Press **Apply these changes**
+3. **Import variants from Printful** — assign each Printful colour to one of
+   yours (Printful's "Black" is our "ink"). Blank rows are refused on purpose:
+   a half-filled map looks finished and fails at the first real order.
 
-### How to prove it works, without shipping anything
+---
 
-1. Set `PRINTFUL_DRAFT=1` in Vercel, redeploy.
-2. Buy a tee through the real storefront.
-3. In Printful, confirm the order exists as a **draft** — it is not charged and
-   not printed.
-4. Delete the draft in Printful. That fires `order_canceled`.
-5. `/admin/` → Store Orders should show the order as cancelled, not fulfilled.
-6. If nothing changes: Vercel → **Logs** → filter `supplier-webhook`. Every
-   delivery logs either success or the exact rejection reason.
+## Step 5 — Webhook
 
-That exercise is the only way to know the token in the URL is right, because a
-wrong token and a right one look identical from outside.
+`/admin/` → Store Orders → **Register webhook with Printful**
 
-## 3. After both are connected
+Printful has no webhook screen in its dashboard; it is API-only, and this button
+does the API call. It replaces any existing config — Printful allows one.
 
-1. **Products** — create them in Printful first, then `/admin/` → Products &
-   Prices → **Sync colours & sizes from Printful**. That reads your real
-   variants and shows a diff before changing anything.
-2. **Variants** — **Import variants from Printful**, then assign each Printful
-   colour to one of ours. Blanks are refused, on purpose: an unmapped colour
-   means a paid order that cannot be made.
-3. **Rehearse** — `PRINTFUL_DRAFT=1` in Vercel, buy a tee, confirm the draft
-   appears in Printful, refund the card charge, then delete the variable.
-4. **Go live** — remove `PRINTFUL_DRAFT`, redeploy, place one real order.
+---
+
+## Step 6 — Rehearse before going live
+
+1. Set `PRINTFUL_DRAFT=1` in Vercel, redeploy
+2. Buy a tee through the real storefront
+3. Confirm it appears in Printful as a **draft** — not charged, not printed
+4. Delete the draft in Printful → fires `order_canceled` → your admin shows it
+5. Refund the card charge in Stripe
+6. Remove `PRINTFUL_DRAFT`, redeploy
+
+Only then is the store safe to sell from.
+
+---
+
+## Error reference
+
+| Message | Actually means |
+| --- | --- |
+| `This endpoint requires store_id!` | No store in the account, or several and none pinned. Not a token problem. |
+| `Printful 401` | The token really is wrong or missing from that environment. |
+| `no store in the account yet` | Step 0 not done. |
+| `has N stores, so PRINTFUL_STORE_ID must be set` | Good news — set it to one of the ids listed. |
+| `no catalogVariantId` | Step 2 not done for that product. |
+| `Could not read your Printful store` | Usually scopes: the token needs orders and products. |

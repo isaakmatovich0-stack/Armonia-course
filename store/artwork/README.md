@@ -21,6 +21,12 @@ All derived from your `LOGO GOLD.png`: the emblem was 829 × 1254 px inside a na
 background, cropped, keyed out to true transparency, then scaled. Edges checked
 against ink, ivory and sky.
 
+### Creating the products in Printful
+
+`PRINTFUL-SETUP.md` covers the whole path from an empty Printful account to a
+store that can take orders, including which blanks to choose and why that one
+step is manual.
+
 ### Connecting print on demand
 
 `PRINTFUL-SETUP.md` in this folder covers the API token, the webhook (including
