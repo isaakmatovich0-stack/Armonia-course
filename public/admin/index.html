@@ -434,6 +434,7 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
         </p>
 
                 <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button type="button" id="createProductsBtn" style="background:transparent; color:var(--gold-light); border:1px solid var(--border-gold); padding:9px 16px; font-size:0.82rem; cursor:pointer;">Create products in Printful</button>
           <button type="button" id="syncStoreBtn" style="background:transparent; color:var(--gold-light); border:1px solid var(--border-gold); padding:9px 16px; font-size:0.82rem; cursor:pointer;">Sync colours &amp; sizes from Printful</button>
           <button type="button" id="importVariantsBtn" style="background:transparent; color:var(--gold-light); border:1px solid var(--border-gold); padding:9px 16px; font-size:0.82rem; cursor:pointer;">Import variants from Printful</button>
         </div>
@@ -905,6 +906,113 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
 
     let storeColours = {};
 
+    // ── Create products in Printful ──
+    // A new Printful store is empty, and the sync can only read what is already
+    // there. This creates our catalogue in the store from the artwork in the
+    // repo. It refuses to create anything whose blank has not been chosen,
+    // because a guessed variant id prints a real, wrong garment.
+    async function previewCreateProducts() {
+      const box = document.getElementById('variantImport');
+      const button = document.getElementById('createProductsBtn');
+      box.style.display = 'block';
+      box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      box.innerHTML = '<p style="font-size:0.85rem; color:var(--text-muted);">Checking artwork and your Printful store…</p>';
+      button.disabled = true;
+      try {
+        const plan = await adminFetch('/api/admin/store-create');
+        renderCreatePlan(plan);
+      } catch (err) {
+        box.innerHTML = `<p style="font-size:0.85rem; color:#e8a8a8;">${err.message}</p>`;
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    function renderCreatePlan(plan) {
+      const box = document.getElementById('variantImport');
+      const s = plan.summary || {};
+
+      const readyRows = (plan.ready || []).map((p) => `
+        <div style="padding:9px 0; border-bottom:1px solid var(--border-gold);" data-create-row="${p.id}">
+          <div style="display:flex; gap:10px; align-items:baseline; flex-wrap:wrap;">
+            <strong style="font-size:0.85rem; color:#8fd18f;">${p.name}</strong>
+            <span style="font-size:0.72rem; color:var(--text-muted); margin-left:auto;">blank ${p.catalogVariantId}</span>
+          </div>
+          ${p.files.map((f) => `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:3px;">
+            ${f.placement} ← ${f.filename} (${Math.round(f.bytes / 1024)} KB)
+          </div>`).join('')}
+        </div>`).join('');
+
+      const blockedRows = (plan.blocked || []).map((p) => `
+        <div style="padding:8px 0; border-bottom:1px solid var(--border-gold);">
+          <strong style="font-size:0.83rem; color:#e8a8a8;">${p.name}</strong>
+          ${p.problems.map((x) => `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">• ${x}</div>`).join('')}
+        </div>`).join('');
+
+      const skippedRows = (plan.skipped || []).map((p) =>
+        `<div style="font-size:0.76rem; color:var(--text-muted); padding:4px 0;">• ${p.name} — ${p.reason}</div>`).join('');
+
+      box.innerHTML = `
+        <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:baseline; margin-bottom:10px;">
+          <strong style="font-size:0.92rem; color:var(--cream);">Create products in Printful</strong>
+          <span style="font-size:0.76rem; color:var(--text-muted);">
+            ${s.ready || 0} ready · ${s.blocked || 0} blocked · ${s.skipped || 0} already there
+          </span>
+        </div>
+
+        ${blockedRows ? `<div style="border:1px solid #e8a8a8; padding:12px; margin-bottom:12px;">
+          <strong style="font-size:0.82rem; color:#e8a8a8;">Cannot create yet</strong>
+          <p style="font-size:0.76rem; color:var(--text-muted); margin:6px 0;">
+            A catalogVariantId is the exact blank to print on. It is left blank on purpose —
+            a guessed one prints a real garment the customer did not order. Choose each blank
+            in <code>store/printful-products.json</code>, then reload this panel.
+          </p>
+          ${blockedRows}
+        </div>` : ''}
+
+        ${readyRows ? `<div style="max-height:280px; overflow:auto; margin-bottom:12px;">${readyRows}</div>` : ''}
+        ${skippedRows ? `<div style="margin-bottom:12px;">${skippedRows}</div>` : ''}
+
+        <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+          <button type="button" id="applyCreateProducts" ${(s.ready || 0) === 0 ? 'disabled' : ''}
+            style="background:${(s.ready || 0) === 0 ? 'var(--charcoal-3)' : 'var(--gold)'}; color:${(s.ready || 0) === 0 ? 'var(--text-muted)' : 'var(--charcoal)'}; border:none; padding:9px 18px; font-weight:600; cursor:${(s.ready || 0) === 0 ? 'not-allowed' : 'pointer'}; font-size:0.82rem;">
+            Create ${s.ready || 0} product(s) in Printful</button>
+          <span id="createProductsStatus" style="font-size:0.8rem; color:var(--text-muted);"></span>
+        </div>`;
+
+      if ((s.ready || 0) > 0) {
+        document.getElementById('applyCreateProducts').addEventListener('click', () =>
+          applyCreateProducts((plan.ready || []).map((p) => p.id)));
+      }
+    }
+
+    async function applyCreateProducts(ids) {
+      const status = document.getElementById('createProductsStatus');
+      const button = document.getElementById('applyCreateProducts');
+      if (!window.confirm(`Create ${ids.length} product(s) in Printful?\n\nThis adds them to your store with the artwork attached. Nothing is charged.`)) return;
+      button.disabled = true;
+      status.textContent = 'Creating…';
+      try {
+        const res = await adminFetch('/api/admin/store-create', {
+          method: 'POST',
+          body: JSON.stringify({ ids }),
+        });
+        const made = (res.created || []).length;
+        status.style.color = res.failed && res.failed.length ? '#e8a8a8' : '#8fd18f';
+        status.textContent = `${made} created${res.failed && res.failed.length ? `, ${res.failed.length} failed` : ''}.`;
+        if (res.failed && res.failed.length) {
+          status.textContent += ' ' + res.failed.map((f) => `${f.id}: ${f.error}`).join('; ');
+        }
+        await previewCreateProducts();
+      } catch (err) {
+        status.style.color = '#e8a8a8';
+        status.textContent = err.message;
+        button.disabled = false;
+      }
+    }
+
+    document.getElementById('createProductsBtn')?.addEventListener('click', previewCreateProducts);
+
     // ── Store sync ──
     // Reads the Printful store and shows what would change. Nothing is written
     // until the human presses Apply, and Apply names the exact products it will
@@ -1313,6 +1421,9 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
         const pk = data.health?.printkk || {};
         const detail = (h) => {
           if (!h.configured) return 'no credentials';
+          // "no store" is a setup step, not a broken token — the old wording sent
+          // people to check their API key when the real problem was a missing store.
+          if (h.ok && h.storeCount === 0) return 'no store in the account yet';
           if (h.ok) return 'reachable';
           return h.error ? `not reachable — ${h.error}` : 'unknown';
         };
@@ -1328,7 +1439,9 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
           </strong><br>
           ${items}
           <div style="margin-top:8px;">
-            ${dot(printful)} Printful — ${detail(pf)}${data.draft ? ' · <em>draft mode, nothing is printed</em>' : ''}<br>
+            ${dot(printful)} Printful — ${detail(pf)}${data.draft ? ' · <em>draft mode, nothing is printed</em>' : ''}
+            ${pf.ok && pf.storeCount === 0 ? '<br><span style="margin-left:18px; color:var(--text-muted);">Create one at Printful → Stores → Add store → &ldquo;Manual order platform / API&rdquo; → Connect via API. Products and orders live inside a store.</span>' : ''}
+            ${pf.ok && pf.storeCount > 1 && !pf.storeId ? '<br><span style="margin-left:18px; color:#e8a8a8;">Several stores — set PRINTFUL_STORE_ID in Vercel.</span>' : ''}<br>
             ${dot(printkk)} PrintKK — ${detail(pk)}${data.autoPay ? ' · <em>auto-pay on, orders cost money immediately</em>' : ' · orders are created unpaid'}
           </div>
           <div id="webhookStatus" style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border-gold); font-size:0.8rem; color:var(--text-muted);">

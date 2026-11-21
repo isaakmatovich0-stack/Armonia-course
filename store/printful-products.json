@@ -1,0 +1,64 @@
+{
+  "_comment": [
+    "Which blank to use for each product, and which artwork goes where.",
+    "",
+    "catalogProductId / catalogVariantId are Printful CATALOG ids (not store ids).",
+    "Variant ids are left empty until confirmed against the live catalog — a wrong",
+    "variant id silently prints the wrong garment, so this file does not guess",
+    "them. Fill them from GET /products/{id} once, and they are correct forever.",
+    "",
+    "placements map a Printful file type to artwork in public/store/print/.",
+    "'default' is a DTG front print; 'back' is the large back print;",
+    "'embroidery_front' is the cap's stitched front."
+  ],
+  "products": [
+    {
+      "id": "signature-cap",
+      "name": "The Signature Cap",
+      "catalogProductId": null,
+      "catalogVariantId": null,
+      "placements": { "embroidery_front": "cap-front-embroidery.png" },
+      "notes": "Embroidery. Printful digitises the PNG themselves; do not supply a stitch file."
+    },
+    {
+      "id": "everyday-tee",
+      "name": "The Everyday Tee",
+      "catalogProductId": null,
+      "catalogVariantId": null,
+      "placements": { "default": "emblem-gold.png", "back": "back-cream.png" },
+      "notes": "Front left chest is small (emblem only); back is the full lockup."
+    },
+    {
+      "id": "connection-hoodie",
+      "name": "The Connection Hoodie",
+      "catalogProductId": null,
+      "catalogVariantId": null,
+      "placements": { "default": "emblem-gold.png", "back": "back-cream.png" },
+      "notes": "Same as the tee until the elaborate back art exists."
+    },
+    {
+      "id": "connection-windbreaker",
+      "name": "The Connection Windbreaker",
+      "catalogProductId": null,
+      "catalogVariantId": null,
+      "placements": { "default": "emblem-gold.png", "back": "back-cream.png" },
+      "notes": "Confirm the blank has a back print area before ordering."
+    },
+    {
+      "id": "connect-stickers",
+      "name": "The Connect Sticker Set",
+      "catalogProductId": null,
+      "catalogVariantId": null,
+      "placements": { "default": "emblem-gold.png" },
+      "notes": "Sticker products take a single print file."
+    },
+    {
+      "id": "connect-picks",
+      "name": "The Connect Pick Set",
+      "catalogProductId": null,
+      "catalogVariantId": null,
+      "placements": { "default": "emblem-gold.png" },
+      "notes": "PrintKK fulfils picks, not Printful. Leave this entry empty unless that changes."
+    }
+  ]
+}

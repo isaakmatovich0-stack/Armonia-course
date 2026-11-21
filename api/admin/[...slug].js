@@ -625,6 +625,53 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed.' });
   }
 
+  // ── /api/admin/store-create ──
+  // Creates our products IN Printful. A new store starts empty and a sync can
+  // only read what exists, so without this the first step is an hour of manual
+  // clicking. GET is a dry run: it reports what would be created and what is
+  // still missing (normally a blank variant id), and writes nothing.
+  if (route === 'store-create') {
+    const baseUrl = (() => {
+      const explicit = process.env.SITE_URL;
+      if (explicit) return String(explicit).replace(/\/+$/, '');
+      const host = String(req.headers['x-forwarded-host'] || req.headers.host || '');
+      if (host.endsWith('.vercel.app')) return 'https://www.armoniaconnect.com';
+      return host ? `https://${host}` : 'https://www.armoniaconnect.com';
+    })();
+
+    if (req.method === 'GET') {
+      try {
+        const existing = await listSyncProducts().catch(() => []);
+        const plan = planCreation(loadManifest(), baseUrl, existing.map((p) => p.name));
+        return res.status(200).json(plan);
+      } catch (err) {
+        return res.status(502).json({ error: `Could not read your Printful store: ${err.message}` });
+      }
+    }
+
+    if (req.method === 'POST') {
+      const body = req.body || {};
+      const ids = Array.isArray(body.ids) ? body.ids.map(String) : null;
+      try {
+        const existing = await listSyncProducts().catch(() => []);
+        const full = planCreation(loadManifest(), baseUrl, existing.map((p) => p.name));
+        const plan = ids ? { ...full, ready: full.ready.filter((p) => ids.includes(p.id)) } : full;
+        if (!plan.ready.length) {
+          return res.status(400).json({
+            error: 'Nothing is ready to create. The usual cause is a missing catalogVariantId in store/printful-products.json.',
+            blocked: full.blocked,
+          });
+        }
+        const result = await applyCreation(plan, { createProduct: createSyncProduct });
+        clearCatalogCache();
+        return res.status(200).json({ ok: result.failed.length === 0, ...result, blocked: full.blocked });
+      } catch (err) {
+        return res.status(502).json({ error: `Printful rejected the request: ${err.message}` });
+      }
+    }
+    return res.status(405).json({ error: 'Method not allowed.' });
+  }
+
   // ── /api/admin/store-sync ──
   // Rebuilds colours and sizes from what the Printful store actually contains.
   // GET returns a plan and changes nothing — the diff is the point, because a
