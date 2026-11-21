@@ -12,11 +12,33 @@ State of play, and what is genuinely still outstanding. Each item says **You** o
 | `emblem-cream-3000.png` | content, transparent | Emblem in cream `#F6F3EB`, for black garments |
 | `emblem-cap-gold-2000.png` | 2000 × 2000, transparent | **Cap only** — strands thickened to survive embroidery |
 | `windbreaker-back-cream.png` | 4500 × 5400, transparent | Back print for dark garments |
+| `cap-lockup-gold-2400.png` | 2400 wide, transparent | **Cap front** — emblem + wordmark, gold |
+| `cap-lockup-cream-2400.png` | 2400 wide, transparent | **Cap front** for black caps, cream |
+| `cap-lockup-gold-embroidery.png` | 2400 wide, transparent | **Cap front, embroidery-safe** — thicker strands |
 | `windbreaker-back-ink.png` | 4500 × 5400, transparent | Back print for light garments |
 
 All derived from your `LOGO GOLD.png`: the emblem was 829 × 1254 px inside a navy
 background, cropped, keyed out to true transparency, then scaled. Edges checked
 against ink, ivory and sky.
+
+### Connecting print on demand
+
+`PRINTFUL-SETUP.md` in this folder covers the API token, the webhook (including
+the three ways it fails silently), and the order to do them in.
+
+### Which cap file to upload
+
+Use **`cap-lockup-gold-embroidery.png`** on the cap. It is the lockup with the
+strands grown so they survive stitching — measured at **1.22× the ink coverage**
+of the uncorrected emblem, which is the difference between four visible strands
+and a gold smear at 63 mm wide.
+
+Use `cap-lockup-gold-2400.png` (thinner, more elegant) only if you are printing
+rather than embroidering the cap. `cap-lockup-cream-2400.png` is for black caps
+where you want cream thread instead of gold.
+
+The lockup is set so the wordmark is 93 % of the emblem's width at 0.24 em
+tracking. That ratio is what stops it reading as a caption underneath the mark.
 
 ### The cap question is answered
 
@@ -77,11 +99,14 @@ API and fill the mapping myself.
 
 ### 2. Register the Printful webhook — 3 min
 
-The URL and token are already generated for you. In Printful → **Settings → API →
-Webhooks → Add webhook**:
+Printful has **no webhook screen in its dashboard** — it is an API-only setting.
+Use **/admin/ → Store Orders → Register webhook with Printful**, which posts our
+URL and all four events for you:
 
-- **URL:** `https://armoniaconnect.com/api/store/supplier-webhook?token=0dff2e23677577d19ab3bb5840532f67`
-- **Events:** `package_shipped`, `order_failed`, `order_canceled`, `package_returned`
+`package_shipped`, `order_failed`, `order_canceled`, `package_returned`
+
+Printful allows one webhook per store, so this replaces any existing config. See
+`PRINTFUL-SETUP.md` for the failure modes.
 
 ### 3. PrintKK account and keys — 15 min
 

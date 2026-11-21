@@ -17,10 +17,11 @@ import { hashPassword, verifyPassword } from '../../lib/password.js';
 import { sendAdminVerificationEmail, sendGeneratedCodeEmail, sendGeneratedCodeBatchEmail } from '../../lib/email.js';
 import { generateAccessCode } from '../../lib/generateCode.js';
 import { listOrders as listStoreOrders, updateOrderStatus as updateStoreOrderStatus,
-         listProducts, updateProduct, getSettings, updateSettings } from '../../lib/store/db.js';
+         listProducts, updateProduct, createProduct, getSettings, updateSettings } from '../../lib/store/db.js';
 import { clearCatalogCache } from '../../lib/store/catalog.js';
 import { submitToSupplier, supplierStatus, cancelFulfilment } from '../../lib/store/fulfilment.js';
-import { health as printfulHealth, cancelOrder as cancelSupplierOrder } from '../../lib/suppliers/printful.js';
+import { health as printfulHealth, cancelOrder as cancelSupplierOrder,
+         listSyncProducts, suggestMapping } from '../../lib/suppliers/printful.js';
 import { health as printkkHealth } from '../../lib/suppliers/printkk.js';
 import { findOrderByNumber } from '../../lib/store/db.js';
 import jwt from 'jsonwebtoken';
@@ -34,6 +35,21 @@ const VALID_INSTRUMENTS = ['vihuela', 'guitarra', 'guitarra-de-golpe', 'guitarro
 const VALID_SECTIONS = ['etude', 'practice_technique', 'performance'];
 const INSTRUMENT_DISPLAY = { vihuela: 'Vihuela', guitarra: 'Guitarra', 'guitarra-de-golpe': 'Guitarra de Golpe', guitarron: 'Guitarrón' };
 const SECTION_DISPLAY = { etude: 'etude', practice_technique: 'practice technique lesson', performance: 'performance track' };
+
+// Which storefront renderer a new product gets. `type` drives both the image
+// path and the sizing UI, and the frontend only knows these five (see the image
+// map in store/frontend.bundle.js) — an unknown type falls back to the
+// "add your product photo" placeholder rather than breaking.
+function typeFor(name) {
+  const n = String(name || '').toLowerCase();
+  if (n.includes('cap') || n.includes('hat') || n.includes('beanie')) return 'cap';
+  if (n.includes('hoodie')) return 'hoodie';
+  if (n.includes('windbreaker') || n.includes('jacket')) return 'windbreaker';
+  if (n.includes('tee') || n.includes('shirt') || n.includes('t-shirt')) return 'tee';
+  if (n.includes('pick')) return 'picks';
+  if (n.includes('sticker')) return 'stickers';
+  return 'custom';
+}
 
 export default async function handler(req, res) {
   // Derive the route from the URL path (e.g. /api/admin/lessons -> "lessons")
@@ -548,6 +564,281 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed.' });
   }
 
+  // ── /api/admin/store-webhook ──
+  // Printful has no webhook screen in its dashboard; the only way to register
+  // one is POST /webhooks. So the admin does it, rather than telling the user to
+  // go to a page that does not exist.
+  //
+  // GET   → what Printful currently has, plus the URL we would register
+  // POST  → register it (replacing any existing config — Printful allows one)
+  if (route === 'store-webhook') {
+    // The registered URL must be the canonical production host, never the host
+    // this request happened to arrive on. Registering a preview deployment's URL
+    // works until that deployment is replaced, then silently stops delivering.
+    const canonicalHost = (() => {
+      const explicit = process.env.SITE_URL;
+      if (explicit) return String(explicit).replace(/\/+$/, '');
+      const host = String(req.headers['x-forwarded-host'] || req.headers.host || '');
+      if (host.endsWith('.vercel.app')) return 'https://armoniaconnect.com';
+      return host ? `https://${host}` : undefined;
+    })();
+
+    if (req.method === 'GET') {
+      const wanted = webhookUrl(canonicalHost);
+      if (!process.env.PRINTFUL_API_TOKEN) {
+        return res.status(200).json({ ok: false, reason: 'PRINTFUL_API_TOKEN is not set.', wanted, events: WEBHOOK_EVENTS });
+      }
+      try {
+        const current = await getWebhook();
+        const matches = Boolean(current.configured && wanted && current.url === wanted);
+        return res.status(200).json({
+          ok: matches,
+          current: current.configured ? { url: current.url, types: current.types || [] } : null,
+          wanted,
+          events: WEBHOOK_EVENTS,
+          reason: matches
+            ? null
+            : current.configured
+              ? 'Printful is pointing somewhere else, so tracking numbers will not reach the admin.'
+              : 'No webhook is configured, so tracking numbers will never arrive.',
+        });
+      } catch (err) {
+        return res.status(502).json({ ok: false, reason: `Could not read webhook settings: ${err.message}`, wanted });
+      }
+    }
+
+    if (req.method === 'POST') {
+      const url = webhookUrl(canonicalHost);
+      if (!url) {
+        return res.status(400).json({
+          error: 'PRINTFUL_WEBHOOK_TOKEN is not set. Add it in Vercel and redeploy — the URL carries it, so there is nothing to register without it.',
+        });
+      }
+      try {
+        const result = await setWebhook(url, WEBHOOK_EVENTS);
+        console.log('[admin] Printful webhook registered', result.url, WEBHOOK_EVENTS.join(','));
+        return res.status(200).json({ ok: true, url: result.url, types: result.types || WEBHOOK_EVENTS });
+      } catch (err) {
+        return res.status(502).json({ error: `Printful rejected the webhook: ${err.message}` });
+      }
+    }
+    return res.status(405).json({ error: 'Method not allowed.' });
+  }
+
+  // ── /api/admin/store-sync ──
+  // Rebuilds colours and sizes from what the Printful store actually contains.
+  // GET returns a plan and changes nothing — the diff is the point, because a
+  // sync that silently rewrites a live product can remove a colour people are
+  // about to buy. POST applies a plan the human has seen.
+  if (route === 'store-sync') {
+    const buildPlan = async () => {
+      const { refreshCatalog } = await import('../../lib/store/catalog.js');
+      const cat = await refreshCatalog({ force: true });
+      const rows = await listProducts();
+      const printfulProducts = await listSyncProducts();
+      // Colours live in store/catalog.json, not in a table, so the current map
+      // comes from the assembled catalogue.
+      return buildSyncPlan(printfulProducts, rows || [], cat.colors || {});
+    };
+
+    if (req.method === 'GET') {
+      try {
+        return res.status(200).json(await buildPlan());
+      } catch (err) {
+        console.error('Store sync preview error:', err);
+        return res.status(502).json({ error: `Could not read your Printful store: ${err.message}` });
+      }
+    }
+
+    if (req.method === 'POST') {
+      const body = req.body || {};
+      if (body.confirm !== true) {
+        return res.status(400).json({ error: 'Send { confirm: true } after reviewing the plan.' });
+      }
+      // Accepts which product ids to apply. Anything not listed is left alone,
+      // so a plan reviewed yesterday cannot surprise-change a product today.
+      const ids = Array.isArray(body.ids) ? body.ids.map(String) : null;
+
+      let plan;
+      try {
+        plan = await buildPlan();   // recomputed, never trusted from the client
+      } catch (err) {
+        return res.status(502).json({ error: `Could not read your Printful store: ${err.message}` });
+      }
+
+      const applied = [];
+      const skipped = [];
+      const failures = [];
+      const existingRows = await listProducts();
+
+      for (const item of plan.products) {
+        if (ids && !ids.includes(item.id)) { skipped.push(item.id); continue; }
+        const current = existingRows.find((r) => r.id === item.id);
+
+        try {
+          if (item.isNew) {
+            // Only auto-create what Printful can actually price. A product with
+            // no retail price would appear in the store at zero.
+            if (!item.priceCents) {
+              skipped.push(item.id);
+              failures.push({ id: item.id, error: 'Printful returned no price for this product.' });
+              continue;
+            }
+            await createProduct({
+              id: item.id,
+              name: item.name,
+              subtitle: '',
+              description: '',
+              type: typeFor(item.printfulName),
+              priceCents: item.priceCents,
+              costCents: null,
+              colors: item.colors,
+              sizes: item.sizes,
+              images: Object.keys(item.images || {}).length
+                ? item.images
+                : (item.image && item.colors.length ? { [item.colors[0]]: item.image } : {}),
+              backImages: {},
+              inStock: false,   // never go on sale unannounced
+              supplier: 'printful',
+              sortOrder: (existingRows.length + applied.length) + 1,
+            });
+            applied.push({ id: item.id, action: 'created' });
+            continue;
+          }
+
+          const patch = {};
+          if (item.changes.colors) patch.colors = item.changes.colors.to;
+          if (item.changes.sizes) patch.sizes = item.changes.sizes.to;
+          if (item.changes.supplier) patch.supplier = 'printful';
+          if (item.images && Object.keys(item.images).length) {
+            // Merge rather than replace: a colour Printful gave us no mockup for
+            // keeps whatever artwork is already on the storefront.
+            patch.images = { ...(current?.images || {}), ...item.images };
+          }
+          if (!Object.keys(patch).length) { skipped.push(item.id); continue; }
+          void current;
+          await updateProduct(item.id, patch);
+          applied.push({ id: item.id, action: 'updated', keys: Object.keys(patch) });
+        } catch (err) {
+          failures.push({ id: item.id, error: err.message });
+        }
+      }
+
+      clearCatalogCache();
+      return res.status(200).json({ ok: failures.length === 0, applied, skipped, failures });
+    }
+    return res.status(405).json({ error: 'Method not allowed.' });
+  }
+
+  // ── /api/admin/store-variants ──
+  // Bridges the gap between "the product is in Printful" and "our order can be
+  // fulfilled". Printful mints an opaque sync_variant_id per colour/size that
+  // cannot be computed from the catalog id, so this reads the store, proposes a
+  // product|colour|size key for every variant, and saves only what a human has
+  // confirmed. Nothing is written on GET — a guessed mapping would ship the
+  // wrong garment, which costs more than the minute this takes.
+  if (route === 'store-variants') {
+    if (req.method === 'GET') {
+      try {
+        const [printfulProducts, ourProducts] = await Promise.all([
+          listSyncProducts(),
+          listProducts().catch(() => []),
+        ]);
+        // refreshCatalog(), not loadCatalog(): the sync one always reads
+        // store/catalog.json and would hand back colours from the file even
+        // after they have been edited in this very panel. The mapper needs the
+        // live colour names, because those are the ones orders carry.
+        let normalised = [];
+        try {
+          const { refreshCatalog } = await import('../../lib/store/catalog.js');
+          const cat = await refreshCatalog({ force: true });
+          normalised = cat.products.map((p) => ({ id: p.id, name: p.name, colors: p.colors, sizes: p.sizes }));
+        } catch {
+          normalised = (ourProducts || []).map((p) => ({ id: p.id, name: p.name, colors: p.colors || [], sizes: p.sizes || [] }));
+        }
+        const suggestions = suggestMapping(printfulProducts, normalised);
+        const alreadyMapped = new Map();
+        for (const row of ourProducts || []) {
+          for (const [key, id] of Object.entries(row.supplier_variants || {})) {
+            alreadyMapped.set(key, id);
+          }
+        }
+        return res.status(200).json({
+          printful: printfulProducts.map((p) => ({
+            id: p.id, name: p.name, variantCount: p.variants.length,
+          })),
+          suggestions,
+          mappedCount: alreadyMapped.size,
+          mapped: Object.fromEntries(alreadyMapped),
+        });
+      } catch (err) {
+        console.error('Store variant read error:', err);
+        return res.status(502).json({
+          error: `Could not read your Printful store: ${err.message}`,
+        });
+      }
+    }
+
+    if (req.method === 'POST') {
+      const body = req.body || {};
+      // Accepts { confirmed: [{ productId, key, syncVariantId }] } — the rows a
+      // human has ticked. Grouped per product because that is how it is stored.
+      const confirmed = Array.isArray(body.confirmed) ? body.confirmed : null;
+      if (!confirmed) return res.status(400).json({ error: 'Send { confirmed: [...] }.' });
+
+      const byProduct = new Map();
+      const unplaced = [];
+      for (const row of confirmed) {
+        const productId = String(row.productId || '').trim();
+        const colour = String(row.colour || '').trim();
+        const size = String(row.size || '*').trim() || '*';
+        const id = String(row.syncVariantId || '').trim();
+        if (!productId) return res.status(400).json({ error: 'Every row needs a productId.' });
+        // A row without a colour cannot be turned into an order key. Collecting
+        // these and refusing the whole save is deliberate: a half-saved map
+        // looks finished in the admin and fails at the first real order.
+        if (!colour) { unplaced.push(row.variantName || id); continue; }
+        const key = `${productId}|${colour}|${size}`;
+        if (!/^[A-Za-z0-9-]+\|(\*|[A-Za-z0-9 .&-]+)\|(\*|[A-Za-z0-9 .&-]+)$/.test(key)) {
+          return res.status(400).json({ error: `"${key}" is not a valid variant key (expected product|colour|size).` });
+        }
+        if (!key.startsWith(`${productId}|`)) {
+          return res.status(400).json({ error: `Key "${key}" does not belong to "${productId}".` });
+        }
+        if (!/^[0-9]{1,20}$/.test(id)) {
+          return res.status(400).json({ error: `The Printful id for "${key}" must be numeric.` });
+        }
+        if (!byProduct.has(productId)) byProduct.set(productId, {});
+        byProduct.get(productId)[key] = id;
+      }
+
+      if (unplaced.length) {
+        return res.status(400).json({
+          error: `These Printful variants have no Armonia colour assigned yet: ${unplaced.slice(0, 6).join(', ')}${unplaced.length > 6 ? '…' : ''}. Pick a colour for each, then save.`,
+        });
+      }
+
+      const saved = [];
+      try {
+        for (const [productId, variants] of byProduct) {
+          const updated = await updateProduct(productId, { supplier: 'printful', supplier_variants: variants });
+          if (!updated) {
+            return res.status(404).json({
+              error: `"${productId}" is not in the products table. Run supabase/schema-v15.sql, then reload.`,
+            });
+          }
+          saved.push({ productId, variants: Object.keys(variants).length });
+        }
+        clearCatalogCache();
+        return res.status(200).json({ ok: true, saved });
+      } catch (err) {
+        console.error('Store variant save error:', err);
+        return res.status(500).json({ error: 'Could not save those variant mappings.' });
+      }
+    }
+    return res.status(405).json({ error: 'Method not allowed.' });
+  }
+
   // ── /api/admin/store-fulfilment ──
   // The supplier integration's control panel: is it configured, and can a
   // stuck order be pushed through by hand. The automatic path runs from the
@@ -587,7 +878,7 @@ export default async function handler(req, res) {
           key: 'webhook',
           done: status.webhookReady,
           label: 'Printful webhook token',
-          hint: 'Set PRINTFUL_WEBHOOK_TOKEN, then add the webhook in Printful pointing at /api/store/supplier-webhook?token=<that value>.',
+          hint: 'Set PRINTFUL_WEBHOOK_TOKEN, then press Register webhook with Printful below. Printful has no dashboard screen for this.',
         },
         {
           key: 'cron',

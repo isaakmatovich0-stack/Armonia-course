@@ -49,12 +49,17 @@ For **cap, tee, hoodie, windbreaker, stickers**:
 
 Tracking reaches customers through this. The token already exists in Vercel.
 
-**Printful → Settings → API → Webhooks → Add webhook**
+**/admin/ → Store Orders → Register webhook with Printful**
 
-- **URL:**
-  `https://armoniaconnect.com/api/store/supplier-webhook?token=0dff2e23677577d19ab3bb5840532f67`
-- **Events:** tick all four —
-  `package_shipped`, `order_failed`, `order_canceled`, `package_returned`
+There is no webhook screen in the Printful dashboard — it is an API-only
+setting, so the admin registers it for you. It posts our URL to `POST /webhooks`
+with all four events:
+
+`package_shipped`, `order_failed`, `order_canceled`, `package_returned`
+
+Note: Printful allows **one** webhook per store, so this replaces any existing
+config. Full detail, including the three silent failure modes, is in
+`PRINTFUL-SETUP.md`.
 
 ---
 
