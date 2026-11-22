@@ -1036,7 +1036,12 @@ async function loadCatalog() {
  * server says, so it is also how a saved change reaches an open tab: the
  * price watcher re-reads the catalogue every minute and on focus.
  */
-const DECORATION_DEFAULT_TEXT = 'Free US shipping over $75 • Order by 15 December for Christmas delivery';
+/* The default line says only things the store can actually stand behind: the
+   shipping rule comes from the settings row, and nothing here promises a
+   delivery date. A "order by 15 December" that turns out to be wrong is the
+   kind of promise a small shop cannot afford, so it has to be a deliberate act
+   — type it in the admin's banner box — rather than a default. */
+const DECORATION_DEFAULT_TEXT = 'Free US shipping over $75 • Gift-ready, straight from our US partner';
 
 function decorationLayer() {
   let layer = document.getElementById('armonia-decoration-layer');
