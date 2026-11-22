@@ -1043,19 +1043,33 @@ async function loadCatalog() {
    — type it in the admin's banner box — rather than a default. */
 const DECORATION_DEFAULT_TEXT = 'Free US shipping over $75 • Gift-ready, straight from our US partner';
 
+/**
+ * The falling layer, as the hero stage's first child so it sits behind the cap
+ * and the orbit rings — a snowflake in front of the product is clutter.
+ *
+ * Returns null when the stage is not in the DOM yet, which is the normal case
+ * on the first call: the runtime loads the catalogue the moment it starts,
+ * before React has painted the hero. The caller retries (see
+ * renderDecoration). Falling back to <body> instead put the layer over the
+ * whole document — snow drifting across the product cards, above them, because
+ * a body-level absolutely-positioned child out-stacks the page content.
+ */
 function decorationLayer() {
-  let layer = document.getElementById('armonia-decoration-layer');
-  if (layer) return layer;
-  layer = document.createElement('div');
+  const existing = document.getElementById('armonia-decoration-layer');
+  if (existing) return existing;
+  const stage = document.querySelector('.hero-stage');
+  if (!stage) return null;
+  const layer = document.createElement('div');
   layer.id = 'armonia-decoration-layer';
   layer.className = 'armonia-decoration-layer';
   layer.setAttribute('aria-hidden', 'true');
-  // Inserted as the first child of the hero stage so it sits behind the cap
-  // and the orbit rings — a snowflake in front of the product is clutter.
-  const stage = document.querySelector('.hero-stage') || document.querySelector('.hero') || document.body;
   stage.insertBefore(layer, stage.firstChild);
   return layer;
 }
+
+/* Retry budget for waiting on React to paint the hero. One frame is usually
+   enough; 120 (≈2s) covers a slow phone without leaving a timer running. */
+let decorationAttempts = 0;
 
 /**
  * Snowflakes and trees, drawn as inline SVG so they cost no requests and
@@ -1117,6 +1131,17 @@ function renderDecoration(decoration) {
   const on = Boolean(decoration && decoration.on);
   const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  if (!layer) {
+    // The hero has not painted yet. Try again next frame rather than drawing
+    // somewhere else; if it never appears, the season simply does not show.
+    if (on && decorationAttempts < 120) {
+      decorationAttempts += 1;
+      requestAnimationFrame(() => renderDecoration(decoration));
+    }
+    return;
+  }
+  decorationAttempts = 0;
+
   if (!on) {
     layer.replaceChildren();
     layer.classList.remove('is-on');
@@ -1177,9 +1202,14 @@ function ensureDecorationBanner() {
   let banner = document.getElementById('armonia-decoration-banner');
   if (banner) return banner;
   // Above the hero, never inside it. The hero is a fixed-height box with
-  // overflow:hidden, so a banner inserted as its first child is clipped away
-  // entirely — it has to be a sibling that comes before it.
-  const hero = document.getElementById('home') || document.body;
+  // overflow:hidden, so a banner inserted as its first child is clipped away.
+  //
+  // But the hero's *parent* is React's container, which is not <body> — first
+  // version inserted next to the hero and put the banner on <html>. Insert as
+  // the body's first child instead: that is above the hero whatever React's
+  // root element happens to be.
+  const hero = document.getElementById('home');
+  const host = document.body;
   banner = document.createElement('div');
   banner.id = 'armonia-decoration-banner';
   banner.className = 'armonia-decoration-banner';
@@ -1199,8 +1229,8 @@ function ensureDecorationBanner() {
       /* private mode: it will come back on the next page load, which is fine */
     }
   });
-  if (hero.parentNode) hero.parentNode.insertBefore(banner, hero);
-  else hero.insertBefore(banner, hero.firstChild);
+  host.insertBefore(banner, host.firstChild);
+  void hero;
   return banner;
 }
 

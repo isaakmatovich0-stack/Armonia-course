@@ -389,6 +389,10 @@ const PATCHES = [
     // store/runtime.js), so this array only has to exist: the layer it fed is
     // replaced by the runtime's own snowflakes and trees.
     name: 'retire the autumn leaf palette',
+    // `const Uf=[` is an unfinished expression; prefixing an empty array before
+    // it leaves `const Uf=[];const _retiredLeafSpecs=[{...}]`, which is valid
+    // only because the bundle closes those brackets. The leaf component patch
+    // above is the one that must be careful, and it is.
     find: 'const Uf=[',
     replace: 'const Uf=[];const _retiredLeafSpecs=[',
     every: false,
@@ -398,8 +402,13 @@ const PATCHES = [
     // the minifier left behind still resolves, but it renders nothing: leaving
     // an autumn maple drawn anywhere would be the bug this change fixes.
     name: 'retire the leaf component',
+    // The replacement has to be a VALID head for whatever the bundle had after
+    // the hook. An earlier version swapped in `return null;const _unused=[`,
+    // which turned the function into `function Ff(){ return null; const
+    // _unused=[const sh=[...` — a syntax error that made the whole bundle fail
+    // to parse, and the storefront rendered a blank page.
     find: 'function Ff({leaf:_}){',
-    replace: 'function Ff({leaf:_}){return null;const _unused=[',
+    replace: 'function Ff({leaf:_}){return null}function _retiredLeaf({leaf:_}){',
   },
   {
     // The pill was a per-browser preference (localStorage) that could only
