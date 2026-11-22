@@ -8,13 +8,18 @@
     "dev": "node dev-server.mjs",
     "build:store": "node store/build-store.mjs",
     "build:store:export": "node store/build-store.mjs --export",
-    "check": "node store/check.mjs",
-    "sync:catalog": "node store/sync-catalog-file.mjs"
+    "check": "node store/check.mjs && node store/render-check.mjs",
+    "sync:catalog": "node store/sync-catalog-file.mjs",
+    "render:check": "node store/render-check.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
-    "stripe": "^16.8.0",
+    "jsdom": "^31.0.1",
+    "jsonwebtoken": "^9.0.2",
     "resend": "^4.0.0",
-    "jsonwebtoken": "^9.0.2"
+    "stripe": "^16.8.0"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.1"
   }
 }

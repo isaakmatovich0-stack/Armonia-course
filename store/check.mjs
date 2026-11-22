@@ -49,6 +49,35 @@ for (const relative of MODULES) {
   }
 }
 
+/* ── the generated bundle must PARSE ───────────────────────────────────────
+   This is the bug that took the storefront down: a build patch left a dangling
+   `const _unused=[` inside the leaf component, `npm run check` said All good,
+   Vercel said pass, and the live page was blank because the whole bundle threw
+   a SyntaxError before React could mount.
+
+   `store/build-store.mjs` is in MODULES above, so its own source was checked —
+   but the file it *emits* was not, and that is the one browsers execute. An
+   unchecked generated artefact is the worst of both worlds: it looks verified.
+   Running `node --check` on it is the cheapest possible guard. */
+for (const relative of ['public/store/frontend.js', 'public/store/live.js']) {
+  const file = path.join(ROOT, relative);
+  if (!fs.existsSync(file)) {
+    failures += 1;
+    console.log(`  ✗ ${relative} — missing (run npm run build:store)`);
+    continue;
+  }
+  try {
+    execFileSync(process.execPath, ['--check', file], { stdio: 'pipe' });
+    console.log(`  ✓ ${relative} parses (${(fs.statSync(file).size / 1024).toFixed(0)} KB)`);
+  } catch (err) {
+    failures += 1;
+    const line = String(err.stderr || err.message).split('\n').find((l) => /Error/.test(l)) || '';
+    console.log(`  ✗ ${relative} DOES NOT PARSE — the storefront would be a blank page`);
+    if (line) console.log(`    ${line.trim()}`);
+    console.log('    fix the PATCHES in store/build-store.mjs, then npm run build:store');
+  }
+}
+
 /* Inline scripts inside the admin panel are easy to break with a stray quote. */
 const adminHtml = fs.readFileSync(path.join(ROOT, 'public/admin/index.html'), 'utf8');
 const blocks = [...adminHtml.matchAll(/<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/g)].map((match) => match[1]);
