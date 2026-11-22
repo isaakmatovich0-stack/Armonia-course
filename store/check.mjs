@@ -10,6 +10,7 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { resolveColourName } from '../lib/store/colour-names.js';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 
@@ -104,6 +105,40 @@ for (const relative of MODULES) {
       (sum, p) => sum + Object.keys(p.images || {}).length, 0);
     console.log(`  ✓ ${colourCount} colours, all named as Printful names them, all with real swatches`);
     console.log(`  ✓ ${photoCount} product photos, every one present on disk and keyed to a real colour`);
+  }
+}
+
+/* ── legacy DB colour keys must still resolve ───────────────────────────────
+   The database kept the old admin's lowercase hyphenated colour keys while the
+   page was rebuilt with Printful's names. Both have to mean the same colour or
+   the bag endpoint refuses a colour the shop is showing — "That colour is not
+   available" on a card you can see. resolveColourName is the bridge, so prove
+   the bridge carries every spelling the database has ever used. */
+{
+  const legacy = [
+    ['black', 'Black'],
+    ['white', 'White'],
+    ['navy', 'Navy'],
+    ['navy-blue', 'Navy Blue'],
+    ['burgundy-maroon', 'Burgundy Maroon'],
+    ['maroon', 'Maroon'],
+    ['forest-green', 'Forest Green'],
+    ['charcoal', 'Charcoal'],
+    ['olive', 'Olive'],
+  ];
+  const broken = legacy.filter(([key, expected]) => {
+    const got = resolveColourName(key);
+    return !got || got.name !== expected || !got.hex;
+  });
+  if (broken.length) {
+    failures += broken.length;
+    console.log('  ✗ legacy colour keys no longer resolve to Printful names:');
+    for (const [key, expected] of broken) {
+      const got = resolveColourName(key);
+      console.log(`      "${key}" should be "${expected}", got ${JSON.stringify(got && got.name)}`);
+    }
+  } else {
+    console.log(`  ✓ all ${legacy.length} legacy colour spellings still map to Printful names`);
   }
 }
 

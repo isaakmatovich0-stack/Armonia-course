@@ -437,8 +437,9 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
           <span style="font-size:0.7rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted);">Printful:</span>
           <button type="button" id="reloadStoreBtn" style="background:transparent; color:var(--gold-light); border:1px solid #e8a8a8; padding:9px 16px; font-size:0.82rem; cursor:pointer;">Replace catalogue from Printful</button>
           <button type="button" id="createProductsBtn" style="background:transparent; color:var(--gold-light); border:1px solid var(--border-gold); padding:9px 16px; font-size:0.82rem; cursor:pointer;">Create products in Printful</button>
-          <button type="button" id="syncStoreBtn" style="background:transparent; color:var(--gold-light); border:1px solid var(--border-gold); padding:9px 16px; font-size:0.82rem; cursor:pointer;">Update colours &amp; sizes only</button>
+          <button type="button" id="syncStoreBtn" style="background:transparent; color:var(--gold-light); border:1px solid var(--border-gold); padding:9px 16px; font-size:0.82rem; cursor:pointer;">Sync colours &amp; sizes from Printful</button>
           <button type="button" id="importVariantsBtn" style="background:transparent; color:var(--gold-light); border:1px solid var(--border-gold); padding:9px 16px; font-size:0.82rem; cursor:pointer;">Import variants from Printful</button>
+          <button type="button" id="checkPrintfulBtn" style="background:transparent; color:var(--gold-light); border:1px solid var(--border-gold); padding:9px 16px; font-size:0.82rem; cursor:pointer;">Check Printful connection</button>
         </div>
 <div id="productsNotice"></div>
 
@@ -1324,6 +1325,67 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
       }
     }
 
+    // "It says it's not available" is not a diagnosis. Every failure path below
+    // names the actual cause and the exact next action, and the connection test
+    // asks Printful directly so the answer comes from the API rather than from
+    // our guesses about it.
+    async function checkPrintful() {
+      const box = document.getElementById('variantImport');
+      const button = document.getElementById('checkPrintfulBtn');
+      box.style.display = 'block';
+      box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      box.innerHTML = '<p style="font-size:0.85rem; color:var(--text-muted);">Asking Printful…</p>';
+      button.disabled = true;
+      try {
+        const status = await adminFetch('/api/admin/store-fulfilment');
+        // The health payload nests the two suppliers under `health`; the flat
+        // `suppliers` map only says whether a token exists at all.
+        const pf = (status.health && status.health.printful) || {};
+        const rows = [];
+        if (!pf.configured) {
+          rows.push(['bad', 'No Printful token on this deployment',
+            'PRINTFUL_API_TOKEN is missing or empty in Vercel → Settings → Environment Variables, for the Production environment. Add it, then redeploy: environment changes do not reach an existing deployment.']);
+        } else if (!pf.ok) {
+          rows.push(['bad', 'Printful rejected the request', pf.error || 'No detail returned.']);
+          if (/4[0-9]{2}/.test(String(pf.error || ''))) {
+            rows.push(['warn', 'That is a token or account problem',
+              'A 401/403 means the token is wrong, revoked, or belongs to a different Printful account. Mint a new token at Printful → Settings → Developers → API tokens, put it in PRINTFUL_API_TOKEN, and redeploy.']);
+          }
+        } else {
+          rows.push(['ok', 'The token works', (pf.stores || []).length
+            ? `Printful sees ${(pf.stores || []).length} store(s): ${(pf.stores || []).map((x) => `${x.name} (${x.id}, ${x.type})`).join(', ')}`
+            : 'No stores are visible on this account.']);
+          if (!(pf.stores || []).length) {
+            rows.push(['bad', 'There is no store yet', 'Create one at Printful → Stores → Add store → type "Manual order platform / API". Products and orders both live inside a store, so nothing can be read until it exists.']);
+          } else if ((pf.stores || []).length > 1 && !pf.storeId) {
+            rows.push(['warn', 'More than one store', 'Set PRINTFUL_STORE_ID in Vercel to the one this shop should use, then redeploy.']);
+          } else {
+            rows.push(['ok', 'Store in use', String(pf.storeId || '—')]);
+          }
+        }
+        const colour = { ok: '#8fd18f', warn: '#e8c88a', bad: '#e8a8a8' };
+        const mark = { ok: '✓', warn: '!', bad: '✕' };
+        box.innerHTML = rows.map(([kind, title, detail]) => `
+          <div style="display:flex; gap:9px; padding:9px 0; border-bottom:1px solid rgba(255,255,255,.06);">
+            <span style="color:${colour[kind]}; font-size:0.9rem; line-height:1.4;">${mark[kind]}</span>
+            <div>
+              <div style="font-size:0.82rem; color:${colour[kind]};">${title}</div>
+              <div style="font-size:0.78rem; color:var(--text-muted); line-height:1.6; margin-top:3px;">${detail}</div>
+            </div>
+          </div>`).join('') + `
+          <p style="font-size:0.76rem; color:var(--text-muted); margin:12px 0 0; line-height:1.6;">
+            If every line above is green and the sync still fails, the error it shows is
+            Printful's own words — copy that line and it will say which store or product it
+            objected to.
+          </p>`;
+      } catch (err) {
+        box.innerHTML = `<p style="font-size:0.85rem; color:#e8a8a8;">${err.message}</p>`;
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    document.getElementById('checkPrintfulBtn')?.addEventListener('click', checkPrintful);
     document.getElementById('syncStoreBtn')?.addEventListener('click', previewStoreSync);
 
     // ── Variant import ──
