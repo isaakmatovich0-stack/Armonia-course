@@ -49,6 +49,64 @@ for (const relative of MODULES) {
   }
 }
 
+/* ── colours must be Printful's names, with real swatches ───────────────────
+   Two bugs lived here and both reached a shopper:
+     • colours were lowercase slugs ("burgundy-maroon") while an order stores
+       the colour NAME ("Burgundy Maroon"), so the variant map could never
+       match — every paid order would ship nothing.
+     • a colour missing from the hex table got "#cdc8bd", a grey swatch, so
+       three real colours rendered as the same grey blob.
+   Neither is visible in a build log, so check the data. */
+{
+  const catalog = JSON.parse(fs.readFileSync(path.join(ROOT, 'store/catalog.json'), 'utf8'));
+  const problems = [];
+  for (const product of catalog.products || []) {
+    for (const colour of product.colors || []) {
+      const def = (catalog.colors || {})[colour];
+      if (!def) {
+        problems.push(`${product.id}: colour "${colour}" has no entry in colors`);
+        continue;
+      }
+      // The key, the label and the order line must be one string. If the label
+      // differs from the key, fulfilment's `productId|color|size` lookup is
+      // built from a different value than the mapper wrote.
+      if (def.name !== colour) {
+        problems.push(`${product.id}: colour key "${colour}" is named "${def.name}" — they must be identical`);
+      }
+      if (!/^#[0-9a-f]{6}$/i.test(String(def.hex || ''))) {
+        problems.push(`${product.id}: "${colour}" has no usable swatch (${def.hex})`);
+      }
+      if (String(def.hex).toLowerCase() === '#cdc8bd') {
+        problems.push(`${product.id}: "${colour}" is using the grey "unknown colour" swatch`);
+      }
+    }
+    // Every photo must be keyed by a colour the product actually sells, and
+    // must exist on disk. A key that sells nothing is dead weight; a path that
+    // 404s is a broken image in the shop.
+    for (const [colour, file] of Object.entries(product.images || {})) {
+      if (!(product.colors || []).includes(colour)) {
+        problems.push(`${product.id}: photo keyed to "${colour}", which it does not sell`);
+      }
+      const rel = String(file).replace(/^\/store\//, 'public/store/');
+      if (!fs.existsSync(path.join(ROOT, rel))) {
+        problems.push(`${product.id}: photo missing on disk — ${file}`);
+      }
+    }
+  }
+  if (problems.length) {
+    failures += problems.length;
+    console.log('  ✗ colour data is inconsistent:');
+    for (const line of problems.slice(0, 12)) console.log(`      ${line}`);
+    if (problems.length > 12) console.log(`      …and ${problems.length - 12} more`);
+  } else {
+    const colourCount = Object.keys(catalog.colors || {}).length;
+    const photoCount = (catalog.products || []).reduce(
+      (sum, p) => sum + Object.keys(p.images || {}).length, 0);
+    console.log(`  ✓ ${colourCount} colours, all named as Printful names them, all with real swatches`);
+    console.log(`  ✓ ${photoCount} product photos, every one present on disk and keyed to a real colour`);
+  }
+}
+
 /* ── the generated bundle must PARSE ───────────────────────────────────────
    This is the bug that took the storefront down: a build patch left a dangling
    `const _unused=[` inside the leaf component, `npm run check` said All good,

@@ -968,12 +968,38 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
       const s = plan.summary || {};
       const money2 = (c) => (c == null ? '—' : '$' + (c / 100).toFixed(2));
 
+      // A colour shown as a chip, with the real swatch on the left.
+      //
+      // This exists because the wrong colour pairing was invisible in the admin:
+      // the table listed "Navy" as text while the photo beside it was of a black
+      // cap, and nothing anywhere on the screen made that contradiction obvious.
+      // A chip in the actual hex makes "this swatch is grey" and "this colour is
+      // not the colour of that garment" something you can see at a glance.
+      const colourChip = (name) => {
+        const def = storeColours[name] || {};
+        const hex = def.hex || '#cdc8bd';
+        const guess = !def.hex || hex.toLowerCase() === '#cdc8bd';
+        return `<span title="${guess ? 'No swatch set — shown grey' : hex}"
+          style="display:inline-flex; align-items:center; gap:5px; margin:1px 4px 1px 0;
+                 padding:2px 7px 2px 3px; border:1px solid ${guess ? '#e8a8a8' : 'var(--border-gold)'};
+                 border-radius:999px; font-size:0.74rem; color:var(--text-muted);">
+          <span style="width:11px; height:11px; border-radius:50%; background:${hex};
+                       border:1px solid rgba(255,255,255,.25); flex-shrink:0;"></span>${name}</span>`;
+      };
+
       const productRows = (plan.products || []).map((p) => `
         <tr>
           <td style="padding:5px 8px; font-size:0.8rem; color:var(--cream);">${p.name}</td>
           <td style="padding:5px 8px; font-size:0.78rem; color:var(--text-muted);">${p.type}</td>
           <td style="padding:5px 8px; font-size:0.78rem; color:var(--gold-light); text-align:right;">${money2(p.priceCents)}</td>
-          <td style="padding:5px 8px; font-size:0.76rem; color:var(--text-muted);">${(p.colours || []).join(', ')}</td>
+          <td style="padding:5px 8px;">${(p.colours || []).map(colourChip).join('') || '<span style="font-size:0.76rem; color:#e8a8a8;">none</span>'}</td>
+          <td style="padding:5px 8px; font-size:0.76rem; color:var(--text-muted);">${(() => {
+            const have = Object.keys(p.images || {}).length;
+            const want = (p.colours || []).length;
+            return have === 0
+              ? '<span style="color:#e8a8a8;">none yet</span>'
+              : `${have}/${want}${have < want ? ' <span style="color:var(--text-muted);">(rest show a placeholder)</span>' : ''}`;
+          })()}</td>
           <td style="padding:5px 8px; font-size:0.76rem; color:var(--text-muted);">${(p.sizes || []).join(', ')}</td>
         </tr>`).join('');
 
@@ -1004,6 +1030,7 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
               <th style="text-align:left; padding:5px 8px; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-muted);">Type</th>
               <th style="text-align:right; padding:5px 8px; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-muted);">Price</th>
               <th style="text-align:left; padding:5px 8px; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-muted);">Colours</th>
+              <th style="text-align:left; padding:5px 8px; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-muted);">Photos</th>
               <th style="text-align:left; padding:5px 8px; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-muted);">Sizes</th>
             </tr></thead>
             <tbody>${productRows}</tbody>

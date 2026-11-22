@@ -476,6 +476,53 @@ const PATCHES = [
     replace: '/store/images/',
     every: true,
   },
+  {
+    // THE "ALL THE MOCKUPS ARE WRONG" BUG.
+    //
+    // The original resolver was:
+    //
+    //   (s,y)=>{ if(s.images?.[y]) return Ka(s.images[y]);
+    //            if(s.type==="stickers") return Ka(`/store/images/stickers-${y}.webp`);
+    //            const h=["sky","ink","ivory","orange"].includes(y)?y:"sky";
+    //            return Ka(`/store/images/${s.type}-${h}.webp`) }
+    //
+    // Three ways it lied:
+    //   • the filename used the colour KEY ("burgundy-maroon"), so it asked for
+    //     /store/images/cap-burgundy-maroon.webp — a file that has never
+    //     existed. Every colour except the ones with a matching file fell
+    //     through to the branch below.
+    //   • that branch's list is the autumn palette. "navy", "maroon",
+    //     "forest-green" and "charcoal" are not in it, so every one of them
+    //     became `sky` — a sky blue cap captioned "Navy".
+    //   • nothing checked the file existed, so the browser got a 404 and the
+    //     card showed a broken image or the wrong colour with no warning.
+    //
+    // The replacement asks the served catalogue for the right file per colour
+    // (window.__armoniaPhotoFor, built by the runtime), falls back to the
+    // colour SLUG — what the files are actually named — and only then to the
+    // neutral placeholder, which does not pretend to be a colour.
+    name: 'product photo resolution',
+    find: 'Or=(s,y)=>{var f;if((f=s.images)!=null&&f[y])return Ka(s.images[y]);if(s.type==="stickers")return Ka(`/store/images/stickers-${y}.webp`);if(!mg.includes(s.type))return _y;const h=["sky","ink","ivory","orange"].includes(y)?y:"sky";return Ka(`/store/images/${s.type}-${h}.webp`)}',
+    replace: 'Or=(s,y)=>{var f,m,e;if((f=s.images)!=null&&f[y])return Ka(s.images[y]);const live=(m=globalThis.__armoniaPhotoFor)==null?void 0:m.call(globalThis,s,y);if(live)return Ka(live);const slug=(e=globalThis.__armoniaColourSlug)==null?void 0:e.call(globalThis,y);if(slug){const stem=`${s.type}-${slug}`;const front=s.type==="windbreaker"?`windbreaker-front-${slug}`:stem;if(globalThis.__armoniaPhotoExists&&globalThis.__armoniaPhotoExists(front))return Ka(`/store/images/${front}.webp`);if(globalThis.__armoniaPhotoExists&&globalThis.__armoniaPhotoExists(stem))return Ka(`/store/images/${stem}.webp`)}return _y}',
+  },
+  {
+    // The hero photo had the same disease, plus one more lie: its alt text
+    // says "Sky-inspired Armonia Connect Signature Cap", and "Signature Cap" is
+    // a product that no longer exists. Screen readers and search engines were
+    // being told about a deleted product in the wrong colour.
+    //
+    // Runs AFTER 'image base path': these replacement strings contain
+    // "/store/images/", and that patch rewrites every "/images/". Reordering
+    // them would produce "/store/store/images/".
+    name: 'hero photo resolution',
+    find: 'yg=s=>{var h,f,m;const y=`/store/images/cap-hero-${s}.webp`;return((f=(h=globalThis.__ARMONIA_CONFIG__)==null?void 0:h.assets)==null?void 0:f[y])||(["sky","ink","ivory","orange"].includes(s)?Ka(y):((m=At==null?void 0:At.images)==null?void 0:m[s])||Ka("/store/images/cap-hero-sky.webp"))}',
+    replace: 'yg=s=>{var h,f,m,e;const photo=(h=globalThis.__armoniaPhotoFor)==null?void 0:h.call(globalThis,At,s);if(photo)return Ka(photo);const slug=(f=globalThis.__armoniaColourSlug)==null?void 0:f.call(globalThis,s);if(slug&&globalThis.__armoniaPhotoExists){for(const stem of [`cap-hero-${slug}`,`cap-${slug}`]){if(globalThis.__armoniaPhotoExists(stem))return Ka(`/store/images/${stem}.webp`)}}void m;void e;return _y}',
+  },
+  {
+    name: 'hero alt text names the real product',
+    find: 'Sky-inspired Armonia Connect Signature Cap in ${Jt[h].name} with gold embroidery',
+    replace: '${At.name} in ${Jt[h].name}',
+  },
 ];
 
 function patchAppCode(code) {
@@ -718,6 +765,40 @@ ${licenses ? `<script type="application/json" id="open-source-licenses">${licens
 `;
 }
 
+/* ────────────────────────── the photo manifest ──────────────────────────── */
+
+/**
+ * Append `window.__ARMONIA_PHOTOS` to the runtime.
+ *
+ * The product-photo resolver in the bundle (see the 'product photo resolution'
+ * patch) asks this list before returning a path. Without it the resolver can
+ * only guess, and guessing is exactly how a sky-blue cap ended up captioned
+ * "Navy Blue": a missing file plus a fallback that had to return *something*.
+ *
+ * Listing the real filenames lets a missing photo be missing — the card then
+ * shows the neutral placeholder and the product page says so, rather than
+ * showing a different colour and letting the shopper find out at delivery.
+ */
+function withPhotoManifest(runtimeCode) {
+  const stems = fs
+    .readdirSync(OUT.imagesDir)
+    .filter((name) => name.endsWith('.webp'))
+    .map((name) => name.replace(/\.webp$/, ''))
+    .sort();
+  const manifest = JSON.stringify(stems);
+  const note = [
+    '/* Built by store/build-store.mjs: every product photo that exists on disk.',
+    '   The photo resolver consults this so a missing colour shows an honest',
+    '   placeholder instead of another colour\'s product. */',
+    `globalThis.__ARMONIA_PHOTOS = new Set(${manifest});`,
+    'globalThis.__armoniaPhotoExists = function (stem) {',
+    '  return Boolean(stem) && globalThis.__ARMONIA_PHOTOS.has(String(stem));',
+    '};',
+    '',
+  ].join('\n');
+  return runtimeCode + '\n' + note;
+}
+
 /* ─────────────────────────────────── run ─────────────────────────────────── */
 
 async function main() {
@@ -757,7 +838,13 @@ async function main() {
   }
   const appCode = patchAppCode(fs.readFileSync(OUT.bundle, 'utf8'));
   write(path.join(ROOT, 'public/store/frontend.js'), `${appCode}\n${BRIDGE_HOOK}`);
-  if (fs.existsSync(OUT.runtime)) write(OUT.runtimePublic, fs.readFileSync(OUT.runtime));
+  if (fs.existsSync(OUT.runtime)) {
+    // Hand the runtime the list of photos that actually exist on disk, so the
+    // storefront can say "there is no photo of a forest green hoodie" instead
+    // of silently painting a hoodie of another colour. Built here, at build
+    // time, because the browser cannot list a directory.
+    write(OUT.runtimePublic, withPhotoManifest(fs.readFileSync(OUT.runtime, 'utf8')));
+  }
 
   /* Keep the on-disk catalogue in step with the page. lib/store/catalog.js
      prices every order from OUT.catalog, so if the build can rewrite the page

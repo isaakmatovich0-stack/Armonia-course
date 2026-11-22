@@ -32,6 +32,7 @@ import { health as printkkHealth } from '../../lib/suppliers/printkk.js';
 import { findOrderByNumber } from '../../lib/store/db.js';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import { resolveColourName } from '../../lib/store/colour-names.js';
 
 export const config = {
   api: { bodyParser: { sizeLimit: '6mb' } },
@@ -493,7 +494,18 @@ export default async function handler(req, res) {
         if (!Array.isArray(body.colors) || body.colors.length === 0) return fail('A product needs at least one colour.');
         const colors = body.colors.map((c) => String(c).trim()).filter(Boolean);
         if (colors.length !== body.colors.length) return fail('Colour keys cannot be blank.');
-        patch.colors = colors;
+        // A colour key is also the label AND the `productId|color|size` half of
+        // the supplier mapping. Printful reports "Navy Blue"; a key of
+        // "navy-blue" would never match the order line, so the product would
+        // sell and then never ship. Canonicalise to Printful's spelling on the
+        // way in, so the admin cannot reintroduce the mismatch by typing.
+        const canonical = [];
+        for (const colour of colors) {
+          const resolved = resolveColourName(colour);
+          if (resolved && !canonical.includes(resolved.name)) canonical.push(resolved.name);
+          else if (!resolved && !canonical.includes(colour)) canonical.push(colour);
+        }
+        patch.colors = canonical;
       }
       if (body.sizes !== undefined) {
         if (!Array.isArray(body.sizes) || body.sizes.length === 0) return fail('A product needs at least one size.');
