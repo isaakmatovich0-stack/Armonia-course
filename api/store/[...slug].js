@@ -37,6 +37,7 @@ import {
   loadCatalog,
   isCheckoutLive,
   refreshCatalog,
+  refreshDecoration,
   productImageUrls,
 } from '../../lib/store/catalog.js';
 import { resolveBag, saveCart, loadPromo, cartCookie, isValidCartId } from '../../lib/store/cart.js';
@@ -169,6 +170,7 @@ export default async function handler(req, res) {
       // Prices are editable from the admin now, so this can no longer be cached
       // for minutes: a stale CDN entry means a customer pays last week's price.
       await refreshCatalog();
+      await refreshDecoration();
       res.setHeader('Cache-Control', 'no-store');
       return res.status(200).json(publicCatalog());
     }

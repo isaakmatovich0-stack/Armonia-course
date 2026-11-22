@@ -286,5 +286,82 @@ for (const relative of ['api/admin/[...slug].js', 'api/store/[...slug].js']) {
   }
 }
 
+/* ── the page must sell what the API sells ──────────────────────────────
+   The single worst failure this store can have is a page that advertises one
+   thing while the server sells another. It happened: the catalogue was replaced
+   in the database, the generated page kept six deleted products, and their ids
+   no longer matched any live row — so every price on the page was wrong, in the
+   shop's favour, and the runtime's price patch had nothing to paint.
+
+   Two assertions, both cheap:
+     1. every product baked into the page exists in the catalogue file, and
+     2. the page's prices equal the file's, which the build has already set
+        from the database rows. */
+{
+  const pageFile = path.join(ROOT, 'public/store/index.html');
+  const catalogFile = path.join(ROOT, 'store/catalog.json');
+  if (fs.existsSync(pageFile) && fs.existsSync(catalogFile)) {
+    const html = fs.readFileSync(pageFile, 'utf8');
+    const match = html.match(/<script type="application\/json" id="armonia-config">([\s\S]*?)<\/script>/);
+    const catalog = JSON.parse(fs.readFileSync(catalogFile, 'utf8'));
+    if (!match) {
+      failures += 1;
+      console.log('  ✗ public/store/index.html has no armonia-config block');
+    } else {
+      const baked = JSON.parse(match[1]);
+      const fileById = new Map((catalog.products || []).map((p) => [p.id, p]));
+      const ghosts = (baked.products || []).filter((p) => !fileById.has(p.id)).map((p) => p.id);
+      const wrongPrice = (baked.products || [])
+        .filter((p) => fileById.has(p.id) && Math.abs((fileById.get(p.id).price || 0) - (p.price || 0)) > 0.001)
+        .map((p) => `${p.id} page $${p.price} vs catalogue $${fileById.get(p.id).price}`);
+
+      // The other direction: a product the API will happily sell but the page
+      // never shows. Less dangerous than a ghost price, and just as invisible.
+      const pageById = new Set((baked.products || []).map((p) => p.id));
+      const missing = (catalog.products || []).filter((p) => !pageById.has(p.id)).map((p) => p.id);
+
+      if (ghosts.length) {
+        failures += 1;
+        console.log(`  ✗ the page sells ${ghosts.length} product(s) not in the catalogue: ${ghosts.join(', ')}`);
+        console.log('    run `node store/sync-catalog-file.mjs` then `npm run build:store`');
+      } else if (missing.length) {
+        failures += 1;
+        console.log(`  ✗ the catalogue sells ${missing.length} product(s) the page does not show: ${missing.join(', ')}`);
+        console.log('    run `npm run build:store`');
+      } else if (wrongPrice.length) {
+        failures += 1;
+        for (const line of wrongPrice) console.log(`  ✗ price drift — ${line}`);
+        console.log('    run `npm run build:store` to fold the current prices in');
+      } else if (baked.featuredId && !(baked.products || []).some((p) => p.id === baked.featuredId)) {
+        failures += 1;
+        console.log(`  ✗ featuredId "${baked.featuredId}" is not one of the products on the page`);
+      } else if (baked.upsellId && !(baked.products || []).some((p) => p.id === baked.upsellId)) {
+        failures += 1;
+        console.log(`  ✗ upsellId "${baked.upsellId}" is not one of the products on the page`);
+      } else {
+        console.log(`  ✓ page sells exactly the catalogue's ${(baked.products || []).length} products, at its prices`);
+      }
+    }
+  }
+}
+
+/* ── the seasonal switch must not be baked in ───────────────────────────
+   The decorations are a live setting now. If a season flag creeps back into
+   the built page, the admin switch silently stops controlling that surface. */
+{
+  const pageFile = path.join(ROOT, 'public/store/index.html');
+  if (fs.existsSync(pageFile)) {
+    const html = fs.readFileSync(pageFile, 'utf8');
+    const baked = ['fallFlares', 'decorationsOn', 'decorations_on'];
+    const found = baked.filter((key) => html.includes(`"${key}"`));
+    if (found.length) {
+      failures += 1;
+      console.log(`  ✗ the page bakes a seasonal flag (${found.join(', ')}) — the admin switch cannot control it`);
+    } else {
+      console.log('  ✓ no seasonal flag is baked into the page');
+    }
+  }
+}
+
 console.log(failures ? `\n${failures} problem${failures === 1 ? '' : 's'} found.` : '\nAll good.');
 process.exit(failures ? 1 : 0);

@@ -17,7 +17,8 @@ import { hashPassword, verifyPassword } from '../../lib/password.js';
 import { sendAdminVerificationEmail, sendGeneratedCodeEmail, sendGeneratedCodeBatchEmail } from '../../lib/email.js';
 import { generateAccessCode } from '../../lib/generateCode.js';
 import { listOrders as listStoreOrders, updateOrderStatus as updateStoreOrderStatus,
-         listProducts, updateProduct, createProduct, getSettings, updateSettings } from '../../lib/store/db.js';
+         listProducts, updateProduct, createProduct, getSettings, updateSettings,
+         getDecorationSettings, setDecorationSettings } from '../../lib/store/db.js';
 import { clearCatalogCache, refreshCatalog } from '../../lib/store/catalog.js';
 import { buildSyncPlan } from '../../lib/store/sync.js';
 import { planCreation, applyCreation, loadManifest } from '../../lib/store/create-products.js';
@@ -1046,6 +1047,41 @@ export default async function handler(req, res) {
       } catch (err) {
         console.error('Supplier submit error:', err);
         return res.status(500).json({ error: 'Could not submit that order.' });
+      }
+    }
+    return res.status(405).json({ error: 'Method not allowed.' });
+  }
+
+  // ── /api/admin/store-decorations ──
+  // The seasonal switch. Separate from store-settings because it is not a
+  // number and it is the one control somebody will reach for on a phone, in
+  // December, wanting it off now.
+  if (route === 'store-decorations') {
+    if (req.method === 'GET') {
+      try {
+        const decorations = await getDecorationSettings();
+        return res.status(200).json({ decorations });
+      } catch (err) {
+        console.error('Decoration read error:', err);
+        return res.status(500).json({ error: 'Could not read the decoration setting.' });
+      }
+    }
+    if (req.method === 'PATCH') {
+      const body = req.body || {};
+      try {
+        const decorations = await setDecorationSettings({
+          on: body.on,
+          decoration: body.decoration,
+          text: body.text,
+        });
+        // The storefront reads this through /api/store/catalog, which caches
+        // the assembled catalogue for 15s. Clearing it here means the switch
+        // takes effect on the next request rather than on the next coffee.
+        clearCatalogCache();
+        return res.status(200).json({ ok: true, decorations });
+      } catch (err) {
+        console.error('Decoration save error:', err);
+        return res.status(400).json({ error: err.message || 'Could not save that setting.' });
       }
     }
     return res.status(405).json({ error: 'Method not allowed.' });

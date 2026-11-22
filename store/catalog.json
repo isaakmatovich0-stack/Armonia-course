@@ -3,14 +3,13 @@
   "site": {
     "brandName": "Armonia Connect",
     "title": "Armonia Connect — Shop the Collection",
-    "description": "Wear your connection. Signature caps, everyday tees, hoodies, windbreakers, guitar pick sets and stickers from the Armonia Connect collection. Free US shipping over $75.",
+    "description": "Wear your connection. Hoodies, windbreakers, tees, caps, beanies and stickers from the Armonia Connect collection, embroidered and printed in the United States. $6 flat US shipping, free over $75.",
     "lang": "en",
     "noindex": false,
     "showEditor": false,
     "currency": "USD",
     "shippingThreshold": 75,
-    "shippingFee": 6,
-    "fallFlares": true
+    "shippingFee": 6
   },
   "brand": {
     "line1": "ARMONIA",
@@ -61,230 +60,255 @@
   ],
   "products": [
     {
-      "id": "signature-cap",
-      "name": "The Signature Cap",
-      "shortName": "Signature Cap",
-      "price": 28,
-      "category": "Accessories",
-      "type": "cap",
-      "initialColor": "sky",
-      "badge": "THE ORIGINAL",
-      "subtitle": "Premium embroidered cap",
-      "description": "A little shade. A lot of character. Our signature cap pairs soft cotton twill with the gold Armonia Connect emblem. An easy finishing touch for whatever your day has in store.",
-      "details": [
-        "100% cotton twill",
-        "Six-panel shape with a curved brim",
-        "Embroidered gold emblem and wordmark",
-        "Adjustable back strap • one size fits most"
-      ],
-      "fit": "An adjustable, everyday fit. The back strap lets you find your own comfort zone.",
-      "colors": [
-        "sky",
-        "ink",
-        "ivory",
-        "orange"
-      ],
-      "sizes": [
-        "One size"
-      ],
-      "images": {}
-    },
-    {
-      "id": "everyday-tee",
-      "name": "The Everyday Tee",
-      "shortName": "Everyday Tee",
-      "price": 34,
-      "category": "Apparel",
-      "type": "tee",
-      "initialColor": "sky",
-      "badge": "EVERYDAY FAVORITE",
-      "subtitle": "Premium T-shirt",
-      "description": "Meet your go-to. A relaxed silhouette, soft heavyweight cotton, and our quietly distinctive embroidered mark. Made to feel just right, from the first coffee to the last conversation.",
-      "details": [
-        "Heavyweight 100% cotton",
-        "Relaxed, unisex silhouette",
-        "Small embroidered chest logo",
-        "Ribbed crewneck • easy everyday layering"
-      ],
-      "fit": "A relaxed unisex fit. Choose your usual size for an easy fit, or size up for an oversized look.",
-      "colors": [
-        "sky",
-        "ink",
-        "ivory",
-        "orange"
-      ],
-      "sizes": [
-        "S",
-        "M",
-        "L",
-        "XL",
-        "2XL"
-      ],
-      "images": {}
-    },
-    {
-      "id": "connection-hoodie",
-      "name": "The Connection Hoodie",
-      "shortName": "Connection Hoodie",
-      "price": 68,
-      "category": "Apparel",
-      "type": "hoodie",
-      "initialColor": "ink",
-      "badge": "COZY FALL FAVORITE",
-      "subtitle": "Premium hoodie",
-      "description": "The layer you reach for without thinking. Cozy cotton fleece, a generous hood, and a relaxed shape give this everyday staple a little extra warmth—in every sense.",
-      "details": [
-        "Cotton-rich heavyweight fleece",
-        "Relaxed, unisex silhouette",
-        "Embroidered Armonia Connect chest logo",
-        "Kangaroo pocket • ribbed cuffs and hem"
-      ],
-      "fit": "A comfortably relaxed unisex fit. Choose your regular size, or one size up for extra room.",
-      "colors": [
-        "ink",
-        "sky",
-        "ivory",
-        "orange"
-      ],
-      "sizes": [
-        "S",
-        "M",
-        "L",
-        "XL",
-        "2XL"
-      ],
-      "images": {}
-    },
-    {
-      "id": "connection-windbreaker",
-      "name": "The Connection Windbreaker",
-      "shortName": "Connection Windbreaker",
-      "price": 88,
-      "category": "Apparel",
-      "type": "windbreaker",
-      "initialColor": "ink",
-      "badge": "FALL ESSENTIAL",
-      "subtitle": "Packable weather-resistant shell",
-      "description": "Engineered for crisp mornings and late evenings. A lightweight water-resistant nylon windbreaker featuring our subtle chest emblem on the front and statement Armonia Connect typography across the shoulders.",
-      "details": [
-        "Water-resistant lightweight nylon shell",
-        "Embroidered chest emblem on front left chest",
-        "Statement Armonia Connect emblem and lettering across back shoulders",
-        "Adjustable bungee hood and elastic storm cuffs",
-        "Interactive two-sided view available in gallery"
-      ],
-      "fit": "True to size with room for light layering. For an oversized fit over thick knitwear, size up.",
-      "colors": [
-        "ink",
-        "ivory",
-        "sky",
-        "orange"
-      ],
-      "sizes": [
-        "S",
-        "M",
-        "L",
-        "XL",
-        "2XL"
-      ],
-      "images": {
-        "ink": "/store/images/windbreaker-front-ink.webp",
-        "ivory": "/store/images/windbreaker-front-ivory.webp",
-        "sky": "/store/images/windbreaker-front-sky.webp",
-        "orange": "/store/images/windbreaker-front-orange.webp"
-      },
-      "backImages": {
-        "ink": "/store/images/windbreaker-back-ink.webp",
-        "ivory": "/store/images/windbreaker-back-ivory.webp",
-        "sky": "/store/images/windbreaker-back-sky.webp",
-        "orange": "/store/images/windbreaker-back-orange.webp"
-      }
-    },
-    {
-      "id": "connect-stickers",
-      "name": "The Connect Sticker Set",
-      "shortName": "Connect Sticker Set",
-      "price": 8,
+      "id": "sticker",
+      "name": "Armonia Connect™ Sticker",
+      "shortName": "Armonia Connect™ Sticker",
+      "price": 3.5,
       "category": "Accessories",
       "type": "stickers",
-      "initialColor": "ink",
-      "badge": "METALLIC DIE-CUT",
-      "subtitle": "Logo-shaped metallic vinyl die-cut stickers",
-      "description": "Precision contour die-cut to the exact silhouette of the official Armonia Connect emblem. Crafted in durable weather-resistant satin vinyl with brushed metallic gold and silver foil.",
+      "initialColor": "white",
+      "badge": "DIE-CUT",
+      "subtitle": "Weather-resistant vinyl sticker",
+      "description": "The emblem, as a sticker. Die-cut vinyl with a weather-resistant finish, sized to go on a laptop, a case or a guitar. Made and shipped by our print partner in the United States.",
       "details": [
-        "Contour die-cut exactly to the official logo emblem silhouette",
-        "Brushed metallic foil stamped on satin black vinyl",
-        "Weather-resistant UV matte laminate coating",
-        "Available in Black & Gold and Black & Silver editions"
+        "Die-cut vinyl with a weather-resistant finish",
+        "4″ × 4″",
+        "Made and fulfilled in the United States"
       ],
-      "fit": "Approximately 3.2 inches tall, custom die-cut emblem shape.",
+      "fit": "One size: 4″ × 4″. Sticks to most smooth, clean surfaces.",
       "colors": [
-        "ink",
-        "ivory"
+        "white"
       ],
       "sizes": [
-        "Set of 2"
+        "4″×4″"
       ],
       "images": {
-        "ink": "/store/images/stickers-ink.webp",
-        "ivory": "/store/images/stickers-ivory.webp"
+        "white": "/store/images/stickers-ivory.webp"
       }
     },
     {
-      "id": "connect-picks",
-      "name": "The Connect Pick Set",
-      "shortName": "Connect Pick Set",
-      "price": 16,
+      "id": "hat-embroidered",
+      "name": "Armonia Connect™ Hat | Embroidered",
+      "shortName": "Armonia Connect™ Hat | Embroidered",
+      "price": 23,
       "category": "Accessories",
-      "type": "picks",
-      "initialColor": "ivory",
-      "badge": "STAGE ESSENTIAL",
-      "subtitle": "Six celluloid picks with the emblem",
-      "description": "The sound of the collection, in your pocket. Six premium celluloid picks in three gauges — two light for strumming, two medium for everything in between, two heavy for lead lines — each foil-stamped with the Armonia Connect emblem, in a slim pick wallet.",
+      "type": "cap",
+      "initialColor": "black",
+      "badge": "EMBROIDERED",
+      "subtitle": "Embroidered cap in three colours",
+      "description": "The everyday cap, with the Armonia Connect emblem embroidered at the front centre. Soft-structured, adjustable at the back, and quiet enough to wear with anything.",
       "details": [
-        "Six picks in three gauges: 2 × .46mm, 2 × .73mm, 2 × 1.0mm",
-        "Foil-stamped Armonia Connect emblem on every pick",
-        "Standard 351 shape with a smooth, bevelled edge",
-        "Slim pick wallet included"
+        "Embroidered Armonia Connect emblem",
+        "Adjustable back strap • one size fits most",
+        "Black, burgundy maroon or navy blue",
+        "Embroidered and shipped by our print partner in the United States"
       ],
-      "fit": "Standard 351 shape, the shape most players already know. The .46mm bends easily for strumming; the 1.0mm holds its attack for lead work.",
+      "fit": "Adjustable. One size fits most.",
       "colors": [
-        "ivory",
-        "ink",
-        "sky",
-        "orange"
+        "black",
+        "burgundy-maroon",
+        "navy-blue"
       ],
       "sizes": [
-        "Set of 6"
+        "ONE SIZE"
       ],
       "images": {
-        "ivory": "/store/images/picks-ivory.webp",
-        "ink": "/store/images/picks-ink.webp",
-        "sky": "/store/images/picks-sky.webp",
-        "orange": "/store/images/picks-orange.webp"
+        "black": "/store/images/cap-ink.webp",
+        "burgundy-maroon": "/store/images/cap-orange.webp",
+        "navy-blue": "/store/images/cap-ink.webp"
+      }
+    },
+    {
+      "id": "beanie-embroidered",
+      "name": "Armonia Connect™ Beanie | Embroidered",
+      "shortName": "Armonia Connect™ Beanie | Embroidered",
+      "price": 17,
+      "category": "Accessories",
+      "type": "beanie",
+      "initialColor": "black",
+      "badge": "EMBROIDERED",
+      "subtitle": "Ribbed beanie with a small embroidered emblem",
+      "description": "A ribbed knit beanie with the emblem embroidered small at the front centre, so it reads as a detail rather than a logo. Warm without the bulk.",
+      "details": [
+        "Small embroidered emblem, front centre",
+        "Ribbed knit with a folded cuff",
+        "Black, navy, olive or white",
+        "Embroidered and shipped by our print partner in the United States"
+      ],
+      "fit": "One size. The folded cuff adjusts the fit.",
+      "colors": [
+        "black",
+        "navy",
+        "olive",
+        "white"
+      ],
+      "sizes": [
+        "ONE SIZE"
+      ],
+      "images": {
+        "black": "/store/images/cap-ink.webp",
+        "navy": "/store/images/cap-ink.webp",
+        "olive": "/store/images/cap-ink.webp",
+        "white": "/store/images/cap-ivory.webp"
+      }
+    },
+    {
+      "id": "windbreaker-embroidered",
+      "name": "Armonia Connect™ Windbreaker | Embroidered",
+      "shortName": "Armonia Connect™ Windbreaker | Embroidered",
+      "price": 31,
+      "category": "Apparel",
+      "type": "windbreaker",
+      "initialColor": "black",
+      "badge": "WEATHERPROOF",
+      "subtitle": "Lightweight windbreaker with an embroidered emblem",
+      "description": "A packable shell for the days that cannot decide. Water-resistant, light enough to fold into a bag, with the emblem embroidered at the chest.",
+      "details": [
+        "Lightweight water-resistant shell",
+        "Embroidered emblem at the chest",
+        "Elastic cuffs and an adjustable hood",
+        "Black or navy • S to 2XL"
+      ],
+      "fit": "True to size, with room for a light layer underneath. Size up to wear it over a hoodie.",
+      "colors": [
+        "black",
+        "navy"
+      ],
+      "sizes": [
+        "S",
+        "M",
+        "L",
+        "XL",
+        "2XL"
+      ],
+      "images": {
+        "black": "/store/images/windbreaker-front-ink.webp",
+        "navy": "/store/images/windbreaker-front-ink.webp"
+      }
+    },
+    {
+      "id": "unisex-classic-tee",
+      "name": "Unisex classic tee",
+      "shortName": "Unisex classic tee",
+      "price": 20.5,
+      "category": "Apparel",
+      "type": "tee",
+      "initialColor": "maroon",
+      "badge": "EVERYDAY",
+      "subtitle": "Classic unisex tee",
+      "description": "The plain one, done properly. A classic unisex cut in maroon, black or navy, printed and shipped from the United States. The quiet half of the collection.",
+      "details": [
+        "Classic unisex cut",
+        "Maroon, black or navy",
+        "S to 5XL",
+        "Printed and shipped by our print partner in the United States"
+      ],
+      "fit": "A regular unisex fit. Choose your usual size, or size up for a looser shape.",
+      "colors": [
+        "maroon",
+        "black",
+        "navy"
+      ],
+      "sizes": [
+        "S",
+        "M",
+        "L",
+        "XL",
+        "2XL",
+        "3XL",
+        "4XL",
+        "5XL"
+      ],
+      "images": {
+        "maroon": "/store/images/tee-orange.webp",
+        "black": "/store/images/tee-ink.webp",
+        "navy": "/store/images/tee-ink.webp"
+      }
+    },
+    {
+      "id": "hoodie-embroidered",
+      "name": "Armonia Connect™ Hoodie | Embroidered",
+      "shortName": "Armonia Connect™ Hoodie | Embroidered",
+      "price": 41.5,
+      "category": "Apparel",
+      "type": "hoodie",
+      "initialColor": "black",
+      "badge": "EMBROIDERED",
+      "subtitle": "Embroidered hoodie in five colours",
+      "description": "The layer you reach for without thinking. A relaxed hoodie with the emblem embroidered at the chest, in five colours, with a kangaroo pocket and ribbed cuffs.",
+      "details": [
+        "Embroidered Armonia Connect emblem",
+        "Kangaroo pocket • ribbed cuffs and hem",
+        "Black, navy, maroon, forest green or charcoal",
+        "S to 5XL"
+      ],
+      "fit": "A relaxed unisex fit. Choose your regular size, or one up for extra room.",
+      "colors": [
+        "black",
+        "navy",
+        "maroon",
+        "forest-green",
+        "charcoal"
+      ],
+      "sizes": [
+        "S",
+        "M",
+        "L",
+        "XL",
+        "2XL",
+        "3XL",
+        "4XL",
+        "5XL"
+      ],
+      "images": {
+        "black": "/store/images/hoodie-ink.webp",
+        "navy": "/store/images/hoodie-ink.webp",
+        "maroon": "/store/images/hoodie-orange.webp",
+        "forest-green": "/store/images/hoodie-ink.webp",
+        "charcoal": "/store/images/hoodie-ink.webp"
       }
     }
   ],
   "colors": {
-    "sky": {
-      "name": "Founders Limited",
-      "hex": "#a9c8dc"
+    "white": {
+      "name": "White",
+      "hex": "#f4f2ec"
     },
-    "ink": {
-      "name": "Ink black",
-      "hex": "#283033"
+    "black": {
+      "name": "Black",
+      "hex": "#1d1f20"
     },
-    "ivory": {
-      "name": "Cloud white",
-      "hex": "#eeece4"
+    "burgundy-maroon": {
+      "name": "Burgundy Maroon",
+      "hex": "#5a2430"
     },
-    "orange": {
-      "name": "Autumn Orange",
-      "hex": "#8c2d0b"
+    "navy-blue": {
+      "name": "Navy Blue",
+      "hex": "#232f3e"
+    },
+    "navy": {
+      "name": "Navy",
+      "hex": "#232f3e"
+    },
+    "olive": {
+      "name": "Olive",
+      "hex": "#5d6047"
+    },
+    "maroon": {
+      "name": "Maroon",
+      "hex": "#5a2430"
+    },
+    "forest-green": {
+      "name": "Forest Green",
+      "hex": "#2c3b2d"
+    },
+    "charcoal": {
+      "name": "Charcoal",
+      "hex": "#3a3d3f"
     }
   },
-  "featuredId": "signature-cap",
-  "upsellId": "connect-stickers",
+  "featuredId": "hat-embroidered",
+  "upsellId": "sticker",
   "elements": {
     "#site-header > nav.desktop-nav > a.nav-link": {
       "textNodes": {
