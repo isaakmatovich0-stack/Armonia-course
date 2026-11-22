@@ -41,6 +41,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { slugForColour, hexForColour } from '../lib/store/colour-names.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CATALOG = path.join(ROOT, 'store/catalog.json');
@@ -48,29 +49,12 @@ const CATALOG = path.join(ROOT, 'store/catalog.json');
 /* The storefront's own colour vocabulary. A product's colours are Printful's
  * names slugged ("burgundy-maroon"); the page needs a key it can map to a hex
  * and a label, and the featured card needs an initialColor that exists. */
-const COLOUR_HEX = {
-  black: '#1d1f20',
-  'ink-black': '#283033',
-  white: '#f4f2ec',
-  ivory: '#eeece4',
-  natural: '#e8e0cf',
-  cream: '#efe9d8',
-  navy: '#232f3e',
-  'navy-blue': '#232f3e',
-  'forest-green': '#2c3b2d',
-  'burgundy-maroon': '#5a2430',
-  maroon: '#5a2430',
-  charcoal: '#3a3d3f',
-  'heather-grey': '#b3b3b0',
-  'sport-grey': '#a8a9a6',
-  olive: '#5d6047',
-  khaki: '#c3b091',
-  sand: '#d9c9ac',
-  'sky-blue': '#a9c8dc',
-  sky: '#a9c8dc',
-  red: '#8c2d0b',
-  orange: '#8c2d0b',
-};
+/* Swatches come from lib/store/colour-names.js — one table, shared with the
+ * API and the sync. There used to be three copies of this map (here, in
+ * catalog.js and in sync.js) and they disagreed: this one was keyed by
+ * lowercase slugs while colours are named "Burgundy Maroon", so every swatch
+ * fell through to the grey placeholder. */
+const swatchFor = (colour) => hexForColour(colour) || '#cdc8bd';
 
 const pretty = (key) =>
   String(key).replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -179,30 +163,44 @@ const TYPE_FALLBACK = {
   stickers: 'stickers',
   picks: 'picks',
 };
-/* Which of our image colours best stands in for a Printful colour. */
-const PHOTO_COLOUR = {
-  black: 'ink',
-  navy: 'ink',
-  'navy-blue': 'ink',
-  charcoal: 'ink',
-  'burgundy-maroon': 'orange',
-  maroon: 'orange',
-  'forest-green': 'ink',
-  olive: 'ink',
-  white: 'ivory',
-  natural: 'ivory',
-  cream: 'ivory',
-};
+/* Which of our image colours best stands in for a Printful colour.
+ *
+ * THIS TABLE IS WHY "ALL THE MOCKUPS ARE WRONG".
+ *
+ * It maps a colour to a photo of a DIFFERENT colour and says nothing about it:
+ * navy → ink (a black garment), forest-green → ink, charcoal → ink, maroon →
+ * orange (a rust garment). Combined with TYPE_FALLBACK's `beanie: 'cap'`, a
+ * navy beanie was illustrated with a black baseball cap. Then the colour name
+ * was printed under it, so the shop confidently sold "Navy" using a picture of
+ * something black or rust.
+ *
+ * There is now no stand-in at all. A colour gets its own photograph or none;
+ * with none, the card shows the neutral placeholder and the product page says
+ * the photo is coming. Showing the wrong colour is worse than showing no
+ * colour: the shopper orders navy and receives navy, having been shown black.
+ *
+ * To give a colour a photo, put `<type>-<colour-slug>.webp` in
+ * public/store/images and add it here — deliberately, having looked at it. */
+const PHOTO_COLOUR = {};
 
+/**
+ * The photo for one colour, or null.
+ *
+ * Only two ways to get a picture: the database says so (a Printful mockup the
+ * sync wrote, or an upload), or a file exists whose name is this colour's own
+ * slug. No cross-colour stand-in — see the PHOTO_COLOUR comment above.
+ */
 function photoFor(type, colour, stored) {
   if (stored && stored[colour]) return stored[colour];
   const base = TYPE_FALLBACK[type];
   if (!base) return null;
-  const shade = PHOTO_COLOUR[colour] || 'ink';
-  const file = path.join(ROOT, 'public/store/images', `${base}-${shade}.webp`);
-  if (fs.existsSync(file)) return `/store/images/${base}-${shade}.webp`;
-  const back = path.join(ROOT, 'public/store/images', `windbreaker-front-${shade}.webp`);
-  if (type === 'windbreaker' && fs.existsSync(back)) return `/store/images/windbreaker-front-${shade}.webp`;
+  const slug = slugForColour(colour);
+  if (!slug) return null;
+  const candidates = [`${base}-${slug}`, `${base}-front-${slug}`];
+  for (const stem of candidates) {
+    const file = path.join(ROOT, 'public/store/images', `${stem}.webp`);
+    if (fs.existsSync(file)) return `/store/images/${stem}.webp`;
+  }
   return null;
 }
 
@@ -279,7 +277,7 @@ async function main() {
   for (const row of rows) {
     for (const key of row.colors || []) {
       if (colors[key]) continue;
-      colors[key] = { name: pretty(key), hex: COLOUR_HEX[key] || '#cdc8bd' };
+      colors[key] = { name: pretty(key), hex: swatchFor(key) };
     }
   }
 
@@ -307,7 +305,11 @@ async function main() {
       price: Math.round(Number(row.price_cents) || 0) / 100,
       category: copy.category || row.category || 'Apparel',
       type: row.type,
-      initialColor: colourKeys[0] || 'ink',
+      // Open on a colour that HAS a photograph where one exists, so the card
+      // shows the product rather than a placeholder. Falling back to the first
+      // colour is right when nothing has a photo yet — the card then honestly
+      // shows the placeholder for a real colour, which is the best available.
+      initialColor: (colourKeys.find((key) => images[key]) || colourKeys[0] || 'Black'),
       badge: copy.badge || row.badge || '',
       subtitle: copy.subtitle || row.subtitle || '',
       description: copy.description || row.description || '',

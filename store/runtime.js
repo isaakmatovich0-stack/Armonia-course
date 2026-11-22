@@ -982,6 +982,46 @@ function wireNewsletter() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
+   PRODUCT PHOTOGRAPHY
+   ═══════════════════════════════════════════════════════════════════════
+
+   The bundle's photo resolver used to fall back to a fixed list of autumn
+   colour slugs and, failing that, to "sky" — so every colour without a photo
+   of its own became a sky-blue garment. A navy hoodie showed as sky blue, a
+   maroon tee showed as rust. The fix has two halves: the resolver in
+   store/build-store.mjs now asks these two functions, and these two functions
+   only ever return something that exists.
+
+   `__armoniaPhotoExists` is generated at build time from the files on disk, so
+   "exists" means a real file rather than an intention. */
+
+/** "Burgundy Maroon" → "burgundy-maroon", matching the filenames on disk. */
+globalThis.__armoniaColourSlug = function (colour) {
+  return String(colour || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+};
+
+/**
+ * The photo the server says belongs to this product/colour, if any.
+ *
+ * The build-time page carries whatever photo map the last sync wrote, and when
+ * a sync has not run that map can be stale or empty. The catalogue endpoint now
+ * sends the live map, so prefer it: the page then corrects itself without a
+ * rebuild.
+ */
+globalThis.__armoniaPhotoFor = function (product, colour) {
+  if (!product || !colour) return null;
+  const live = state.catalog.get(product.id);
+  const map = (live && live.images) || product.images || {};
+  const shot = map[colour];
+  if (!shot) return null;
+  return String(shot);
+};
+
+/* ═══════════════════════════════════════════════════════════════════════
    BOOT
    ═══════════════════════════════════════════════════════════════════════ */
 

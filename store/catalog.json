@@ -66,7 +66,7 @@
       "price": 3.5,
       "category": "Accessories",
       "type": "stickers",
-      "initialColor": "white",
+      "initialColor": "White",
       "badge": "DIE-CUT",
       "subtitle": "Weather-resistant vinyl sticker",
       "description": "The emblem, as a sticker. Die-cut vinyl with a weather-resistant finish, sized to go on a laptop, a case or a guitar. Made and shipped by our print partner in the United States.",
@@ -77,13 +77,13 @@
       ],
       "fit": "One size: 4″ × 4″. Sticks to most smooth, clean surfaces.",
       "colors": [
-        "white"
+        "White"
       ],
       "sizes": [
         "4″×4″"
       ],
       "images": {
-        "white": "/store/images/stickers-ivory.webp"
+        "White": "/store/images/stickers-ivory.webp"
       }
     },
     {
@@ -93,7 +93,7 @@
       "price": 23,
       "category": "Accessories",
       "type": "cap",
-      "initialColor": "black",
+      "initialColor": "Black",
       "badge": "EMBROIDERED",
       "subtitle": "Embroidered cap in three colours",
       "description": "The everyday cap, with the Armonia Connect emblem embroidered at the front centre. Soft-structured, adjustable at the back, and quiet enough to wear with anything.",
@@ -105,17 +105,16 @@
       ],
       "fit": "Adjustable. One size fits most.",
       "colors": [
-        "black",
-        "burgundy-maroon",
-        "navy-blue"
+        "Black",
+        "Burgundy Maroon",
+        "Navy Blue"
       ],
       "sizes": [
         "ONE SIZE"
       ],
       "images": {
-        "black": "/store/images/cap-ink.webp",
-        "burgundy-maroon": "/store/images/cap-orange.webp",
-        "navy-blue": "/store/images/cap-ink.webp"
+        "Black": "/store/images/cap-ink.webp",
+        "Burgundy Maroon": "/store/images/cap-orange.webp"
       }
     },
     {
@@ -125,7 +124,7 @@
       "price": 17,
       "category": "Accessories",
       "type": "beanie",
-      "initialColor": "black",
+      "initialColor": "Black",
       "badge": "EMBROIDERED",
       "subtitle": "Ribbed beanie with a small embroidered emblem",
       "description": "A ribbed knit beanie with the emblem embroidered small at the front centre, so it reads as a detail rather than a logo. Warm without the bulk.",
@@ -137,20 +136,15 @@
       ],
       "fit": "One size. The folded cuff adjusts the fit.",
       "colors": [
-        "black",
-        "navy",
-        "olive",
-        "white"
+        "Black",
+        "Navy",
+        "Olive",
+        "White"
       ],
       "sizes": [
         "ONE SIZE"
       ],
-      "images": {
-        "black": "/store/images/cap-ink.webp",
-        "navy": "/store/images/cap-ink.webp",
-        "olive": "/store/images/cap-ink.webp",
-        "white": "/store/images/cap-ivory.webp"
-      }
+      "images": {}
     },
     {
       "id": "windbreaker-embroidered",
@@ -159,7 +153,7 @@
       "price": 31,
       "category": "Apparel",
       "type": "windbreaker",
-      "initialColor": "black",
+      "initialColor": "Black",
       "badge": "WEATHERPROOF",
       "subtitle": "Lightweight windbreaker with an embroidered emblem",
       "description": "A packable shell for the days that cannot decide. Water-resistant, light enough to fold into a bag, with the emblem embroidered at the chest.",
@@ -171,8 +165,8 @@
       ],
       "fit": "True to size, with room for a light layer underneath. Size up to wear it over a hoodie.",
       "colors": [
-        "black",
-        "navy"
+        "Black",
+        "Navy"
       ],
       "sizes": [
         "S",
@@ -182,8 +176,7 @@
         "2XL"
       ],
       "images": {
-        "black": "/store/images/windbreaker-front-ink.webp",
-        "navy": "/store/images/windbreaker-front-ink.webp"
+        "Black": "/store/images/windbreaker-front-ink.webp"
       }
     },
     {
@@ -193,7 +186,7 @@
       "price": 20.5,
       "category": "Apparel",
       "type": "tee",
-      "initialColor": "maroon",
+      "initialColor": "Black",
       "badge": "EVERYDAY",
       "subtitle": "Classic unisex tee",
       "description": "The plain one, done properly. A classic unisex cut in maroon, black or navy, printed and shipped from the United States. The quiet half of the collection.",
@@ -205,9 +198,9 @@
       ],
       "fit": "A regular unisex fit. Choose your usual size, or size up for a looser shape.",
       "colors": [
-        "maroon",
-        "black",
-        "navy"
+        "Maroon",
+        "Black",
+        "Navy"
       ],
       "sizes": [
         "S",
@@ -220,9 +213,7 @@
         "5XL"
       ],
       "images": {
-        "maroon": "/store/images/tee-orange.webp",
-        "black": "/store/images/tee-ink.webp",
-        "navy": "/store/images/tee-ink.webp"
+        "Black": "/store/images/tee-ink.webp"
       }
     },
     {
@@ -232,7 +223,7 @@
       "price": 41.5,
       "category": "Apparel",
       "type": "hoodie",
-      "initialColor": "black",
+      "initialColor": "Black",
       "badge": "EMBROIDERED",
       "subtitle": "Embroidered hoodie in five colours",
       "description": "The layer you reach for without thinking. A relaxed hoodie with the emblem embroidered at the chest, in five colours, with a kangaroo pocket and ribbed cuffs.",
@@ -244,11 +235,11 @@
       ],
       "fit": "A relaxed unisex fit. Choose your regular size, or one up for extra room.",
       "colors": [
-        "black",
-        "navy",
-        "maroon",
-        "forest-green",
-        "charcoal"
+        "Black",
+        "Navy",
+        "Maroon",
+        "Forest Green",
+        "Charcoal"
       ],
       "sizes": [
         "S",
@@ -261,48 +252,44 @@
         "5XL"
       ],
       "images": {
-        "black": "/store/images/hoodie-ink.webp",
-        "navy": "/store/images/hoodie-ink.webp",
-        "maroon": "/store/images/hoodie-orange.webp",
-        "forest-green": "/store/images/hoodie-ink.webp",
-        "charcoal": "/store/images/hoodie-ink.webp"
+        "Black": "/store/images/hoodie-ink.webp"
       }
     }
   ],
   "colors": {
-    "white": {
+    "White": {
       "name": "White",
-      "hex": "#f4f2ec"
+      "hex": "#e8e6e0"
     },
-    "black": {
+    "Black": {
       "name": "Black",
-      "hex": "#1d1f20"
+      "hex": "#212729"
     },
-    "burgundy-maroon": {
+    "Burgundy Maroon": {
       "name": "Burgundy Maroon",
       "hex": "#5a2430"
     },
-    "navy-blue": {
+    "Navy Blue": {
       "name": "Navy Blue",
       "hex": "#232f3e"
     },
-    "navy": {
+    "Navy": {
       "name": "Navy",
       "hex": "#232f3e"
     },
-    "olive": {
+    "Olive": {
       "name": "Olive",
       "hex": "#5d6047"
     },
-    "maroon": {
+    "Maroon": {
       "name": "Maroon",
       "hex": "#5a2430"
     },
-    "forest-green": {
+    "Forest Green": {
       "name": "Forest Green",
       "hex": "#2c3b2d"
     },
-    "charcoal": {
+    "Charcoal": {
       "name": "Charcoal",
       "hex": "#3a3d3f"
     }
