@@ -1,0 +1,44 @@
+/* The Collection / visual refresh. Commerce and product data remain in the
+   live storefront runtime; this layer only changes presentation. */
+:root { --ac-ink:#142529; --ac-gold:#e5be73; --ac-paper:#f8f6f0; }
+.suite-ribbon{display:flex;justify-content:center;align-items:center;gap:18px;min-height:42px;padding:8px 24px;background:#e5be73;color:#142529;font:600 10px/1.4 Manrope,system-ui,sans-serif;letter-spacing:.13em;text-transform:uppercase;text-align:center}
+.suite-ribbon span{opacity:.76}.suite-ribbon a{color:inherit;text-decoration:none;border-bottom:1px solid currentColor;padding:2px 0}.suite-ribbon a:hover,.suite-ribbon a:focus-visible{opacity:.65}
+.site-header{background:#102326;border-color:#e5be7324}
+.hero{background:radial-gradient(ellipse at 72% 40%,#33443f 0%,#1c3434 28%,#102326 72%);}
+.hero-bg-word{opacity:.045;letter-spacing:-.075em}
+.hero-copy{max-width:690px}
+.hero h1{letter-spacing:-.075em;font-weight:600}
+.hero h1>span{color:#edcc88}
+.hero-copy>p{color:#e3e6da}
+.hero-eyebrow{color:#dfc995}
+.hero .button-gold{box-shadow:0 10px 30px #0002}
+.hero .button-gold:hover{box-shadow:0 15px 34px #0004}
+.hero-stage .stage-glow{background:radial-gradient(ellipse at 51% 50%,#e6c78921,transparent 60%)}
+.hero-product-entry{left:17%;right:22%;top:10%}
+/* A transparent cutout needs normal compositing; multiply on a dark hero
+   makes the actual garment almost black. Unprocessed photos stay readable. */
+img[data-photo-live="true"]{mix-blend-mode:normal!important}
+.floating-cap>img{filter:drop-shadow(0 24px 22px #07120f66)}
+.floating-cap>img[data-photo-live="true"]:not([data-cutout="true"]){border-radius:6px}
+.hero-stage .cap-shadow{opacity:.26}
+.hero-product-note,.hero-product-bottom{color:#f1e5cc}
+.collection-section{padding-top:96px;padding-bottom:80px}
+.collection-heading h2{letter-spacing:-.055em}
+.product-image-wrap{background:#f1eee6;border:1px solid #1d352d0d;border-radius:5px;transition:background .25s,border-color .25s}
+.product-card:hover .product-image-wrap{background:#ebe8de;border-color:#b38e4930}
+.product-info{padding-top:18px}
+.product-name{letter-spacing:-.02em}
+.product-price{font-weight:700}
+.product-badge{background:#f9f7f0;color:#253d36;padding:7px 9px;border-radius:2px}
+.quick-add{border-radius:3px}
+.story-section{margin-top:15px;margin-bottom:30px}
+.story-copy{background:#1c3532}
+.site-footer{border-top:1px solid #e5be7345;background:#102326}
+:focus-visible{outline:2px solid #d6a94e;outline-offset:4px}
+@media(max-width:767px){
+  .suite-ribbon{gap:6px 12px;font-size:9px;flex-wrap:wrap;padding:9px 14px}
+  .hero h1{letter-spacing:-.065em}
+  .hero-product-entry{left:12%;right:12%;top:12%}
+  .collection-section{padding-top:64px;padding-bottom:52px}
+}
+@media(prefers-reduced-motion:reduce){.product-image-wrap{transition:none}}

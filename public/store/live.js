@@ -1012,10 +1012,14 @@ globalThis.__armoniaColourSlug = function (colour) {
  * sends the live map, so prefer it: the page then corrects itself without a
  * rebuild.
  */
+globalThis.__armoniaLiveHasProduct = function (id) {
+  return state.catalog.has(id);
+};
+
 globalThis.__armoniaPhotoFor = function (product, colour) {
   if (!product || !colour) return null;
   const live = state.catalog.get(product.id);
-  const map = (live && live.images) || product.images || {};
+  const map = live ? (live.images || {}) : (product.images || {});
   const shot = map[colour];
   if (!shot) return null;
   return String(shot);
@@ -1056,41 +1060,19 @@ function applyLivePhotos(products) {
     document.querySelectorAll('img[data-photo-product]').forEach((img) => {
       const entry = live.get(img.getAttribute('data-photo-product'));
       const colour = img.getAttribute('data-photo-colour');
-      const wanted = entry && entry.images && colour ? entry.images[colour] : null;
+      if (!entry || !colour) return;
+      const wanted = (entry.images && entry.images[colour]) || globalThis.__armoniaPhotoPlaceholder;
       if (!wanted) return;
+      if (!/^https?:/i.test(wanted)) img.removeAttribute('data-photo-live');
       // Mark first, then set the src. A photo baked into the page at build time
       // was already on screen, so `src` matched and the early return skipped the
       // marking — the image was a real Printful mockup that never got the
       // blending rule, and so stayed boxed on its own background.
       if (/^https?:/i.test(wanted)) img.setAttribute('data-photo-live', 'true');
-      if (img.getAttribute('src') !== wanted) img.setAttribute('src', wanted);
+      if (img.getAttribute('src') !== wanted && img.getAttribute('data-cutout-source') !== wanted) img.setAttribute('src', wanted);
     });
 
-    // THE HERO. The big animated product is the first thing anyone sees, and it
-    // was the last place still showing a photo from the build — a local stand-in
-    // of a cap that is not what the shop sells. It reads `cap-hero-<colour>`
-    // from disk, which can never contain a Printful mockup, so point it at the
-    // featured product's real photo for the colour currently selected.
-    const heroImg = document.querySelector('.floating-cap img, img[data-edit-image="hero"]');
-    if (heroImg) {
-      const heroColour = heroImg.getAttribute('data-edit-color');
-      const featured = state.catalog.get(heroImg.getAttribute('data-photo-product') || '');
-      const candidates = [featured, ...state.catalog.values()];
-      for (const entry of candidates) {
-        const shot = entry && entry.images && heroColour ? entry.images[heroColour] : null;
-        if (shot) {
-          // Blend whether or not the src changes. Blending is what removes the
-          // box around the garment, and a photo baked into the page at build
-          // time already matches its src — marking only on change left exactly
-          // those images boxed, which is the "sits on its own background" report.
-          heroImg.style.mixBlendMode = 'multiply';
-          heroImg.style.objectFit = 'contain';
-          if (/^https?:/i.test(shot)) heroImg.setAttribute('data-photo-live', 'true');
-          if (heroImg.getAttribute('src') !== shot) heroImg.setAttribute('src', shot);
-          break;
-        }
-      }
-    }
+
   };
   swap();
   // React re-renders replace these nodes when the colour changes; run again on

@@ -636,7 +636,7 @@ const PATCHES = [
     // a colour looked like it did nothing. Printful's own mockup wins.
     name: 'product photo resolution',
     find: 'Or=(s,y)=>{var f;if((f=s.images)!=null&&f[y])return Ka(s.images[y]);if(s.type==="stickers")return Ka(`/store/images/stickers-${y}.webp`);if(!mg.includes(s.type))return _y;const h=["sky","ink","ivory","orange"].includes(y)?y:"sky";return Ka(`/store/images/${s.type}-${h}.webp`)}',
-    replace: 'Or=(s,y)=>{var f,m,e;const live=(m=globalThis.__armoniaPhotoFor)==null?void 0:m.call(globalThis,s,y);if(live)return Ka(live);if((f=s.images)!=null&&f[y])return Ka(s.images[y]);const slug=(e=globalThis.__armoniaColourSlug)==null?void 0:e.call(globalThis,y);if(slug){const stem=`${s.type}-${slug}`;const front=s.type==="windbreaker"?`windbreaker-front-${slug}`:stem;if(globalThis.__armoniaPhotoExists&&globalThis.__armoniaPhotoExists(front))return Ka(`/store/images/${front}.webp`);if(globalThis.__armoniaPhotoExists&&globalThis.__armoniaPhotoExists(stem))return Ka(`/store/images/${stem}.webp`)}return _y}',
+    replace: 'Or=(s,y)=>{var f,m,e;const live=(m=globalThis.__armoniaPhotoFor)==null?void 0:m.call(globalThis,s,y);if(live)return Ka(live);if(globalThis.__armoniaLiveHasProduct&&globalThis.__armoniaLiveHasProduct(s.id))return _y;if((f=s.images)!=null&&f[y])return Ka(s.images[y]);const slug=(e=globalThis.__armoniaColourSlug)==null?void 0:e.call(globalThis,y);if(slug){const stem=`${s.type}-${slug}`;const front=s.type==="windbreaker"?`windbreaker-front-${slug}`:stem;if(globalThis.__armoniaPhotoExists&&globalThis.__armoniaPhotoExists(front))return Ka(`/store/images/${front}.webp`);if(globalThis.__armoniaPhotoExists&&globalThis.__armoniaPhotoExists(stem))return Ka(`/store/images/${stem}.webp`)}return _y}',
   },
   {
     // The hero photo had the same disease, plus one more lie: its alt text
@@ -649,7 +649,17 @@ const PATCHES = [
     // them would produce "/store/store/images/".
     name: 'hero photo resolution',
     find: 'yg=s=>{var h,f,m;const y=`/store/images/cap-hero-${s}.webp`;return((f=(h=globalThis.__ARMONIA_CONFIG__)==null?void 0:h.assets)==null?void 0:f[y])||(["sky","ink","ivory","orange"].includes(s)?Ka(y):((m=At==null?void 0:At.images)==null?void 0:m[s])||Ka("/store/images/cap-hero-sky.webp"))}',
-    replace: 'yg=s=>{var h,f,m,e;const photo=(h=globalThis.__armoniaPhotoFor)==null?void 0:h.call(globalThis,At,s);if(photo)return Ka(photo);const slug=(f=globalThis.__armoniaColourSlug)==null?void 0:f.call(globalThis,s);if(slug&&globalThis.__armoniaPhotoExists){for(const stem of [`cap-hero-${slug}`,`cap-${slug}`]){if(globalThis.__armoniaPhotoExists(stem))return Ka(`/store/images/${stem}.webp`)}}void m;void e;return _y}',
+    replace: 'yg=s=>{var h,f;const photo=(h=globalThis.__armoniaPhotoFor)==null?void 0:h.call(globalThis,At,s);if(photo)return Ka(photo);if(globalThis.__armoniaLiveHasProduct&&globalThis.__armoniaLiveHasProduct(At.id))return _y;if((f=At.images)!=null&&f[s])return Ka(At.images[s]);return _y}',
+  },
+  {
+    name: 'identify the featured hero product',
+    find: '"data-edit-image":"hero","data-edit-color":h,"data-asset-path":',
+    replace: '"data-edit-image":"hero","data-edit-color":h,"data-photo-product":At.id,"data-photo-colour":h,"data-photo-live":/^https?:/i.test(At.type==="cap"?yg(h):Or(At,h))?"true":void 0,"data-asset-path":',
+  },
+  {
+    name: 'hero swatch labels name the featured product',
+    find: 'Show cap in ${Jt[K].name}',
+    replace: 'Show ${At.name} in ${Jt[K].name}',
   },
   {
     name: 'hero alt text names the real product',
@@ -668,7 +678,7 @@ const PATCHES = [
     // src attribute.
     name: 'product photos are identifiable to the runtime',
     find: '"data-editor-product":s.id,"data-edit-color":y,src:Or(s,y)',
-    replace: '"data-editor-product":s.id,"data-edit-color":y,"data-photo-product":s.id,"data-photo-colour":y,src:Or(s,y)',
+    replace: '"data-editor-product":s.id,"data-edit-color":y,"data-photo-product":s.id,"data-photo-colour":y,"data-photo-live":/^https?:/i.test(Or(s,y))?"true":void 0,src:Or(s,y)',
   },
 ];
 
@@ -706,6 +716,7 @@ function patchAppCode(code) {
  */
 const BRIDGE_HOOK = `
 /* ── Armonia live-store bridge (injected by store/build-store.mjs) ───────── */
+globalThis.__armoniaPhotoPlaceholder = _y;
 globalThis.ArmoniaBridge = {
   React: B,
   jsx: u.jsx,
@@ -892,10 +903,12 @@ function renderPage(config, { licenses } = {}) {
 <link rel="preload" as="font" type="font/ttf" href="/store/fonts/Manrope-500.ttf" crossorigin>
 <link rel="stylesheet" href="/store/fonts.css">
 <link rel="stylesheet" href="/store/base.css">
+<link rel="stylesheet" href="/store/visuals.css">
 <script>globalThis.__ARMONIA_SELF_CONTAINED__=true;globalThis.__ARMONIA_FRAME__=false;globalThis.__ARMONIA_SELECT__=false;globalThis.__ARMONIA_DISABLE_EDITOR__=true;</script>
 <script type="application/json" id="armonia-config">${json(config)}</script>
 </head>
 <body ${attrString}>
+<div class="suite-ribbon" aria-label="Explore more from Armonia Connect"><span>Something new is on the way</span><a href="/transcription/">Explore the Transcription Suite <span aria-hidden="true">↗</span></a></div>
 <div id="root"></div>
 <noscript>
   <div style="padding:48px 24px;font-family:Georgia,serif;background:#f6f3eb;color:#142529;text-align:center">
@@ -904,6 +917,7 @@ function renderPage(config, { licenses } = {}) {
     <p>Prefer email? Write to <a href="mailto:maestro.armoniaconnect@gmail.com">maestro.armoniaconnect@gmail.com</a> and we will sort you out.</p>
   </div>
 </noscript>
+<script defer src="/store/photo-cutout.js"></script>
 <script type="module" src="/store/live.js"></script>
 <script type="module" src="/store/frontend.js"></script>
 ${licenses ? `<script type="application/json" id="open-source-licenses">${licenses}</script>` : ''}

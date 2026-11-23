@@ -70,5 +70,5 @@
       "schedule": "0 14 * * *"
     }
   ],
-  "buildCommand": "node store/image-cors-diagnostic.mjs"
+  "buildCommand": "node store/image-preview-check.mjs"
 }
