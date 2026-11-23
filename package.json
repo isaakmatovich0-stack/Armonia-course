@@ -22,7 +22,6 @@
     "stripe": "^16.8.0"
   },
   "devDependencies": {
-    "jsdom": "^25.0.1",
-    "sharp": "^0.35.5"
+    "jsdom": "^25.0.1"
   }
 }
