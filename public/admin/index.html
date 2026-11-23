@@ -440,7 +440,9 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
           <button type="button" id="syncStoreBtn" style="background:transparent; color:var(--gold-light); border:1px solid var(--border-gold); padding:9px 16px; font-size:0.82rem; cursor:pointer;">Sync colours &amp; sizes from Printful</button>
           <button type="button" id="importVariantsBtn" style="background:transparent; color:var(--gold-light); border:1px solid var(--border-gold); padding:9px 16px; font-size:0.82rem; cursor:pointer;">Import variants from Printful</button>
           <button type="button" id="checkPrintfulBtn" style="background:transparent; color:var(--gold-light); border:1px solid var(--border-gold); padding:9px 16px; font-size:0.82rem; cursor:pointer;">Check Printful connection</button>
+          <button type="button" id="mockupsBtn" style="background:transparent; color:var(--gold-light); border:1px solid var(--border-gold); padding:9px 16px; font-size:0.82rem; cursor:pointer;">Find missing colour photos</button>
         </div>
+        <div id="mockupsPanel" style="display:none; border:1px solid var(--border-gold); padding:16px; margin:14px 0;"></div>
 <div id="productsNotice"></div>
 
         <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; border:1px solid var(--border-gold); padding:16px; margin-bottom:22px;">
@@ -1413,6 +1415,91 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
         button.disabled = false;
       }
     }
+
+    // ── Missing colour photos ──
+    // The shop must never show one colour's garment under another colour's
+    // name. Where a colour has no photograph, this lists it and can ask Printful
+    // to render one. It reports what it could NOT do just as loudly as what it
+    // did, because "no photo" is a state the owner has to be able to see.
+    async function openMockupPanel() {
+      const panel = document.getElementById('mockupsPanel');
+      const button = document.getElementById('mockupsBtn');
+      panel.style.display = 'block';
+      panel.innerHTML = '<p style="font-size:0.85rem; color:var(--text-muted);">Checking every colour…</p>';
+      button.disabled = true;
+      try {
+        const data = await adminFetch('/api/admin/store-mockups');
+        const products = data.products || [];
+        const blanks = products.filter((p) => (p.blankColours || []).length);
+
+        const heading = blanks.length
+          ? `${blanks.length} product(s) have colours with no photograph.`
+          : 'Every colour has its own photograph.';
+
+        const rows = products.map((p) => {
+          const chips = (p.colours || []).map((c) => {
+            const tone = c.photo ? (c.source === 'printful' ? '#e8c88a' : '#8fd18f') : '#e8a8a8';
+            const label = c.photo ? (c.source === 'printful' ? 'Printful mockup' : 'your photo') : 'NO PHOTO';
+            return `<span style="display:inline-flex; align-items:center; gap:6px; border:1px solid rgba(255,255,255,.12); padding:3px 8px; margin:3px 4px 0 0; font-size:0.74rem; color:var(--cream);">
+              <span style="width:8px; height:8px; border-radius:50%; background:${tone};"></span>${c.name}
+              <em style="color:${tone}; font-style:normal; font-size:0.68rem;">${label}</em></span>`;
+          }).join('');
+          const canGenerate = (p.blankColours || []).length;
+          return `<div style="padding:9px 0; border-bottom:1px solid rgba(255,255,255,.06);">
+            <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:baseline;">
+              <strong style="font-size:0.82rem; color:var(--gold-light);">${p.name}</strong>
+              ${canGenerate ? `<button type="button" data-generate="${p.id}" style="background:transparent; color:var(--gold-light); border:1px solid var(--border-gold); padding:5px 10px; font-size:0.74rem; cursor:pointer;">Make photos for ${canGenerate} colour(s)</button>` : ''}
+            </div>
+            <div style="margin-top:5px;">${chips}</div>
+          </div>`;
+        }).join('');
+
+        panel.innerHTML = `
+          <p style="font-size:0.85rem; color:var(--cream); margin:0 0 4px;">${heading}</p>
+          <p style="font-size:0.76rem; color:var(--text-muted); margin:0 0 12px; line-height:1.6;">
+            A colour only shows a picture when Printful has rendered a mockup of that exact
+            garment. Where it has not, the card shows a neutral placeholder — never another
+            colour's photo, which would be the wrong thing to sell.
+          </p>
+          ${rows}
+          <div id="mockupResult" style="margin-top:12px;"></div>`;
+      } catch (err) {
+        panel.innerHTML = `<p style="font-size:0.85rem; color:#e8a8a8;">${err.message}</p>`;
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    async function generateMockups(productId, button) {
+      const result = document.getElementById('mockupResult');
+      button.disabled = true;
+      button.textContent = 'Asking Printful to render…';
+      result.innerHTML = '<p style="font-size:0.8rem; color:var(--text-muted);">Printful renders one colour at a time. This can take up to a minute per colour.</p>';
+      try {
+        const data = await adminFetch('/api/admin/store-mockups', {
+          method: 'POST',
+          body: JSON.stringify({ productId }),
+        });
+        const done = data.generated || 0;
+        const fails = data.failures || [];
+        result.innerHTML = `
+          <p style="font-size:0.82rem; color:${done ? '#8fd18f' : '#e8c88a'};">${data.message || ''}</p>
+          ${fails.length ? `<ul style="font-size:0.76rem; color:#e8a8a8; margin:6px 0 0 16px;">
+            ${fails.map((f) => `<li>${f.colour}: ${f.error}</li>`).join('')}</ul>` : ''}`;
+      } catch (err) {
+        result.innerHTML = `<p style="font-size:0.82rem; color:#e8a8a8;">${err.message}</p>`;
+      } finally {
+        button.disabled = false;
+      }
+      // Re-read so the chips reflect what actually landed.
+      openMockupPanel();
+    }
+
+    document.getElementById('mockupsBtn')?.addEventListener('click', openMockupPanel);
+    document.getElementById('mockupsPanel')?.addEventListener('click', (event) => {
+      const target = event.target.closest('[data-generate]');
+      if (target) generateMockups(target.getAttribute('data-generate'), target);
+    });
 
     document.getElementById('checkPrintfulBtn')?.addEventListener('click', checkPrintful);
     document.getElementById('syncStoreBtn')?.addEventListener('click', previewStoreSync);

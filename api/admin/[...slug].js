@@ -27,7 +27,8 @@ import { applyReplace } from '../../lib/store/apply-replace.js';
 import { submitToSupplier, supplierStatus, cancelFulfilment } from '../../lib/store/fulfilment.js';
 import { health as printfulHealth, cancelOrder as cancelSupplierOrder,
          listSyncProducts, suggestMapping, getWebhook, setWebhook, webhookUrl,
-         WEBHOOK_EVENTS, createSyncProduct } from '../../lib/suppliers/printful.js';
+         WEBHOOK_EVENTS, createSyncProduct, listVariantMockups,
+         createMockupTask } from '../../lib/suppliers/printful.js';
 import { health as printkkHealth } from '../../lib/suppliers/printkk.js';
 import { findOrderByNumber } from '../../lib/store/db.js';
 import jwt from 'jsonwebtoken';
@@ -862,6 +863,14 @@ export default async function handler(req, res) {
           // Printful mockup was skipped entirely — the images were fetched,
           // then thrown away before the patch was written. Check the images
           // independently of the colour/size changes.
+          // The supplier map is what makes an order placeable. It is derived
+          // from Printful's own variant ids during the sync, so it cannot be a
+          // guess — but it is still merged, so an id someone deliberately
+          // remapped in the admin is never clobbered by a routine sync.
+          if (item.supplierVariants && Object.keys(item.supplierVariants).length) {
+            patch.supplier_variants = { ...(current?.supplier_variants || {}), ...item.supplierVariants };
+            patch.supplier = 'printful';
+          }
           if (item.images && Object.keys(item.images).length) {
             // Merge rather than replace: a colour Printful gave us no mockup for
             // keeps whatever artwork is already on the storefront.
@@ -888,6 +897,10 @@ export default async function handler(req, res) {
             // this count both look identical from the outside.
             photos: patch.images ? Object.keys(patch.images).length : 0,
             photosFromPrintful: Object.keys(item.images || {}).length,
+            // How many of this product's colour/size combinations Printful can
+            // actually be asked to ship. Zero means the shop can take money and
+            // not fulfil, which is worth seeing in the sync result.
+            variantsMapped: patch.supplier_variants ? Object.keys(patch.supplier_variants).length : 0,
           });
         } catch (err) {
           failures.push({ id: item.id, error: err.message });
@@ -1004,6 +1017,150 @@ export default async function handler(req, res) {
       } catch (err) {
         console.error('Store variant save error:', err);
         return res.status(500).json({ error: 'Could not save those variant mappings.' });
+      }
+    }
+    return res.status(405).json({ error: 'Method not allowed.' });
+  }
+
+  // ── /api/admin/store-mockups ──
+  // Per-colour garment photographs, generated rather than borrowed.
+  //
+  // GET  — which colours Printful already has a mockup for, and which do not.
+  // POST — generate the missing ones (bounded), then report what landed.
+  //
+  // This exists because a colour without its own photo is worse than a colour
+  // with no photo: showing one colour's garment under another colour's name is
+  // a mis-sale. The alternative was asking the owner to hand-upload dozens of
+  // images, which is what went wrong last time.
+  if (route === 'store-mockups') {
+    if (req.method === 'GET') {
+      try {
+        const { have, missing } = await listVariantMockups();
+        const rows = await listProducts().catch(() => []);
+
+        // Merge into what the storefront is actually serving, so the panel shows
+        // the real state of the shop rather than Printful's state.
+        const perProduct = (rows || []).map((row) => {
+          const images = row.images || {};
+          const colours = Array.isArray(row.colors) ? row.colors : [];
+          return {
+            id: row.id,
+            name: row.name,
+            colours: colours.map((colour) => ({
+              name: colour,
+              photo: images[colour] || have[row.id]?.[colour] || null,
+              source: images[colour] ? 'site' : have[row.id]?.[colour] ? 'printful' : null,
+            })),
+            // Colours the shopper can pick that would show no photograph.
+            blankColours: colours.filter((colour) => !images[colour] && !have[row.id]?.[colour]),
+          };
+        });
+
+        return res.status(200).json({
+          ok: true,
+          products: perProduct,
+          // Everything Printful has no mockup for anywhere in the account.
+          missingFromPrintful: missing.slice(0, 40),
+          totalMissing: missing.length,
+        });
+      } catch (err) {
+        console.error('Store mockup read error:', err);
+        return res.status(502).json({ error: `Could not read your Printful store: ${err.message}` });
+      }
+    }
+
+    if (req.method === 'POST') {
+      // Bounded on purpose. Generating a mockup per colour per product is dozens
+      // of calls, and a burst would trip Printful's rate limit and leave the
+      // store half-updated. The caller sends one product at a time.
+      const body = req.body || {};
+      const productId = String(body.productId || '').trim();
+      if (!productId) return res.status(400).json({ error: 'Send { productId }.' });
+
+      try {
+        const [printfulProducts, rows] = await Promise.all([
+          listSyncProducts(),
+          listProducts().catch(() => []),
+        ]);
+        const row = (rows || []).find((r) => r.id === productId);
+        if (!row) return res.status(404).json({ error: `"${productId}" is not one of your products.` });
+
+        const pf = printfulProducts.find((p) => p.externalId === productId)
+          // Fall back to the same loose name match the sync uses, so a product
+          // whose external_id was never set can still be rendered.
+          || printfulProducts.find((p) => {
+            const a = String(p.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            const b = String(row.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            return a && b && (a.includes(b) || b.includes(a));
+          });
+        if (!pf) return res.status(404).json({ error: `Printful has no product matching "${row.name}".` });
+
+        // One render per colour that does not already have a site photo.
+        const wanted = (pf.variants || []).filter((v) => {
+          const colour = String(v.colour || '').trim();
+          if (!colour) return false;
+          if ((row.images || {})[colour]) return false;   // already has a photo
+          if (v.preview) return false;                    // Printful already rendered it
+          return true;
+        });
+
+        if (!wanted.length) {
+          return res.status(200).json({
+            ok: true,
+            generated: 0,
+            message: 'Every colour already has a photograph, or Printful has already rendered one.',
+          });
+        }
+
+        // Printful renders per catalog variant; a colour has several sizes but
+        // one garment, so render the first variant of each colour.
+        const seenColours = new Set();
+        const picks = [];
+        for (const v of wanted) {
+          const colour = String(v.colour || '').trim();
+          if (seenColours.has(colour) || !v.variantId) continue;
+          seenColours.add(colour);
+          picks.push(v);
+        }
+
+        const generated = {};
+        const failures = [];
+        for (const v of picks) {
+          const colour = String(v.colour || '').trim();
+          const printFile = v.artwork ? [{ type: 'default', url: v.artwork }] : [];
+          if (!printFile.length) {
+            failures.push({ colour, error: 'Printful has no print file on this variant.' });
+            continue;
+          }
+          try {
+            // One task per variant: the endpoint takes one variant set, and a
+            // failure on one colour must not discard the others.
+            const { mockups } = await createMockupTask([v.variantId], printFile, { productId: pf.id });
+            const url = mockups[String(v.variantId)] || Object.values(mockups)[0];
+            if (url) generated[colour] = url;
+            else failures.push({ colour, error: 'Printful returned no image for this variant.' });
+          } catch (err) {
+            failures.push({ colour, error: err.message });
+          }
+        }
+
+        if (Object.keys(generated).length) {
+          await updateProduct(productId, { images: { ...(row.images || {}), ...generated } });
+          clearCatalogCache();
+        }
+
+        return res.status(200).json({
+          ok: failures.length === 0,
+          generated: Object.keys(generated).length,
+          images: generated,
+          failures,
+          message: Object.keys(generated).length
+            ? `Generated ${Object.keys(generated).length} mockup(s) for "${row.name}".`
+            : `No mockups were generated for "${row.name}".`,
+        });
+      } catch (err) {
+        console.error('Store mockup generate error:', err);
+        return res.status(502).json({ error: `Could not generate mockups: ${err.message}` });
       }
     }
     return res.status(405).json({ error: 'Method not allowed.' });

@@ -153,3 +153,96 @@
   object-fit: contain;
 }
 
+
+
+/* ══════════ appended by build-store.mjs ══════════ */
+
+img[data-photo-live="true"] {
+  mix-blend-mode: multiply;
+  object-fit: contain;
+}
+/* The card behind a live mockup must be the same cream the blend multiplies
+   onto. Multiply-blending takes the white field of Printful's photo and tints it with
+   whatever is underneath, so the garment sits on the page instead of inside a
+   grey rectangle — but only if what is underneath is the page's cream. Flatten
+   the wrap's own background too, or a darker panel shows through the photo. */
+.product-image-wrap:has(img[data-photo-live="true"]),
+.product-modal-image:has(img[data-photo-live="true"]),
+.cart-item-image:has(img[data-photo-live="true"]),
+.search-product-image:has(img[data-photo-live="true"]) {
+  background: var(--cream, #f6f3eb) !important;
+  box-shadow: none;
+}
+.floating-cap img[data-photo-live="true"],
+img[data-edit-image="hero"][data-photo-live="true"] {
+  mix-blend-mode: multiply;
+  object-fit: contain;
+  filter: drop-shadow(6px 16px 14px #1525291f);
+}
+
+
+/* a warm wash over the whole hero while the season is on */
+html.has-decorations .hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(120% 90% at 50% -10%, #e5be7326 0%, #e5be730f 34%, transparent 62%),
+    radial-gradient(70% 60% at 12% 100%, #b3cdda26 0%, transparent 60%),
+    radial-gradient(70% 60% at 88% 100%, #e5be731f 0%, transparent 60%);
+}
+
+/* the garland across the top of the stage */
+.armonia-decoration-layer .armonia-garland {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 46px;
+  opacity: 0.8;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.16));
+}
+
+/* the string of lights, swaying */
+.armonia-decoration-layer .armonia-lights {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 30px;
+}
+.armonia-decoration-layer .armonia-lights > span {
+  position: absolute;
+  top: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #f7e7bd;
+  box-shadow: 0 0 9px 3px #e5be7373;
+  animation: armoniaTwinkle 2.9s ease-in-out infinite;
+}
+@keyframes armoniaTwinkle {
+  0%, 100% { opacity: 0.32; transform: translateY(0) scale(0.85); }
+  50%      { opacity: 1;    transform: translateY(5px) scale(1.12); }
+}
+
+/* four corner flakes, static so they survive reduced motion */
+.armonia-decoration-layer .armonia-corner {
+  position: absolute;
+  opacity: 0.42;
+}
+.armonia-decoration-layer .armonia-corner.is-tl { top: 8px; left: 10px; }
+.armonia-decoration-layer .armonia-corner.is-tr { top: 12px; right: 14px; }
+.armonia-decoration-layer .armonia-corner.is-bl { bottom: 10px; left: 22px; }
+.armonia-decoration-layer .armonia-corner.is-br { bottom: 14px; right: 26px; }
+
+/* the four-stage treeline */
+.armonia-decoration-layer .armonia-tree.is-left-inner { left: 84px; bottom: 3px; opacity: 0.4; }
+.armonia-decoration-layer .armonia-tree.is-right-inner { right: 96px; bottom: 2px; opacity: 0.34; }
+
+@media (prefers-reduced-motion: reduce) {
+  .armonia-decoration-layer .armonia-lights > span { animation: none; opacity: 0.6; }
+  html.has-decorations .hero::after { background: radial-gradient(120% 90% at 50% -10%, #e5be7322 0%, transparent 60%); }
+}

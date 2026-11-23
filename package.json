@@ -8,9 +8,11 @@
     "dev": "node dev-server.mjs",
     "build:store": "node store/build-store.mjs",
     "build:store:export": "node store/build-store.mjs --export",
-    "check": "node store/check.mjs && node store/render-check.mjs",
+    "check": "node store/check.mjs && node store/render-check.mjs && node store/photo-check.mjs && node store/order-check.mjs",
     "sync:catalog": "node store/sync-catalog-file.mjs",
-    "render:check": "node store/render-check.mjs"
+    "render:check": "node store/render-check.mjs",
+    "photo:check": "node store/photo-check.mjs",
+    "order:check": "node store/order-check.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
