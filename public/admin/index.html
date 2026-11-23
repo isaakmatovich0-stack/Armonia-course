@@ -1417,11 +1417,9 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
     }
 
     // ── Missing colour photos ──
-    // The shop must never show one colour's garment under another colour's
-    // name. Where a colour has no photograph, this lists it and can ask Printful
-    // to render one. It reports what it could NOT do just as loudly as what it
-    // did, because "no photo" is a state the owner has to be able to see.
-    async function openMockupPanel() {
+    // Show actual storefront slots and optionally import existing, unambiguous
+    // Printful previews. Do not claim that a task generated a new image.
+    async function openMockupPanel(previousResult = null) {
       const panel = document.getElementById('mockupsPanel');
       const button = document.getElementById('mockupsBtn');
       panel.style.display = 'block';
@@ -1434,68 +1432,211 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
 
         const heading = blanks.length
           ? `${blanks.length} product(s) have colours with no photograph.`
-          : 'Every colour has its own photograph.';
+          : products.length ? 'No photo slots are empty. Please review the images.' : 'No store products were found.';
 
         const rows = products.map((p) => {
           const chips = (p.colours || []).map((c) => {
-            const tone = c.photo ? (c.source === 'printful' ? '#e8c88a' : '#8fd18f') : '#e8a8a8';
-            const label = c.photo ? (c.source === 'printful' ? 'Printful mockup' : 'your photo') : 'NO PHOTO';
+            const tone = c.photo ? '#8fd18f' : c.available ? '#e8c88a' : '#e8a8a8';
+            const label = c.photo ? 'on store' : c.available ? 'available to import' : 'NO PHOTO';
             return `<span style="display:inline-flex; align-items:center; gap:6px; border:1px solid rgba(255,255,255,.12); padding:3px 8px; margin:3px 4px 0 0; font-size:0.74rem; color:var(--cream);">
               <span style="width:8px; height:8px; border-radius:50%; background:${tone};"></span>${c.name}
               <em style="color:${tone}; font-style:normal; font-size:0.68rem;">${label}</em></span>`;
           }).join('');
-          const canGenerate = (p.blankColours || []).length;
+          const canGenerate = Object.keys(p.importable || {}).length;
           return `<div style="padding:9px 0; border-bottom:1px solid rgba(255,255,255,.06);">
             <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:baseline;">
               <strong style="font-size:0.82rem; color:var(--gold-light);">${p.name}</strong>
-              ${canGenerate ? `<button type="button" data-generate="${p.id}" style="background:transparent; color:var(--gold-light); border:1px solid var(--border-gold); padding:5px 10px; font-size:0.74rem; cursor:pointer;">Make photos for ${canGenerate} colour(s)</button>` : ''}
+              ${canGenerate ? `<button type="button" data-generate="${p.id}" style="background:transparent; color:var(--gold-light); border:1px solid var(--border-gold); padding:5px 10px; font-size:0.74rem; cursor:pointer;">Import ${canGenerate} available photo(s)</button>` : ''}
             </div>
             <div style="margin-top:5px;">${chips}</div>
+            <div data-template-controls="${p.id}" style="margin-top:10px;"></div>
+            <div data-render-result="${p.id}" role="status" aria-live="polite" style="margin-top:8px;"></div>
           </div>`;
         }).join('');
 
         panel.innerHTML = `
           <p style="font-size:0.85rem; color:var(--cream); margin:0 0 4px;">${heading}</p>
           <p style="font-size:0.76rem; color:var(--text-muted); margin:0 0 12px; line-height:1.6;">
-            A colour only shows a picture when Printful has rendered a mockup of that exact
-            garment. Where it has not, the card shows a neutral placeholder — never another
-            colour's photo, which would be the wrong thing to sell.
+            Choose the saved Printful template that belongs to each product. Rendered
+            images are not published until you review and save them. You can also upload
+            photos directly in the product editor below.
           </p>
-          ${rows}
-          <div id="mockupResult" style="margin-top:12px;"></div>`;
+          <div id="mockupResult" role="status" aria-live="polite" style="margin:12px 0;"></div>
+          ${rows}`;
+        if (previousResult) {
+          document.getElementById('mockupResult').replaceWith(previousResult);
+        }
+        if (data.templatesError) {
+          const warning = document.createElement('p');
+          warning.style.color = '#e8a8a8';
+          warning.textContent = data.templatesError;
+          panel.prepend(warning);
+        }
+        for (const product of products) {
+          const box = [...panel.querySelectorAll('[data-template-controls]')].find((node) => node.dataset.templateControls === product.id);
+          if (!box) continue;
+          if (!(product.templates || []).length) {
+            box.textContent = 'No compatible saved template was found for this product.';
+            continue;
+          }
+          const select = document.createElement('select');
+          select.setAttribute('aria-label', `Printful template for ${product.name}`);
+          select.style.cssText = 'max-width:100%; padding:6px; background:var(--charcoal-3); color:var(--cream); border:1px solid var(--border-gold);';
+          const placeholder = document.createElement('option');
+          placeholder.value = '';
+          placeholder.textContent = 'Choose the matching Printful template…';
+          select.appendChild(placeholder);
+          for (const template of product.templates) {
+            const option = document.createElement('option');
+            option.value = template.id;
+            option.textContent = `${template.title} (${template.colours.join(', ')})`;
+            select.appendChild(option);
+          }
+          const render = document.createElement('button');
+          render.type = 'button';
+          render.textContent = 'Render photos for review';
+          render.style.cssText = 'margin:6px; padding:6px 10px; background:transparent; color:var(--gold-light); border:1px solid var(--border-gold); cursor:pointer;';
+          render.addEventListener('click', () => renderTemplateMockups(product, select.value, render));
+          box.append(select, render);
+        }
       } catch (err) {
-        panel.innerHTML = `<p style="font-size:0.85rem; color:#e8a8a8;">${err.message}</p>`;
+        panel.innerHTML = '';
+        const message = document.createElement('p');
+        message.style.cssText = 'font-size:0.85rem; color:#e8a8a8;';
+        message.textContent = `Could not refresh the photo list: ${err.message}`;
+        panel.appendChild(message);
+        if (previousResult) panel.appendChild(previousResult);
       } finally {
         button.disabled = false;
+      }
+    }
+
+    let mockupRenderBusy = false;
+
+    async function renderTemplateMockups(product, templateId, button) {
+      const panel = document.getElementById('mockupsPanel');
+      const result = [...panel.querySelectorAll('[data-render-result]')].find((node) => node.dataset.renderResult === product.id);
+      if (!result || mockupRenderBusy) return;
+      if (!templateId) { result.textContent = 'Choose the matching Printful template first.'; return; }
+      mockupRenderBusy = true;
+      button.disabled = true;
+      const listButton = document.getElementById('mockupsBtn');
+      listButton.disabled = true;
+      result.textContent = 'Starting Printful rendering…';
+      try {
+        const started = await adminFetch('/api/admin/store-mockups', { method: 'POST', body: JSON.stringify({ action: 'start', productId: product.id, templateId }) });
+        const deadline = Date.now() + 120000;
+        let task;
+        while (Date.now() < deadline) {
+          await new Promise((resolve) => setTimeout(resolve, 3000));
+          task = await adminFetch('/api/admin/store-mockups', { method: 'POST', body: JSON.stringify({ action: 'poll', handle: started.handle }) });
+          if (task.status === 'completed') break;
+          result.textContent = 'Printful is rendering. Please keep this page open…';
+        }
+        if (!task || task.status !== 'completed') throw new Error('Printful did not finish in time. No photos were changed.');
+        result.replaceChildren();
+        const lead = document.createElement('p');
+        lead.textContent = 'Review each colour and artwork placement, then save only the correct photos.';
+        result.appendChild(lead);
+        const entries = Object.entries(task.images || {});
+        if (!entries.length) { lead.textContent = 'Printful returned no usable photos. No photos were changed.'; return; }
+        for (const [colour, photo] of entries) {
+          const card = document.createElement('div');
+          card.style.cssText = 'display:inline-flex; vertical-align:top; flex-direction:column; gap:5px; width:160px; margin:8px;';
+          const img = document.createElement('img');
+          img.src = photo.url;
+          img.alt = `${product.name} ${colour} preview`;
+          img.style.cssText = 'width:160px; height:160px; object-fit:contain; background:#f6f3eb;';
+          const caption = document.createElement('span');
+          caption.textContent = `${colour} — ${photo.placement || 'mockup'}`;
+          const save = document.createElement('button');
+          save.type = 'button';
+          save.textContent = 'Save this photo';
+          save.style.cssText = 'padding:7px; cursor:pointer;';
+          save.addEventListener('click', async () => {
+            if (mockupRenderBusy) return;
+            if (!confirm(`Save the ${colour} photo for ${product.name}? This replaces any existing photo for that colour.`)) return;
+            mockupRenderBusy = true;
+            listButton.disabled = true;
+            const buttons = [...result.querySelectorAll('button')];
+            const previouslyDisabled = buttons.map((b) => b.disabled);
+            buttons.forEach((b) => { b.disabled = true; });
+            try {
+              await adminFetch('/api/admin/store-mockups', { method: 'POST', body: JSON.stringify({ action: 'save', handle: started.handle, colour, replace: true }) });
+              save.textContent = 'Saved';
+              previouslyDisabled[buttons.indexOf(save)] = true;
+            } catch (err) {
+              const error = document.createElement('span');
+              error.style.color = '#e8a8a8';
+              error.textContent = `Could not save ${colour}: ${err.message}`;
+              card.appendChild(error);
+            } finally {
+              buttons.forEach((b, i) => { b.disabled = previouslyDisabled[i]; });
+              listButton.disabled = false;
+              mockupRenderBusy = false;
+            }
+          });
+          card.append(img, caption, save);
+          result.appendChild(card);
+        }
+      } catch (err) {
+        result.textContent = `Could not render photos: ${err.message}`;
+      } finally {
+        button.disabled = false;
+        listButton.disabled = false;
+        mockupRenderBusy = false;
       }
     }
 
     async function generateMockups(productId, button) {
+      if (mockupRenderBusy) return;
+      mockupRenderBusy = true;
       const result = document.getElementById('mockupResult');
+      // Show progress and failures beside the product the owner clicked.
+      button.parentElement.insertAdjacentElement('afterend', result);
+      const originalLabel = button.textContent;
       button.disabled = true;
-      button.textContent = 'Asking Printful to render…';
-      result.innerHTML = '<p style="font-size:0.8rem; color:var(--text-muted);">Printful renders one colour at a time. This can take up to a minute per colour.</p>';
+      button.textContent = 'Importing photos…';
+      result.textContent = 'Checking Printful photos and importing available images…';
+      let refresh = false;
       try {
         const data = await adminFetch('/api/admin/store-mockups', {
           method: 'POST',
-          body: JSON.stringify({ productId }),
+          body: JSON.stringify({ productId, action: 'import' }),
         });
-        const done = data.generated || 0;
+        result.replaceChildren();
+        const message = document.createElement('p');
+        message.style.cssText = `font-size:0.82rem; color:${data.generated ? '#8fd18f' : '#e8c88a'};`;
+        message.textContent = data.message || 'Printful returned no result.';
+        result.appendChild(message);
         const fails = data.failures || [];
-        result.innerHTML = `
-          <p style="font-size:0.82rem; color:${done ? '#8fd18f' : '#e8c88a'};">${data.message || ''}</p>
-          ${fails.length ? `<ul style="font-size:0.76rem; color:#e8a8a8; margin:6px 0 0 16px;">
-            ${fails.map((f) => `<li>${f.colour}: ${f.error}</li>`).join('')}</ul>` : ''}`;
+        if (fails.length) {
+          const list = document.createElement('ul');
+          list.style.cssText = 'font-size:0.76rem; color:#e8a8a8; margin:6px 0 0 16px;';
+          for (const failure of fails) {
+            const item = document.createElement('li');
+            item.textContent = `${failure.colour}: ${failure.error}`;
+            list.appendChild(item);
+          }
+          result.appendChild(list);
+        }
+        refresh = Boolean(data.generated);
       } catch (err) {
-        result.innerHTML = `<p style="font-size:0.82rem; color:#e8a8a8;">${err.message}</p>`;
+        result.replaceChildren();
+        const message = document.createElement('p');
+        message.style.cssText = 'font-size:0.82rem; color:#e8a8a8;';
+        message.textContent = `Could not import photos: ${err.message}`;
+        result.appendChild(message);
       } finally {
         button.disabled = false;
+        button.textContent = originalLabel;
+        mockupRenderBusy = false;
       }
-      // Re-read so the chips reflect what actually landed.
-      openMockupPanel();
+      // Preserve the result and any errors while refreshing the photo chips.
+      if (refresh) await openMockupPanel(result);
     }
 
-    document.getElementById('mockupsBtn')?.addEventListener('click', openMockupPanel);
+    document.getElementById('mockupsBtn')?.addEventListener('click', () => openMockupPanel());
     document.getElementById('mockupsPanel')?.addEventListener('click', (event) => {
       const target = event.target.closest('[data-generate]');
       if (target) generateMockups(target.getAttribute('data-generate'), target);
