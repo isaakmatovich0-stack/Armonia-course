@@ -1069,6 +1069,7 @@ export default async function handler(req, res) {
       const product = products.find((p) => p.id === productId);
       if (!product) return res.status(404).json({ error: 'Product not found.' });
       if (body.action === 'start') {
+        if (productId === 'hat-embroidered') return res.status(409).json({ error: 'Hat artwork is frozen; mockups cannot be regenerated.' });
         const row = rows.find((r) => r.id === productId);
         const pf = matchPrintfulProduct(printfulProducts, row);
         if (!pf) return res.status(409).json({ error: 'Could not uniquely match this store product to Printful.' });

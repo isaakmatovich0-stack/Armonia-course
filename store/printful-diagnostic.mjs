@@ -38,5 +38,20 @@ try {
     const r = await fetch(image.url,{redirect:'error',signal:AbortSignal.timeout(15000)});
     const b = Buffer.from(await r.arrayBuffer());
     report('download', {status:r.status, type:r.headers.get('content-type'),bytes:b.length, png:b.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))});
+    const { supabase } = await import('../lib/supabase.js');
+    const { storeMockup } = await import('../lib/store/mockup-storage.js');
+    let saved;
+    try {
+      saved = await storeMockup(image.url, supabase.storage);
+      const verify = await fetch(saved, { redirect:'error', signal:AbortSignal.timeout(15000) });
+      report('storage', {status:verify.status, type:verify.headers.get('content-type')});
+    } finally {
+      if (saved) {
+        const path = new URL(saved).pathname.split('/site-images/')[1];
+        if (!path) throw new Error('Cannot find uploaded test path for cleanup');
+        const {error} = await supabase.storage.from('site-images').remove([decodeURIComponent(path)]);
+        report('cleanup', {ok: !error, error: error?.message});
+      }
+    }
   }
 } catch (e) { report('error',{message:String(e.message).slice(0,400)}); }

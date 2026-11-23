@@ -22,6 +22,10 @@ const pf = { variants: [
 ] };
 const colours = templateVariants(row, pf, template);
 assert.deepEqual(colours, { Black: 4011, Navy: 4012 });
+assert.deepEqual(templateVariants({ colors: ['Burgundy Maroon', 'Navy Blue', 'Navy'] }, { variants: [
+  {variantId: 4011, catalogProductId: 71, colour: 'Burgundy maroon'},
+  {variantId: 4012, catalogProductId: 71, colour: 'Navy blue'},
+] }, template), {'Burgundy Maroon': 4011, 'Navy Blue': 4012});
 const key = await startTemplateMockup(template.product_id, template.id, Object.values(colours));
 assert.equal(key, 'gt-123');
 assert.match(calls[1].url, /\/mockup-generator\/create-task\/71$/);
