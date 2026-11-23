@@ -520,10 +520,18 @@ export default async function handler(req, res) {
         const images = {};
         for (const [color, path] of Object.entries(body.images)) {
           if (!path) continue;
-          if (!/^\/store\/images\/[A-Za-z0-9._-]+$/.test(String(path))) {
-            return fail(`Image for "${color}" must be a path under /store/images/.`);
+          const value = String(path);
+          // Three legitimate sources: a file in this repo, a Printful mockup on
+          // their CDN, and a photo uploaded to our own storage bucket. The old
+          // check allowed only the first, so an uploaded photo — and every
+          // synced mockup — was rejected with "must be a path under
+          // /store/images/". The storefront needs https for Stripe anyway.
+          const localPath = /^\/store\/images\/[A-Za-z0-9._-]+$/.test(value);
+          const remote = /^https:\/\/[A-Za-z0-9.-]+\/[A-Za-z0-9._\/-]*[A-Za-z0-9]$/.test(value);
+          if (!localPath && !remote) {
+            return fail(`Image for "${color}" must be a path under /store/images/ or an https URL.`);
           }
-          images[color] = String(path);
+          images[color] = value;
         }
         patch.images = images;
       }
@@ -870,7 +878,17 @@ export default async function handler(req, res) {
           if (!Object.keys(patch).length) { skipped.push(item.id); continue; }
           void current;
           await updateProduct(item.id, patch);
-          applied.push({ id: item.id, action: 'updated', keys: Object.keys(patch) });
+          applied.push({
+            id: item.id,
+            action: 'updated',
+            keys: Object.keys(patch),
+            // Report how many mockups landed. "The sync ran but the photos did
+            // not change" has two very different causes — Printful gave us no
+            // preview, or we failed to store the ones it gave — and without
+            // this count both look identical from the outside.
+            photos: patch.images ? Object.keys(patch.images).length : 0,
+            photosFromPrintful: Object.keys(item.images || {}).length,
+          });
         } catch (err) {
           failures.push({ id: item.id, error: err.message });
         }
