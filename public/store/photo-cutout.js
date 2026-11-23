@@ -65,7 +65,7 @@
     const blob = await res.blob();
     const bitmap = await createImageBitmap(blob);
     try {
-      const scale = Math.min(1, 1200 / Math.max(bitmap.width, bitmap.height));
+      const scale = Math.min(1, 900 / Math.max(bitmap.width, bitmap.height));
       const canvas = document.createElement('canvas');
       canvas.width = Math.max(1, Math.round(bitmap.width * scale)); canvas.height = Math.max(1, Math.round(bitmap.height * scale));
       const ctx = canvas.getContext('2d', {willReadFrequently:true});

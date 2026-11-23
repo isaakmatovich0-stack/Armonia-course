@@ -1,8 +1,8 @@
 /* The Collection / visual refresh. Commerce and product data remain in the
    live storefront runtime; this layer only changes presentation. */
 :root { --ac-ink:#142529; --ac-gold:#e5be73; --ac-paper:#f8f6f0; }
-.suite-ribbon{display:flex;justify-content:center;align-items:center;gap:18px;min-height:42px;padding:8px 24px;background:#e5be73;color:#142529;font:600 10px/1.4 Manrope,system-ui,sans-serif;letter-spacing:.13em;text-transform:uppercase;text-align:center}
-.suite-ribbon span{opacity:.76}.suite-ribbon a{color:inherit;text-decoration:none;border-bottom:1px solid currentColor;padding:2px 0}.suite-ribbon a:hover,.suite-ribbon a:focus-visible{opacity:.65}
+.suite-ribbon{display:flex;justify-content:center;align-items:center;gap:18px;min-height:48px;padding:8px 24px;background:#263e38;color:#f6f3eb;font:600 10px/1.4 Manrope,system-ui,sans-serif;letter-spacing:.13em;text-transform:uppercase;text-align:center}
+.suite-ribbon span{opacity:.78}.suite-ribbon a{color:#142529;background:#e5be73;text-decoration:none;padding:8px 12px;border-radius:2px}.suite-ribbon a:hover,.suite-ribbon a:focus-visible{background:#f1cf8c}
 .site-header{background:#102326;border-color:#e5be7324}
 .hero{background:radial-gradient(ellipse at 72% 40%,#33443f 0%,#1c3434 28%,#102326 72%);}
 .hero-bg-word{opacity:.045;letter-spacing:-.075em}
