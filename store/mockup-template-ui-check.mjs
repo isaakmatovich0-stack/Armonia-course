@@ -1,0 +1,36 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { JSDOM } from 'jsdom';
+const html = readFileSync('public/admin/index.html','utf8');
+const start = html.indexOf('    async function openMockupPanel(');
+const end = html.indexOf("    document.getElementById('checkPrintfulBtn')", start);
+assert(start >= 0 && end > start);
+const dom = new JSDOM('<button id="mockupsBtn">Find</button><div id="mockupsPanel"></div>', {runScripts:'outside-only'});
+const w = dom.window;
+w.setTimeout = (fn) => { queueMicrotask(fn); return 1; };
+w.confirm = () => true;
+const actions = [];
+w.adminFetch = async (_url, options) => {
+  if (!options) return { products: [{ id:'shirt',name:'Shirt',colours:[{name:'Black',photo:'old'}],blankColours:[],importable:{},templates:[{id:123,title:'Saved design',colours:['Black']}] }] };
+  const body = JSON.parse(options.body); actions.push(body);
+  if (body.action === 'start') return {handle:'signed'};
+  if (body.action === 'poll') return {status:'completed',images:{ Black:{url:'https://example.com/black.png',placement:'front'} }};
+  if (body.action === 'save') return {ok:true};
+  throw new Error('unexpected');
+};
+w.eval(`${html.slice(start,end)}\nwindow.testOpenMockupPanel = openMockupPanel; window.testRender = renderTemplateMockups;`);
+await w.testOpenMockupPanel();
+const select = w.document.querySelector('[data-template-controls] select');
+assert.equal(select.options.length,2); select.value='123';
+const button = w.document.querySelector('[data-template-controls] button');
+// Explicit call permits awaiting the asynchronous render in jsdom.
+await w.testRender({id:'shirt',name:'Shirt'}, select.value, button);
+assert.deepEqual(actions.map((a)=>a.action),['start','poll']);
+assert.equal(w.document.querySelector('[data-render-result] img').src,'https://example.com/black.png');
+assert.equal(actions.some((a)=>a.action==='save'),false,'rendering must not save until approved');
+w.document.querySelector('[data-render-result] button').click();
+await new Promise((resolve)=>setTimeout(resolve,0));
+assert.equal(actions[2].action,'save'); assert.equal(actions[2].colour,'Black'); assert.equal(actions[2].replace,true);
+assert.equal(w.document.querySelector('[data-render-result] button').textContent,'Saved');
+console.log('  ✓ template UI — explicit template selection, image review and approval');
+w.close();
