@@ -56,6 +56,10 @@ const mockup = (stem) => `https://files.cdn.printful.com/files/${stem}_preview.p
 const payload = {
   products: [
     {
+      id: 'unisex-classic-tee', colors: ['Black', 'Maroon', 'Navy'], sizes: ['M'],
+      priceCents: 2050, inStock: true, images: { Black: mockup('tee-black') },
+    },
+    {
       id: 'hoodie-embroidered',
       colors: ['Black', 'Navy'],
       sizes: ['M'],
@@ -144,6 +148,19 @@ const swatch = (id, colour) => {
     fail('the hoodie card never rendered');
   } else if (!hoodie.src.includes('hoodie-black')) {
     fail(`first paint shows the wrong hoodie photo (${hoodie.src.slice(0, 48)}) — the live mockup was ignored`);
+  }
+}
+
+/* The hero must show its featured product, never some other black product. */
+{
+  const hero = w.document.querySelector('.floating-cap img');
+  if (!hero || !hero.getAttribute('src').includes('tee-black')) fail('hero did not use the featured tee photo');
+  const maroon = w.document.querySelector('.hero-swatch-row [aria-label="Show Unisex classic tee in Maroon"]');
+  if (!maroon) fail('featured-product hero colour control is missing');
+  else {
+    maroon.click(); await wait(300);
+    const next = w.document.querySelector('.floating-cap img');
+    if (!next || !next.getAttribute('src').startsWith('data:')) fail('hero borrowed a different product or colour when its photo was missing');
   }
 }
 

@@ -175,6 +175,44 @@ export default async function handler(req, res) {
       return res.status(200).json(publicCatalog());
     }
 
+    /* Same-origin access to the current product photo for the browser's
+       conservative background cutout. Never accept a URL from the caller:
+       only an exact product/colour in the public catalog may be fetched. */
+    if (route === 'photo') {
+      if (method !== 'GET') return clientError(res, 405, 'Method not allowed.');
+      const query = new URL(req.url, 'https://store.invalid').searchParams;
+      const id = query.get('product'), colour = query.get('colour');
+      await refreshCatalog();
+      const product = publicCatalog().products.find((item) => item.id === id);
+      const source = product && product.colors.includes(colour) && product.images[colour];
+      if (!source) return clientError(res, 404, 'Photo not found.');
+      let url;
+      try { url = new URL(source); } catch { return clientError(res, 404, 'Photo not available.'); }
+      const allowed = new Set(['files.cdn.printful.com', 'printful-upload.s3-accelerate.amazonaws.com', 'printful-mockups.s3.amazonaws.com']);
+      try { if (process.env.SUPABASE_URL) allowed.add(new URL(process.env.SUPABASE_URL).hostname); } catch { /* unavailable */ }
+      if (url.protocol !== 'https:' || !allowed.has(url.hostname) || url.username || url.password || url.port) return clientError(res, 404, 'Photo not available.');
+      const response = await fetch(url.href, { redirect: 'error', signal: AbortSignal.timeout(12000) });
+      const type = (response.headers.get('content-type') || '').split(';')[0].toLowerCase();
+      if (!response.ok || !response.body || !['image/png', 'image/jpeg', 'image/webp'].includes(type)) return clientError(res, 502, 'Photo unavailable.');
+      const limit = 5 * 1024 * 1024;
+      if (Number(response.headers.get('content-length') || 0) > limit) return clientError(res, 502, 'Photo too large.');
+      const reader = response.body.getReader(), chunks = [];
+      let size = 0;
+      try {
+        while (true) {
+          const {done, value} = await reader.read();
+          if (done) break;
+          size += value.byteLength;
+          if (size > limit) { await reader.cancel(); return clientError(res, 502, 'Photo too large.'); }
+          chunks.push(Buffer.from(value));
+        }
+      } finally { reader.releaseLock(); }
+      res.setHeader('Content-Type', type);
+      res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=60');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      return res.status(200).send(Buffer.concat(chunks));
+    }
+
     /* ── shipping rules ──────────────────────────────────────────────── */
     if (route === 'shipping') {
       if (method !== 'GET') return clientError(res, 405, 'Method not allowed.');
