@@ -282,7 +282,25 @@ async function main() {
   }
 
   // ── products ─────────────────────────────────────────────────────────────
-  const products = rows.map((row) => {
+  // The shop's running order, as the owner asked for it: tee, windbreaker,
+  // hat, hoodie, beanie, sticker. Anything not named here keeps its relative
+  // position after these, so adding a product in Printful appends it rather
+  // than silently reordering the shop — which is what a sort_order taken from
+  // a sync loop index used to do.
+  const SHOP_ORDER = [
+    'unisex-classic-tee',
+    'windbreaker-embroidered',
+    'hat-embroidered',
+    'hoodie-embroidered',
+    'beanie-embroidered',
+    'sticker',
+  ];
+  const shopRank = (id) => {
+    const i = SHOP_ORDER.indexOf(id);
+    return i === -1 ? SHOP_ORDER.length + 100 : i;
+  };
+
+  const products = rows.slice().sort((a, b) => shopRank(a.id) - shopRank(b.id)).map((row) => {
     const copy = COPY[row.id] || {};
     const colourKeys = Array.isArray(row.colors) ? row.colors : [];
     const images = {};

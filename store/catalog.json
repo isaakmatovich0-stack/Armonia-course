@@ -60,91 +60,41 @@
   ],
   "products": [
     {
-      "id": "sticker",
-      "name": "Armonia Connect™ Sticker",
-      "shortName": "Armonia Connect™ Sticker",
-      "price": 3.5,
-      "category": "Accessories",
-      "type": "stickers",
-      "initialColor": "White",
-      "badge": "DIE-CUT",
-      "subtitle": "Weather-resistant vinyl sticker",
-      "description": "The emblem, as a sticker. Die-cut vinyl with a weather-resistant finish, sized to go on a laptop, a case or a guitar. Made and shipped by our print partner in the United States.",
+      "id": "unisex-classic-tee",
+      "name": "Unisex classic tee",
+      "shortName": "Unisex classic tee",
+      "price": 20.5,
+      "category": "Apparel",
+      "type": "tee",
+      "initialColor": "Black",
+      "badge": "EVERYDAY",
+      "subtitle": "Classic unisex tee",
+      "description": "The plain one, done properly. A classic unisex cut in maroon, black or navy, printed and shipped from the United States. The quiet half of the collection.",
       "details": [
-        "Die-cut vinyl with a weather-resistant finish",
-        "4″ × 4″",
-        "Made and fulfilled in the United States"
+        "Classic unisex cut",
+        "Maroon, black or navy",
+        "S to 5XL",
+        "Printed and shipped by our print partner in the United States"
       ],
-      "fit": "One size: 4″ × 4″. Sticks to most smooth, clean surfaces.",
+      "fit": "A regular unisex fit. Choose your usual size, or size up for a looser shape.",
       "colors": [
-        "White"
+        "Maroon",
+        "Black",
+        "Navy"
       ],
       "sizes": [
-        "4″×4″"
+        "S",
+        "M",
+        "L",
+        "XL",
+        "2XL",
+        "3XL",
+        "4XL",
+        "5XL"
       ],
       "images": {
-        "White": "/store/images/stickers-ivory.webp"
+        "Black": "/store/images/tee-ink.webp"
       }
-    },
-    {
-      "id": "hat-embroidered",
-      "name": "Armonia Connect™ Hat | Embroidered",
-      "shortName": "Armonia Connect™ Hat | Embroidered",
-      "price": 23,
-      "category": "Accessories",
-      "type": "cap",
-      "initialColor": "Black",
-      "badge": "EMBROIDERED",
-      "subtitle": "Embroidered cap in three colours",
-      "description": "The everyday cap, with the Armonia Connect emblem embroidered at the front centre. Soft-structured, adjustable at the back, and quiet enough to wear with anything.",
-      "details": [
-        "Embroidered Armonia Connect emblem",
-        "Adjustable back strap • one size fits most",
-        "Black, burgundy maroon or navy blue",
-        "Embroidered and shipped by our print partner in the United States"
-      ],
-      "fit": "Adjustable. One size fits most.",
-      "colors": [
-        "Black",
-        "Burgundy Maroon",
-        "Navy Blue"
-      ],
-      "sizes": [
-        "ONE SIZE"
-      ],
-      "images": {
-        "Black": "/store/images/cap-ink.webp",
-        "Burgundy Maroon": "/store/images/cap-orange.webp"
-      }
-    },
-    {
-      "id": "beanie-embroidered",
-      "name": "Armonia Connect™ Beanie | Embroidered",
-      "shortName": "Armonia Connect™ Beanie | Embroidered",
-      "price": 17,
-      "category": "Accessories",
-      "type": "beanie",
-      "initialColor": "Black",
-      "badge": "EMBROIDERED",
-      "subtitle": "Ribbed beanie with a small embroidered emblem",
-      "description": "A ribbed knit beanie with the emblem embroidered small at the front centre, so it reads as a detail rather than a logo. Warm without the bulk.",
-      "details": [
-        "Small embroidered emblem, front centre",
-        "Ribbed knit with a folded cuff",
-        "Black, navy, olive or white",
-        "Embroidered and shipped by our print partner in the United States"
-      ],
-      "fit": "One size. The folded cuff adjusts the fit.",
-      "colors": [
-        "Black",
-        "Navy",
-        "Olive",
-        "White"
-      ],
-      "sizes": [
-        "ONE SIZE"
-      ],
-      "images": {}
     },
     {
       "id": "windbreaker-embroidered",
@@ -180,40 +130,34 @@
       }
     },
     {
-      "id": "unisex-classic-tee",
-      "name": "Unisex classic tee",
-      "shortName": "Unisex classic tee",
-      "price": 20.5,
-      "category": "Apparel",
-      "type": "tee",
+      "id": "hat-embroidered",
+      "name": "Armonia Connect™ Hat | Embroidered",
+      "shortName": "Armonia Connect™ Hat | Embroidered",
+      "price": 23,
+      "category": "Accessories",
+      "type": "cap",
       "initialColor": "Black",
-      "badge": "EVERYDAY",
-      "subtitle": "Classic unisex tee",
-      "description": "The plain one, done properly. A classic unisex cut in maroon, black or navy, printed and shipped from the United States. The quiet half of the collection.",
+      "badge": "EMBROIDERED",
+      "subtitle": "Embroidered cap in three colours",
+      "description": "The everyday cap, with the Armonia Connect emblem embroidered at the front centre. Soft-structured, adjustable at the back, and quiet enough to wear with anything.",
       "details": [
-        "Classic unisex cut",
-        "Maroon, black or navy",
-        "S to 5XL",
-        "Printed and shipped by our print partner in the United States"
+        "Embroidered Armonia Connect emblem",
+        "Adjustable back strap • one size fits most",
+        "Black, burgundy maroon or navy blue",
+        "Embroidered and shipped by our print partner in the United States"
       ],
-      "fit": "A regular unisex fit. Choose your usual size, or size up for a looser shape.",
+      "fit": "Adjustable. One size fits most.",
       "colors": [
-        "Maroon",
         "Black",
-        "Navy"
+        "Burgundy Maroon",
+        "Navy Blue"
       ],
       "sizes": [
-        "S",
-        "M",
-        "L",
-        "XL",
-        "2XL",
-        "3XL",
-        "4XL",
-        "5XL"
+        "ONE SIZE"
       ],
       "images": {
-        "Black": "/store/images/tee-ink.webp"
+        "Black": "/store/images/cap-ink.webp",
+        "Burgundy Maroon": "/store/images/cap-orange.webp"
       }
     },
     {
@@ -254,16 +198,76 @@
       "images": {
         "Black": "/store/images/hoodie-ink.webp"
       }
+    },
+    {
+      "id": "beanie-embroidered",
+      "name": "Armonia Connect™ Beanie | Embroidered",
+      "shortName": "Armonia Connect™ Beanie | Embroidered",
+      "price": 17,
+      "category": "Accessories",
+      "type": "beanie",
+      "initialColor": "Black",
+      "badge": "EMBROIDERED",
+      "subtitle": "Ribbed beanie with a small embroidered emblem",
+      "description": "A ribbed knit beanie with the emblem embroidered small at the front centre, so it reads as a detail rather than a logo. Warm without the bulk.",
+      "details": [
+        "Small embroidered emblem, front centre",
+        "Ribbed knit with a folded cuff",
+        "Black, navy, olive or white",
+        "Embroidered and shipped by our print partner in the United States"
+      ],
+      "fit": "One size. The folded cuff adjusts the fit.",
+      "colors": [
+        "Black",
+        "Navy",
+        "Olive",
+        "White"
+      ],
+      "sizes": [
+        "ONE SIZE"
+      ],
+      "images": {}
+    },
+    {
+      "id": "sticker",
+      "name": "Armonia Connect™ Sticker",
+      "shortName": "Armonia Connect™ Sticker",
+      "price": 3.5,
+      "category": "Accessories",
+      "type": "stickers",
+      "initialColor": "White",
+      "badge": "DIE-CUT",
+      "subtitle": "Weather-resistant vinyl sticker",
+      "description": "The emblem, as a sticker. Die-cut vinyl with a weather-resistant finish, sized to go on a laptop, a case or a guitar. Made and shipped by our print partner in the United States.",
+      "details": [
+        "Die-cut vinyl with a weather-resistant finish",
+        "4″ × 4″",
+        "Made and fulfilled in the United States"
+      ],
+      "fit": "One size: 4″ × 4″. Sticks to most smooth, clean surfaces.",
+      "colors": [
+        "White"
+      ],
+      "sizes": [
+        "4″×4″"
+      ],
+      "images": {
+        "White": "/store/images/stickers-ivory.webp"
+      }
     }
   ],
   "colors": {
-    "White": {
-      "name": "White",
-      "hex": "#e8e6e0"
+    "Maroon": {
+      "name": "Maroon",
+      "hex": "#5a2430"
     },
     "Black": {
       "name": "Black",
       "hex": "#212729"
+    },
+    "Navy": {
+      "name": "Navy",
+      "hex": "#232f3e"
     },
     "Burgundy Maroon": {
       "name": "Burgundy Maroon",
@@ -273,18 +277,6 @@
       "name": "Navy Blue",
       "hex": "#232f3e"
     },
-    "Navy": {
-      "name": "Navy",
-      "hex": "#232f3e"
-    },
-    "Olive": {
-      "name": "Olive",
-      "hex": "#5d6047"
-    },
-    "Maroon": {
-      "name": "Maroon",
-      "hex": "#5a2430"
-    },
     "Forest Green": {
       "name": "Forest Green",
       "hex": "#2c3b2d"
@@ -292,9 +284,17 @@
     "Charcoal": {
       "name": "Charcoal",
       "hex": "#3a3d3f"
+    },
+    "Olive": {
+      "name": "Olive",
+      "hex": "#5d6047"
+    },
+    "White": {
+      "name": "White",
+      "hex": "#e8e6e0"
     }
   },
-  "featuredId": "hat-embroidered",
+  "featuredId": "unisex-classic-tee",
   "upsellId": "sticker",
   "elements": {
     "#site-header > nav.desktop-nav > a.nav-link": {

@@ -108,6 +108,37 @@ for (const relative of MODULES) {
   }
 }
 
+/* ── the page's layout must still be a list of SECTIONS ─────────────────────
+   `catalog.order` is the section order the bundle renders: hero, marquee,
+   collection, story, promises, newsletter. While reordering the products I
+   assigned that key a list of product ids, and the storefront rendered nothing
+   at all — an empty page between the hero and the footer, with no error in any
+   log. The render check caught it; this names the cause when it happens. */
+{
+  const catalog = JSON.parse(fs.readFileSync(path.join(ROOT, 'store/catalog.json'), 'utf8'));
+  const layout = catalog.order;
+  const ids = new Set((catalog.products || []).map((p) => p.id));
+  const problems = [];
+  if (!Array.isArray(layout) || !layout.length) {
+    problems.push('order is missing or empty — the page would render no sections');
+  } else {
+    const asProducts = layout.filter((entry) => ids.has(entry));
+    if (asProducts.length) {
+      problems.push(`order contains product ids (${asProducts.join(', ')}) — it must list sections like "collection"`);
+    }
+    for (const section of ['hero', 'collection']) {
+      if (!layout.includes(section)) problems.push(`order is missing the "${section}" section`);
+    }
+  }
+  if (problems.length) {
+    failures += problems.length;
+    console.log('  ✗ catalogue layout order is wrong:');
+    for (const line of problems) console.log(`      ${line}`);
+  } else {
+    console.log(`  ✓ page layout order intact (${layout.join(' → ')})`);
+  }
+}
+
 /* ── legacy DB colour keys must still resolve ───────────────────────────────
    The database kept the old admin's lowercase hyphenated colour keys while the
    page was rebuilt with Printful's names. Both have to mean the same colour or
