@@ -1475,6 +1475,10 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
         for (const product of products) {
           const box = [...panel.querySelectorAll('[data-template-controls]')].find((node) => node.dataset.templateControls === product.id);
           if (!box) continue;
+          if (product.id === 'hat-embroidered') {
+            box.textContent = 'Hat artwork is frozen; rendering is disabled.';
+            continue;
+          }
           if (!(product.templates || []).length) {
             box.textContent = 'No compatible saved template was found for this product.';
             continue;
@@ -1516,7 +1520,8 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
     async function renderTemplateMockups(product, templateId, button) {
       const panel = document.getElementById('mockupsPanel');
       const result = [...panel.querySelectorAll('[data-render-result]')].find((node) => node.dataset.renderResult === product.id);
-      if (!result || mockupRenderBusy) return;
+      if (!result) return;
+      if (mockupRenderBusy) { result.textContent = 'Another photo operation is running. Please wait.'; return; }
       if (!templateId) { result.textContent = 'Choose the matching Printful template first.'; return; }
       mockupRenderBusy = true;
       button.disabled = true;
