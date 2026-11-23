@@ -1041,29 +1041,63 @@ globalThis.__armoniaPhotoFor = function (product, colour) {
 function applyLivePhotos(products) {
   const live = new Map();
   for (const product of products || []) {
-    if (product && product.id && product.images && Object.keys(product.images).length) {
-      live.set(product.id, product.images);
+    if (product && product.id) {
+      live.set(product.id, {
+        images: (product.images && Object.keys(product.images).length) ? product.images : null,
+        colors: Array.isArray(product.colors) ? product.colors : [],
+      });
     }
   }
   if (!live.size) return;
   state.livePhotos = live;
 
   const swap = () => {
+    // Product cards, gallery and modal.
     document.querySelectorAll('img[data-photo-product]').forEach((img) => {
-      const byProduct = live.get(img.getAttribute('data-photo-product'));
+      const entry = live.get(img.getAttribute('data-photo-product'));
       const colour = img.getAttribute('data-photo-colour');
-      const wanted = byProduct && colour ? byProduct[colour] : null;
-      if (!wanted || img.getAttribute('src') === wanted) return;
-      img.setAttribute('src', wanted);
-      // A synced mockup is absolute (Printful's CDN); a local one is a path.
-      if (byProduct[colour]) img.setAttribute('data-photo-live', 'true');
+      const wanted = entry && entry.images && colour ? entry.images[colour] : null;
+      if (!wanted) return;
+      // Mark first, then set the src. A photo baked into the page at build time
+      // was already on screen, so `src` matched and the early return skipped the
+      // marking — the image was a real Printful mockup that never got the
+      // blending rule, and so stayed boxed on its own background.
+      if (/^https?:/i.test(wanted)) img.setAttribute('data-photo-live', 'true');
+      if (img.getAttribute('src') !== wanted) img.setAttribute('src', wanted);
     });
+
+    // THE HERO. The big animated product is the first thing anyone sees, and it
+    // was the last place still showing a photo from the build — a local stand-in
+    // of a cap that is not what the shop sells. It reads `cap-hero-<colour>`
+    // from disk, which can never contain a Printful mockup, so point it at the
+    // featured product's real photo for the colour currently selected.
+    const heroImg = document.querySelector('.floating-cap img, img[data-edit-image="hero"]');
+    if (heroImg) {
+      const heroColour = heroImg.getAttribute('data-edit-color');
+      const featured = state.catalog.get(heroImg.getAttribute('data-photo-product') || '');
+      const candidates = [featured, ...state.catalog.values()];
+      for (const entry of candidates) {
+        const shot = entry && entry.images && heroColour ? entry.images[heroColour] : null;
+        if (shot) {
+          // Blend whether or not the src changes. Blending is what removes the
+          // box around the garment, and a photo baked into the page at build
+          // time already matches its src — marking only on change left exactly
+          // those images boxed, which is the "sits on its own background" report.
+          heroImg.style.mixBlendMode = 'multiply';
+          heroImg.style.objectFit = 'contain';
+          if (/^https?:/i.test(shot)) heroImg.setAttribute('data-photo-live', 'true');
+          if (heroImg.getAttribute('src') !== shot) heroImg.setAttribute('src', shot);
+          break;
+        }
+      }
+    }
   };
   swap();
   // React re-renders replace these nodes when the colour changes; run again on
   // the next frame and after a short delay so a late paint is still corrected.
   requestAnimationFrame(swap);
   setTimeout(swap, 1200);
+  setTimeout(swap, 2500);
 }
 
 /**
@@ -1208,6 +1242,47 @@ function snowSvg(size, color) {
   return svg;
 }
 
+/**
+ * A scalloped garland with warm bulbs, spanning the top of the hero.
+ *
+ * One SVG rather than a repeated background: a tiled garland breaks at the
+ * stage's width and produces a seam exactly where the eye lands.
+ */
+function garlandSvg() {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 1200 60');
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.classList.add('armonia-garland');
+  const swags = [];
+  const bulbs = [];
+  for (let x = 0; x < 1200; x += 120) {
+    swags.push(`M${x} 4 Q${x + 60} 46 ${x + 120} 4`);
+    bulbs.push(`<circle cx="${x + 60}" cy="38" r="3.4" fill="#f6e4b8" />`);
+    bulbs.push(`<circle cx="${x + 60}" cy="38" r="7" fill="#e5be73" opacity=".22" />`);
+  }
+  svg.innerHTML =
+    `<path d="${swags.join(' ')}" fill="none" stroke="#e5be73" stroke-width="2.2" stroke-linecap="round" opacity=".85"/>` +
+    bulbs.join('');
+  return svg;
+}
+
+/**
+ * A row of warm bulbs that sway along the top edge, staggered so they do not
+ * pulse in unison. CSS-animated, so it costs no JS frames.
+ */
+function lightsRow() {
+  const row = document.createElement('div');
+  row.className = 'armonia-lights';
+  for (let i = 0; i < 14; i += 1) {
+    const bulb = document.createElement('span');
+    bulb.style.animationDelay = `${(i * 0.23).toFixed(2)}s`;
+    bulb.style.left = `${(i / 13) * 100}%`;
+    row.appendChild(bulb);
+  }
+  return row;
+}
+
 function renderDecoration(decoration) {
   const layer = decorationLayer();
   const on = Boolean(decoration && decoration.on);
@@ -1244,26 +1319,44 @@ function renderDecoration(decoration) {
   layer.classList.add('is-on');
   layer.replaceChildren();
 
-  // Reduced motion keeps the trees and drops the falling — a celebration that
-  // makes somebody queasy is not a celebration.
-  if (!reduced) {
-    decorationFlakes(18).forEach((flake) => {
-      const node = snowSvg(flake.size, flake.color);
-      node.classList.add('armonia-flake');
-      node.style.left = flake.left;
-      node.style.animationDuration = flake.duration;
-      node.style.animationDelay = flake.delay;
-      node.style.opacity = String(flake.opacity);
-      layer.appendChild(node);
-    });
-  }
+  // ── falling snow ────────────────────────────────────────────────────────
+  // 18 flakes across a 656px hero is barely a hint of weather. The count scales
+  // with the stage so a phone does not drop frames and a wide window does not
+  // look empty.
+  const stageWidth = layer.parentElement ? layer.parentElement.getBoundingClientRect().width || 900 : 900;
+  const flakeCount = reduced ? 0 : Math.max(28, Math.min(64, Math.round(stageWidth / 16)));
+  decorationFlakes(flakeCount).forEach((flake) => {
+    const node = snowSvg(flake.size, flake.color);
+    node.classList.add('armonia-flake');
+    node.style.left = flake.left;
+    node.style.animationDuration = flake.duration;
+    node.style.animationDelay = flake.delay;
+    node.style.opacity = String(flake.opacity);
+    layer.appendChild(node);
+  });
 
-  // Two firs at the foot of the stage, mirroring each other so the hero reads
-  // as symmetric rather than as one tree that failed to load.
-  [['left', 46], ['right', 30]].forEach(([side, size]) => {
-    const tree = treeSvg(size, '#e5be73');
+  // ── a reindeer... no. Trees, a garland, and warm lights ──────────────────
+  // Firs at the foot of the stage, one large and one small per side so the
+  // treeline reads as depth rather than as two clip-art trees.
+  [['left', 64], ['left-inner', 38], ['right', 46], ['right-inner', 26]].forEach(([side, size]) => {
+    const tree = treeSvg(size, side.includes('inner') ? '#c8a35f' : '#e5be73');
     tree.classList.add('armonia-tree', `is-${side}`);
     layer.appendChild(tree);
+  });
+
+  // A garland across the top of the hero: a gold scallop with warm bulbs.
+  // Drawn once, as SVG, so it scales with the stage instead of tiling.
+  if (!reduced) {
+    layer.appendChild(garlandSvg());
+    layer.appendChild(lightsRow());
+  }
+
+  // Corner ornaments: four small snowflakes pinned to the hero's corners. They
+  // are static, so they stay on even with reduced motion.
+  ['tl', 'tr', 'bl', 'br'].forEach((corner) => {
+    const flake = snowSvg(corner === 'tl' || corner === 'br' ? 26 : 18, '#e5be73');
+    flake.classList.add('armonia-corner', `is-${corner}`);
+    layer.appendChild(flake);
   });
 
   const banner = ensureDecorationBanner();

@@ -108,6 +108,38 @@ for (const relative of MODULES) {
   }
 }
 
+/* ── the festive layer must actually be able to draw ───────────────────────
+   "Not festive enough" was partly a styling argument and partly a bug: the
+   rules for the garland, lights and hero wash were generated on a code path a
+   normal build never runs (`extractExport`), so they silently never reached the
+   browser. Assert that the emitted stylesheet contains the pieces the runtime
+   creates, or the season renders as bare snowflakes again. */
+{
+  const css = fs.readFileSync(path.join(ROOT, 'public/store/base.css'), 'utf8');
+  const required = [
+    ['the falling-snow layer', '.armonia-decoration-layer'],
+    ['the snowflake rule', '.armonia-flake'],
+    ['the treeline', '.armonia-tree'],
+    ['the garland', '.armonia-garland'],
+    ['the string of lights', '.armonia-lights'],
+    ['the corner flakes', '.armonia-corner'],
+    ['the hero season wash', 'has-decorations .hero::after'],
+    ['Printful photo blending', 'data-photo-live'],
+  ];
+  const missing = required.filter(([, needle]) => !css.includes(needle));
+  const runtime = fs.readFileSync(path.join(ROOT, 'store/runtime.js'), 'utf8');
+  const runtimeParts = ['garlandSvg', 'lightsRow', 'armonia-corner', 'decorationFlakes'];
+  const missingRuntime = runtimeParts.filter((part) => !runtime.includes(part));
+  if (missing.length || missingRuntime.length) {
+    failures += missing.length + missingRuntime.length;
+    console.log('  ✗ the festive layer is incomplete:');
+    for (const [label] of missing) console.log(`      missing CSS for ${label}`);
+    for (const part of missingRuntime) console.log(`      runtime never builds ${part}()`);
+  } else {
+    console.log(`  ✓ festive layer complete (snow, ${required.length - 1} pieces, and photo blending)`);
+  }
+}
+
 /* ── the page's layout must still be a list of SECTIONS ─────────────────────
    `catalog.order` is the section order the bundle renders: hero, marquee,
    collection, story, promises, newsletter. While reordering the products I

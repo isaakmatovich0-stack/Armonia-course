@@ -57,6 +57,133 @@ const OUT = {
   catalog: path.join(ROOT, 'store/catalog.json'),
 };
 
+/* ─────────────────────── photos from Printful's CDN ─────────────────────── */
+
+/**
+ * A synced mockup is a photograph of the garment on a light grey studio field.
+ * Dropped into a card as-is it reads as a grey tile with a product in it —
+ * "all of the mockups are on their own backgrounds", which is exactly how the
+ * owner described it.
+ *
+ * Multiply blending composites the white/grey field away against the card's
+ * cream background and leaves the garment, so the photo sits ON the page
+ * instead of in a box. It only applies to `[data-photo-live]`, which the
+ * runtime sets for absolute CDN URLs — our own artwork already has a
+ * transparent or cream background and must not be darkened.
+ *
+ * The hover scale is kept on the card's own transform so blending cannot clip
+ * it. */
+const LIVE_PHOTO_CSS = `
+img[data-photo-live="true"] {
+  mix-blend-mode: multiply;
+  object-fit: contain;
+}
+/* The card behind a live mockup must be the same cream the blend multiplies
+   onto. Multiply-blending takes the white field of Printful's photo and tints it with
+   whatever is underneath, so the garment sits on the page instead of inside a
+   grey rectangle — but only if what is underneath is the page's cream. Flatten
+   the wrap's own background too, or a darker panel shows through the photo. */
+.product-image-wrap:has(img[data-photo-live="true"]),
+.product-modal-image:has(img[data-photo-live="true"]),
+.cart-item-image:has(img[data-photo-live="true"]),
+.search-product-image:has(img[data-photo-live="true"]) {
+  background: var(--cream, #f6f3eb) !important;
+  box-shadow: none;
+}
+.floating-cap img[data-photo-live="true"],
+img[data-edit-image="hero"][data-photo-live="true"] {
+  mix-blend-mode: multiply;
+  object-fit: contain;
+  filter: drop-shadow(6px 16px 14px #1525291f);
+}
+`;
+
+/* ──────────────────── more season, one switch ───────────────────────────── */
+
+/**
+ * The festive layer was one small garland of 18 flakes and two 46px trees, all
+ * clipped inside a 656px hero — barely visible, and the owner's verdict was
+ * "not festive enough". This adds, still behind the single admin switch:
+ *
+ *   • a scalloped garland with warm bulbs across the top of the hero
+ *   • a row of glowing lights that pulse out of step
+ *   • four corner snowflakes
+ *   • a warm wash and a vignette over the hero so the season is felt in the
+ *     colour temperature, not just in clip art
+ *
+ * Deliberately no red: the storefront is ink, cream and gold, and Santa-red
+ * would look bolted on. It reads as a warm, gilded December instead.
+ */
+const SEASON_CSS = `
+/* a warm wash over the whole hero while the season is on */
+html.has-decorations .hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(120% 90% at 50% -10%, #e5be7326 0%, #e5be730f 34%, transparent 62%),
+    radial-gradient(70% 60% at 12% 100%, #b3cdda26 0%, transparent 60%),
+    radial-gradient(70% 60% at 88% 100%, #e5be731f 0%, transparent 60%);
+}
+
+/* the garland across the top of the stage */
+.armonia-decoration-layer .armonia-garland {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 46px;
+  opacity: 0.8;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.16));
+}
+
+/* the string of lights, swaying */
+.armonia-decoration-layer .armonia-lights {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 30px;
+}
+.armonia-decoration-layer .armonia-lights > span {
+  position: absolute;
+  top: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #f7e7bd;
+  box-shadow: 0 0 9px 3px #e5be7373;
+  animation: armoniaTwinkle 2.9s ease-in-out infinite;
+}
+@keyframes armoniaTwinkle {
+  0%, 100% { opacity: 0.32; transform: translateY(0) scale(0.85); }
+  50%      { opacity: 1;    transform: translateY(5px) scale(1.12); }
+}
+
+/* four corner flakes, static so they survive reduced motion */
+.armonia-decoration-layer .armonia-corner {
+  position: absolute;
+  opacity: 0.42;
+}
+.armonia-decoration-layer .armonia-corner.is-tl { top: 8px; left: 10px; }
+.armonia-decoration-layer .armonia-corner.is-tr { top: 12px; right: 14px; }
+.armonia-decoration-layer .armonia-corner.is-bl { bottom: 10px; left: 22px; }
+.armonia-decoration-layer .armonia-corner.is-br { bottom: 14px; right: 26px; }
+
+/* the four-stage treeline */
+.armonia-decoration-layer .armonia-tree.is-left-inner { left: 84px; bottom: 3px; opacity: 0.4; }
+.armonia-decoration-layer .armonia-tree.is-right-inner { right: 96px; bottom: 2px; opacity: 0.34; }
+
+@media (prefers-reduced-motion: reduce) {
+  .armonia-decoration-layer .armonia-lights > span { animation: none; opacity: 0.6; }
+  html.has-decorations .hero::after { background: radial-gradient(120% 90% at 50% -10%, #e5be7322 0%, transparent 60%); }
+}
+`;
+
+/* ────────────────────────── the photo manifest ──────────────────────────── */
+
 const write = (file, data) => {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, data);
@@ -501,9 +628,15 @@ const PATCHES = [
     // (window.__armoniaPhotoFor, built by the runtime), falls back to the
     // colour SLUG — what the files are actually named — and only then to the
     // neutral placeholder, which does not pretend to be a colour.
+    // The LIVE photo is consulted first, not last. The page's baked-in
+    // `s.images` map is the stale one this rule exists to replace: it still
+    // holds the old local stand-ins (a hoodie "Black" pointing at
+    // hoodie-ink.webp). Checking it first meant every re-render — and a swatch
+    // click is a re-render — snapped straight back to the stand-in, so choosing
+    // a colour looked like it did nothing. Printful's own mockup wins.
     name: 'product photo resolution',
     find: 'Or=(s,y)=>{var f;if((f=s.images)!=null&&f[y])return Ka(s.images[y]);if(s.type==="stickers")return Ka(`/store/images/stickers-${y}.webp`);if(!mg.includes(s.type))return _y;const h=["sky","ink","ivory","orange"].includes(y)?y:"sky";return Ka(`/store/images/${s.type}-${h}.webp`)}',
-    replace: 'Or=(s,y)=>{var f,m,e;if((f=s.images)!=null&&f[y])return Ka(s.images[y]);const live=(m=globalThis.__armoniaPhotoFor)==null?void 0:m.call(globalThis,s,y);if(live)return Ka(live);const slug=(e=globalThis.__armoniaColourSlug)==null?void 0:e.call(globalThis,y);if(slug){const stem=`${s.type}-${slug}`;const front=s.type==="windbreaker"?`windbreaker-front-${slug}`:stem;if(globalThis.__armoniaPhotoExists&&globalThis.__armoniaPhotoExists(front))return Ka(`/store/images/${front}.webp`);if(globalThis.__armoniaPhotoExists&&globalThis.__armoniaPhotoExists(stem))return Ka(`/store/images/${stem}.webp`)}return _y}',
+    replace: 'Or=(s,y)=>{var f,m,e;const live=(m=globalThis.__armoniaPhotoFor)==null?void 0:m.call(globalThis,s,y);if(live)return Ka(live);if((f=s.images)!=null&&f[y])return Ka(s.images[y]);const slug=(e=globalThis.__armoniaColourSlug)==null?void 0:e.call(globalThis,y);if(slug){const stem=`${s.type}-${slug}`;const front=s.type==="windbreaker"?`windbreaker-front-${slug}`:stem;if(globalThis.__armoniaPhotoExists&&globalThis.__armoniaPhotoExists(front))return Ka(`/store/images/${front}.webp`);if(globalThis.__armoniaPhotoExists&&globalThis.__armoniaPhotoExists(stem))return Ka(`/store/images/${stem}.webp`)}return _y}',
   },
   {
     // The hero photo had the same disease, plus one more lie: its alt text
@@ -779,8 +912,6 @@ ${licenses ? `<script type="application/json" id="open-source-licenses">${licens
 `;
 }
 
-/* ────────────────────────── the photo manifest ──────────────────────────── */
-
 /**
  * Append `window.__ARMONIA_PHOTOS` to the runtime.
  *
@@ -868,6 +999,18 @@ async function main() {
     OUT.catalog,
     `${JSON.stringify(rebaseCatalogImages(applyProductState(applyProductOverrides(applySiteCopy(JSON.parse(fs.readFileSync(OUT.catalog, 'utf8')))))), null, 2)}\n`,
   );
+
+  /* Live-photo styling. Appended here rather than in extractExport() because
+     that only runs with --export: the CSS was being generated on a code path a
+     normal build never takes, so the rule silently never reached the browser.
+     Appending (not replacing) keeps the Studio export's own rules intact. */
+  // Strip any previously appended block first, so a changed block actually
+  // replaces the old one. The first version only appended when nothing was
+  // there, which made the rule idempotent and therefore impossible to update —
+  // adding "armonia-lights" to it silently did nothing.
+  const APPENDED_START = '\n\n/* ══════════ appended by build-store.mjs ══════════ */';
+  const stylesheet = fs.readFileSync(OUT.css, 'utf8').split(APPENDED_START)[0];
+  write(OUT.css, stylesheet + APPENDED_START + '\n' + LIVE_PHOTO_CSS + '\n' + SEASON_CSS);
 
   write(OUT.page, renderPage(config, { licenses }));
   await renderPages();
