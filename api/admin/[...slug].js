@@ -873,8 +873,15 @@ export default async function handler(req, res) {
           }
           if (item.images && Object.keys(item.images).length) {
             // Merge rather than replace: a colour Printful gave us no mockup for
-            // keeps whatever artwork is already on the storefront.
-            patch.images = { ...(current?.images || {}), ...item.images };
+            // keeps whatever artwork is already on the storefront. Then drop any
+            // Printful-CDN photo Printful no longer offers — that is the old flat
+            // artwork file, and leaving it in place is what made the cards look
+            // like a design pasted on its own square.
+            const merged = { ...(current?.images || {}), ...item.images };
+            for (const colour of item.staleImages || []) {
+              if (!item.images[colour]) delete merged[colour];
+            }
+            patch.images = merged;
           } else if (item.image && item.colors && item.colors.length && !Object.keys(current?.images || {}).length) {
             // Printful had no per-variant preview but did give a product
             // thumbnail. Better than a placeholder, and only when we have no

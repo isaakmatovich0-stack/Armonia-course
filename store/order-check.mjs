@@ -160,6 +160,48 @@ const variant = (syncVariantId, colour, size, shot) => ({
   }
 }
 
+/* ── stale artwork must be dropped, an owner's upload must not be ────────
+   The images the shop is serving right now are Printful artwork files, which
+   is why every card looks like a design pasted on its own square. The apply
+   step deliberately MERGES, so a colour Printful has no mockup for keeps its
+   existing photo — correct for a photo the owner uploaded, wrong for a flat
+   design file. Only Printful-CDN pictures Printful no longer offers are stale. */
+{
+  const printful = [{
+    id: 555,
+    externalId: 'hat-embroidered',
+    name: 'Armonia Connect™ Hat | Embroidered',
+    variants: [variant(101, 'Black', '', null)],   // no mockup rendered yet
+  }];
+  const artwork = 'https://files.cdn.printful.com/files/ART_preview.png';
+
+  // (a) Printful's own artwork file: stale
+  {
+    const rows = [{
+      id: 'hat-embroidered', name: 'Armonia Connect™ Hat | Embroidered',
+      colors: ['Black'], sizes: ['ONE SIZE'], price_cents: 2300,
+      images: { Black: artwork }, in_stock: true,
+    }];
+    const product = buildSyncPlan(printful, rows, {}).products[0];
+    if (!(product.staleImages || []).includes('Black')) {
+      fail('a Printful artwork file was NOT flagged stale — the boxed card would stay boxed after a sync');
+    }
+  }
+
+  // (b) a photo the owner uploaded: must survive
+  {
+    const rows = [{
+      id: 'hat-embroidered', name: 'Armonia Connect™ Hat | Embroidered',
+      colors: ['Black'], sizes: ['ONE SIZE'], price_cents: 2300,
+      images: { Black: 'https://example.com/uploads/my-real-mockup.jpg' }, in_stock: true,
+    }];
+    const product = buildSyncPlan(printful, rows, {}).products[0];
+    if ((product.staleImages || []).length) {
+      fail("an owner's own uploaded photo was flagged stale — a sync would delete it");
+    }
+  }
+}
+
 /* ── the negative case: an unmapped line is reported, never guessed ────── */
 {
   const order = {
