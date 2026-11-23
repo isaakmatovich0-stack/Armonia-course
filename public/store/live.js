@@ -1026,6 +1026,47 @@ globalThis.__armoniaPhotoFor = function (product, colour) {
    ═══════════════════════════════════════════════════════════════════════ */
 
 /**
+ * Swap in Printful's own mockups where the server has one we are not showing.
+ *
+ * The page ships pictures from store/catalog.json, which is generated and can
+ * lag behind reality. A product's real mockups are minted by Printful as CDN
+ * URLs, so no build can contain them — they only exist in the database after a
+ * sync. Without this the shop keeps showing a stand-in photo (or a placeholder)
+ * for a product Printful has a proper picture of, which is exactly what the
+ * owner sees as "the mockups are not the same as Printful".
+ *
+ * Only elements already on screen are touched, and only when the src genuinely
+ * differs, so nothing reflows on a normal page load.
+ */
+function applyLivePhotos(products) {
+  const live = new Map();
+  for (const product of products || []) {
+    if (product && product.id && product.images && Object.keys(product.images).length) {
+      live.set(product.id, product.images);
+    }
+  }
+  if (!live.size) return;
+  state.livePhotos = live;
+
+  const swap = () => {
+    document.querySelectorAll('img[data-photo-product]').forEach((img) => {
+      const byProduct = live.get(img.getAttribute('data-photo-product'));
+      const colour = img.getAttribute('data-photo-colour');
+      const wanted = byProduct && colour ? byProduct[colour] : null;
+      if (!wanted || img.getAttribute('src') === wanted) return;
+      img.setAttribute('src', wanted);
+      // A synced mockup is absolute (Printful's CDN); a local one is a path.
+      if (byProduct[colour]) img.setAttribute('data-photo-live', 'true');
+    });
+  };
+  swap();
+  // React re-renders replace these nodes when the colour changes; run again on
+  // the next frame and after a short delay so a late paint is still corrected.
+  requestAnimationFrame(swap);
+  setTimeout(swap, 1200);
+}
+
+/**
  * Pull live prices + stock caps from the server. The bundle's own config stays
  * the source for copy, colours and imagery; the server is the source for
  * money, so a stale page can never sell at an old price.
@@ -1044,6 +1085,7 @@ async function loadCatalog() {
       return live && typeof live.priceCents === 'number' ? { ...product, price: live.priceCents / 100 } : product;
     });
     state.checkoutLive = payload.checkoutLive !== false;
+    applyLivePhotos(payload.products);
     state.shipping = state.shipping || payload.shipping || null;
     applyDecoration(payload.decoration);
     // Keep the bundle's own price table in step with the server.

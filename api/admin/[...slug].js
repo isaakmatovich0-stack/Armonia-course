@@ -849,11 +849,24 @@ export default async function handler(req, res) {
           if (item.changes.colors) patch.colors = item.changes.colors.to;
           if (item.changes.sizes) patch.sizes = item.changes.sizes.to;
           if (item.changes.supplier) patch.supplier = 'printful';
+          // This loop used to live in a branch that also guarded a stray
+          // `continue`, which meant a product whose only change was a new
+          // Printful mockup was skipped entirely — the images were fetched,
+          // then thrown away before the patch was written. Check the images
+          // independently of the colour/size changes.
           if (item.images && Object.keys(item.images).length) {
             // Merge rather than replace: a colour Printful gave us no mockup for
             // keeps whatever artwork is already on the storefront.
             patch.images = { ...(current?.images || {}), ...item.images };
+          } else if (item.image && item.colors && item.colors.length && !Object.keys(current?.images || {}).length) {
+            // Printful had no per-variant preview but did give a product
+            // thumbnail. Better than a placeholder, and only when we have no
+            // artwork at all — never overwriting a photo we already have.
+            patch.images = { [item.colors[0]]: item.image };
           }
+          // SORT ORDER IS DELIBERATELY NOT TOUCHED. It used to be written from
+          // the loop index, so every sync silently reshuffled the shop into
+          // Printful's listing order and undid whatever the owner had arranged.
           if (!Object.keys(patch).length) { skipped.push(item.id); continue; }
           void current;
           await updateProduct(item.id, patch);

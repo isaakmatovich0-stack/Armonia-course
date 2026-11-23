@@ -169,12 +169,12 @@ const SITE_COPY = {
  * rather than re-added: this map carries state, not products.
  */
 const PRODUCT_STATE = {
-  "sticker": { price: 3.5, inStock: true },
-  "hat-embroidered": { price: 23, inStock: true },
-  "beanie-embroidered": { price: 17, inStock: true },
-  "windbreaker-embroidered": { price: 31, inStock: true },
   "unisex-classic-tee": { price: 20.5, inStock: true },
+  "windbreaker-embroidered": { price: 31, inStock: true },
+  "hat-embroidered": { price: 23, inStock: true },
   "hoodie-embroidered": { price: 41.5, inStock: true },
+  "beanie-embroidered": { price: 17, inStock: true },
+  "sticker": { price: 3.5, inStock: true },
 };
 
 function applyProductState(catalog) {
@@ -522,6 +522,20 @@ const PATCHES = [
     name: 'hero alt text names the real product',
     find: 'Sky-inspired Armonia Connect Signature Cap in ${Jt[h].name} with gold embroidery',
     replace: '${At.name} in ${Jt[h].name}',
+  },
+  {
+    // Let the runtime correct a stale mockup.
+    //
+    // The page is built from store/catalog.json, which is generated. Once a
+    // Printful sync has run, a product's real mockups live in the database —
+    // and those are the pictures of the thing the owner actually designed. They
+    // are CDN URLs minted by Printful, so a build can never contain them. The
+    // <img> now says which product and colour it is showing, so the runtime can
+    // swap in the server's photo when it differs instead of guessing from the
+    // src attribute.
+    name: 'product photos are identifiable to the runtime',
+    find: '"data-editor-product":s.id,"data-edit-color":y,src:Or(s,y)',
+    replace: '"data-editor-product":s.id,"data-edit-color":y,"data-photo-product":s.id,"data-photo-colour":y,src:Or(s,y)',
   },
 ];
 
