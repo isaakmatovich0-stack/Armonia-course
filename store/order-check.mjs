@@ -28,9 +28,16 @@ import { clearCatalogCache, priceBag, applyPromo } from '../lib/store/catalog.js
 import { shippingAddress, quoteFingerprint } from '../lib/store/shipping.js';
 import { orderFromStripeSession } from '../lib/store/orders.js';
 import { withQuotedShipping } from '../lib/store/quoted-order.js';
+import { encodeCheckoutItems, decodeCheckoutItems } from '../lib/store/checkout-items.js';
 
 const failures = [];
 const fail = (message) => failures.push(message);
+
+{
+  const items = Array.from({ length: 20 }, (_, i) => ({ productId: `product-${i}`, name: 'A customer product', color: 'Black', size: 'M', quantity: 1, unitPriceCents: 3000 }));
+  const metadata = encodeCheckoutItems(items);
+  if (Object.values(metadata).some(value => value.length > 480) || JSON.stringify(decodeCheckoutItems(metadata)) !== JSON.stringify(items)) fail('checkout must preserve large mixed bags across bounded metadata chunks');
+}
 
 // Quotes need catalog variant IDs, not the store's fulfillment sync IDs.
 {

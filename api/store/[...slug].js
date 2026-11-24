@@ -64,6 +64,7 @@ import { submitToSupplier, applyShipment, syncPrintkkShipments } from '../../lib
 import { eventEffect, quoteShipping } from '../../lib/suppliers/printful.js';
 import { shippingAddress, printfulRecipient, quoteFingerprint } from '../../lib/store/shipping.js';
 import { withQuotedShipping } from '../../lib/store/quoted-order.js';
+import { encodeCheckoutItems, decodeCheckoutItems } from '../../lib/store/checkout-items.js';
 
 /* ── Stripe webhooks need the untouched request body ───────────────────── */
 export const config = {
@@ -350,7 +351,9 @@ export default async function handler(req, res) {
       if (body.fingerprint !== quoteFingerprint(address, bag.lines, quote.amountCents, bag.discountCents)) {
         return clientError(res, 409, 'The bag, address, or shipping rate changed. Please calculate shipping again.');
       }
-      const metadataItems = itemsForMetadata(bag);
+      let itemMetadata;
+      try { itemMetadata = encodeCheckoutItems(itemsForMetadata(bag)); }
+      catch (err) { return clientError(res, 400, 'Your bag has too many distinct items for one checkout. Please split it into separate orders.'); }
       const sessionItems = bag.lines.map((line) => ({
         productId: line.productId,
         name: line.shortName,
@@ -416,7 +419,7 @@ export default async function handler(req, res) {
         metadata: {
           cart_id: cart.id,
           promo_code: bag.promo && bag.promo.valid ? bag.promo.code : '',
-          items_json: JSON.stringify(metadataItems),
+          ...itemMetadata,
           source: 'armonia-store',
           quoted_shipping_cents: String(quote.amountCents),
           fixed_shipping_address: 'payment_intent',
@@ -827,10 +830,12 @@ async function ensureStripeCoupon(stripeApi, promo) {
 async function completeOrder(session, stripeApi) {
   let items = [];
   try {
-    items = JSON.parse(session.metadata?.items_json || '[]');
+    items = decodeCheckoutItems(session.metadata || {});
   } catch {
+    if (session.metadata?.fixed_shipping_address === 'payment_intent') throw new Error('Quoted checkout item metadata is invalid.');
     items = [];
   }
+  if (session.metadata?.fixed_shipping_address === 'payment_intent' && (!Array.isArray(items) || !items.length)) throw new Error('Quoted checkout has no order items.');
 
   // Fall back to the stored cart when metadata is missing/truncated.
   const cartId = session.metadata?.cart_id;
