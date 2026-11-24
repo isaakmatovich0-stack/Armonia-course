@@ -151,17 +151,30 @@ const swatch = (id, colour) => {
   }
 }
 
-/* The hero must show its featured product, never some other black product. */
+/* The hero stays the existing black hat even though featuredId is a tee and
+   live catalogue data contains a different hat image. The CTA opens the hat;
+   other colours remain available in the product dialog, not misrepresented
+   by the frozen image. */
 {
   const hero = w.document.querySelector('.floating-cap img');
-  if (!hero || !hero.getAttribute('src').includes('tee-black')) fail('hero did not use the featured tee photo');
-  const maroon = w.document.querySelector('.hero-swatch-row [aria-label="Show Unisex classic tee in Maroon"]');
-  if (!maroon) fail('featured-product hero colour control is missing');
-  else {
-    maroon.click(); await wait(300);
-    const next = w.document.querySelector('.floating-cap img');
-    if (!next || !next.getAttribute('src').startsWith('data:')) fail('hero borrowed a different product or colour when its photo was missing');
+  if (!hero || hero.getAttribute('src') !== '/store/images/cap-hero-ink.webp') fail('hero did not retain the frozen black hat');
+  if (!hero || !hero.getAttribute('alt').includes('Hat')) fail('hero is not labelled as the hat');
+  const controls = w.document.querySelectorAll('.hero-swatch-row button');
+  if (controls.length !== 1 || !controls[0].getAttribute('aria-label').includes('Black')) fail('hero offers a colour without a frozen photo');
+  if (w.document.querySelector('path[d^="M50 0C50 33"]') || w.document.querySelector('.announcement-separator')?.textContent.includes('✦')) fail('a decorative star is still present');
+  for (const selector of ['.headline-spark', '.original-stamp>svg:last-child', '.marquee-group>svg', '.newsletter-graphic>svg', '.footer-signoff>svg', '.announcement-separator svg']) {
+    if (!w.document.querySelector(`${selector} image[href="/store/images/brand-logo.webp"]`)) fail(`brand mark missing at ${selector}`);
   }
+  const heroButton = w.document.querySelector('.floating-cap');
+  heroButton.click(); await wait(300);
+  const modal = w.document.querySelector('[role="dialog"][data-editor-scope="product-hat-embroidered"]');
+  if (!modal) fail('hero did not open the hat product');
+  const angled = modal?.querySelector('[aria-label="Angled product view"]');
+  if (!angled || angled.querySelector('img')?.getAttribute('src') !== '/store/images/cap-hero-ink.webp') fail('black hat detail thumbnail is broken');
+  else { angled.click(); await wait(150); if (modal.querySelector('.detail-view')?.getAttribute('src') !== '/store/images/cap-hero-ink.webp') fail('black hat detail view is broken'); }
+  const close = w.document.querySelector('[aria-label="Close dialog"]');
+  if (close) close.click();
+  await wait(200);
 }
 
 /* ── second paint, via a swatch click ─────────────────────────────────── */

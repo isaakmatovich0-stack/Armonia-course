@@ -33,6 +33,11 @@ img[data-photo-live="true"]{mix-blend-mode:normal!important}
 .quick-add{border-radius:3px}
 .story-section{margin-top:15px;margin-bottom:30px}
 .story-copy{background:#1c3532}
+/* The logo replaces the old stars; tint it on gold surfaces for contrast. */
+.headline-spark{animation:none}
+.marquee-group>svg,.announcement-separator svg,.newsletter-graphic>svg{filter:brightness(0) saturate(100%) invert(13%) sepia(14%) saturate(1293%) hue-rotate(143deg) brightness(91%)}
+.announcement-separator svg{display:block;width:13px;height:18px}
+.newsletter-graphic>svg{opacity:.95}
 .site-footer{border-top:1px solid #e5be7345;background:#102326}
 :focus-visible{outline:2px solid #d6a94e;outline-offset:4px}
 @media(max-width:767px){

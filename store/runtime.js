@@ -63,8 +63,8 @@ const ICON = {
   check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 12.5 5 5L20 6.5"/></svg>',
   back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H5M11 5l-7 7 7 7"/></svg>',
 };
-// The brand's four-point spark, used where the bundle uses its own icon.
-const SPARK = '<svg viewBox="0 0 100 100" fill="currentColor" aria-hidden="true"><path d="M50 0C50 33 67 50 100 50C67 50 50 67 50 100C50 67 33 50 0 50C33 50 50 33 50 0Z"/></svg>';
+// Use the existing brand emblem in empty states too.
+const BRAND_MARK = '<img src="/store/images/brand-logo.webp" alt="" aria-hidden="true">';
 const svg = (name) => el('span', { class: 'store-icon', html: ICON[name] });
 
 /**
@@ -408,7 +408,7 @@ function mountBag(host, { onClose, onShop }) {
           el(
             'div',
             { class: 'empty-bag' },
-            el('span', { class: 'store-empty-mark', html: SPARK }),
+            el('span', { class: 'store-empty-mark', html: BRAND_MARK }),
             el('h3', {}, ['A little empty.', el('br', {}), 'A lot of possibility.']),
             el('p', {}, 'Your next everyday favorite is waiting.'),
             el('button', { class: 'button button-dark', onClick: () => { close(); onShop && onShop(); } }, ['Explore the collection ', svg('arrow')]),
@@ -1690,7 +1690,7 @@ const LIVE_CSS = `
 .store-bag-panel .cart-item:last-child{border-bottom:0}
 .store-bag-panel .cart-items+.store-promo{margin-top:18px}
 .store-empty-mark{display:block;width:38px;height:38px;color:#ac8a47;margin:0 auto 26px}
-.store-empty-mark svg{width:100%;height:100%}
+.store-empty-mark img{width:100%;height:100%;object-fit:contain}
 .store-line-swatch{display:block;width:100%;height:100%}
 .store-sum-row{display:flex;justify-content:space-between;gap:12px;font-size:9px;color:#566350;padding:3px 0}
 .store-discount{color:#3b6b45}
