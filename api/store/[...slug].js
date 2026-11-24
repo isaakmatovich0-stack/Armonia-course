@@ -66,6 +66,7 @@ import { shippingAddress, printfulRecipient, quoteFingerprint } from '../../lib/
 import { withQuotedShipping } from '../../lib/store/quoted-order.js';
 import { encodeCheckoutItems, decodeCheckoutItems } from '../../lib/store/checkout-items.js';
 import { rawBody } from '../../lib/store/raw-body.js';
+import { isStoreCheckout } from '../../lib/course-checkout.js';
 
 /* ── Stripe webhooks need the untouched request body ───────────────────── */
 export const config = {
@@ -722,6 +723,8 @@ export default async function handler(req, res) {
 
       if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
         const session = event.data.object;
+        // Checkout events are broadcast account-wide, including course payments.
+        if (!isStoreCheckout(session)) return res.status(200).json({ received: true, ignored: 'not a store checkout' });
         // `complete` alone is not enough: delayed payment methods can complete
         // a session before the money lands. Only record orders that are paid.
         if (session.payment_status === 'paid' || session.payment_status === 'no_payment_required') {

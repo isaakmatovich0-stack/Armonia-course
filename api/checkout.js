@@ -18,6 +18,7 @@ export default async function handler(req, res) {
   try {
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
+      metadata: { source: 'armonia-course' },
       payment_method_types: ['card'],
       line_items: [
         {

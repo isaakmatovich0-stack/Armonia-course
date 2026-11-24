@@ -1,137 +1,71 @@
-// POST /api/webhook
-// Stripe calls this automatically the moment a payment succeeds.
-// This is the heart of the automation: payment -> code -> database -> email.
-//
-// Requires STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET in Vercel env vars.
-// STRIPE_WEBHOOK_SECRET comes from the Stripe Dashboard when you register
-// this endpoint (see README step 4).
-
+// Stripe course checkout notifications. Only verified, paid course sessions
+// create an access code; merchandise events are handled by the store webhook.
 import Stripe from 'stripe';
 import { supabase } from '../lib/supabase.js';
 import { generateAccessCode } from '../lib/generateCode.js';
 import { sendOrderConfirmationEmail } from '../lib/email.js';
+import { rawBody } from '../lib/store/raw-body.js';
+import { isCourseCheckout } from '../lib/course-checkout.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+export const config = { api: { bodyParser: false } };
 
-// Vercel needs the raw request body (not JSON-parsed) to verify the
-// Stripe signature, so we disable the default body parser.
-export const config = {
-  api: { bodyParser: false },
-};
+async function findCode(sessionId) {
+  const {data, error} = await supabase.from('access_codes')
+    .select('code,email,name,amount_paid,access_email_sent_at')
+    .eq('stripe_session_id', sessionId).maybeSingle();
+  if (error) throw error;
+  return data;
+}
 
-function buffer(readable) {
-  // `bodyParser: false` guarantees the raw stream. If a platform change ever
-  // hands us a consumed or already-parsed body, fail fast — re-serialised JSON
-  // is not the byte string Stripe signed, and waiting on it would hang.
-  if (readable.readableEnded || readable.complete) {
-    return Promise.reject(new Error('Request body was already consumed before signature verification.'));
+async function getOrCreateCode(session) {
+  let existing = await findCode(session.id);
+  if (existing) return existing;
+  const email = session.customer_details?.email || session.customer_email;
+  if (!email) throw new Error('Paid course session has no email address');
+  for (let i = 0; i < 5; i++) {
+    const row = {code: generateAccessCode(), email, name: session.customer_details?.name || null,
+      stripe_session_id: session.id, amount_paid: session.amount_total};
+    const {error} = await supabase.from('access_codes').insert(row);
+    if (!error) return {...row, access_email_sent_at: null};
+    if (error.code !== '23505') throw error;
+    // A concurrent webhook may have inserted this session; otherwise the
+    // generated code collided, so choose a different code.
+    existing = await findCode(session.id);
+    if (existing) return existing;
   }
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    readable.on('data', (chunk) => chunks.push(chunk));
-    readable.on('end', () => resolve(Buffer.concat(chunks)));
-    readable.on('error', reject);
-  });
+  throw new Error('Could not allocate a unique access code');
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).end();
-  }
-
-  let rawBody;
-  try {
-    rawBody = await buffer(req);
-  } catch (err) {
-    console.error('Webhook body unavailable:', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
-  const signature = req.headers['stripe-signature'];
-
-  // The store has its own endpoint (api/store/[...slug].js → /api/store/webhook)
-  // and therefore its own signing secret. Both endpoints accept either secret so
-  // that registering one can never break the other, and so a rotated secret can
-  // be rolled out without a failed-payment window.
-  const secrets = [process.env.STRIPE_WEBHOOK_SECRET, process.env.STRIPE_WEBHOOK_SECRET_STORE]
-    .filter(Boolean)
-    .filter((value, index, all) => all.indexOf(value) === index);
-
-  if (!secrets.length) {
-    console.error('No Stripe webhook signing secret is configured');
-    return res.status(503).send('Webhook is not configured');
-  }
-
+  if (req.method !== 'POST') return res.status(405).end();
+  let payload;
+  try { payload = await rawBody(req); }
+  catch (err) { console.error('Webhook body unavailable:', err.message); return res.status(400).send('Webhook body unavailable'); }
+  const secrets = [process.env.STRIPE_WEBHOOK_SECRET, process.env.STRIPE_WEBHOOK_SECRET_STORE].filter(Boolean);
+  if (!secrets.length) return res.status(503).send('Webhook not configured');
   let event = null;
-  let lastError = null;
   for (const secret of secrets) {
-    try {
-      event = stripe.webhooks.constructEvent(rawBody, signature, secret);
-      break;
-    } catch (err) {
-      lastError = err;
-    }
+    try { event = stripe.webhooks.constructEvent(payload, req.headers['stripe-signature'], secret); break; } catch { /* try next key */ }
   }
-
-  if (!event) {
-    console.error('Webhook signature verification failed:', lastError && lastError.message);
-    return res.status(400).send(`Webhook Error: ${lastError ? lastError.message : 'invalid signature'}`);
-  }
-
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object;
-
-    const email = session.customer_details?.email;
-    const name = session.customer_details?.name || null;
-    const amount = session.amount_total;
-
-    if (!email) {
-      console.error('No email on completed session', session.id);
-      return res.status(200).json({ received: true }); // ack Stripe, nothing more we can do
+  if (!event) return res.status(400).send('Invalid webhook signature');
+  if (!['checkout.session.completed', 'checkout.session.async_payment_succeeded'].includes(event.type)) return res.status(200).json({received:true});
+  const session = event.data.object;
+  if (!['paid', 'no_payment_required'].includes(session.payment_status)) return res.status(200).json({received:true, ignored:'not paid'});
+  try {
+    if (!await isCourseCheckout(session, {stripe, supabase})) return res.status(200).json({received:true, ignored:'not a course checkout'});
+    const row = await getOrCreateCode(session);
+    if (!row.access_email_sent_at) {
+      const result = await sendOrderConfirmationEmail({to:row.email, name:row.name, code:row.code,
+        amount:row.amount_paid, idempotencyKey:`course-access/${session.id}`});
+      if (!result || result.skipped || result.error || !result.data?.id) throw new Error('Access email was not accepted');
+      const {error} = await supabase.from('access_codes').update({access_email_sent_at:new Date().toISOString()}).eq('stripe_session_id', session.id);
+      if (error) throw error;
     }
-
-    try {
-      // Idempotency: if Stripe retries this webhook, don't issue a second code.
-      const { data: existing } = await supabase
-        .from('access_codes')
-        .select('code')
-        .eq('stripe_session_id', session.id)
-        .maybeSingle();
-
-      if (existing) {
-        return res.status(200).json({ received: true, code: existing.code });
-      }
-
-      // Generate a code, retrying on the rare collision.
-      let code;
-      for (let attempt = 0; attempt < 5; attempt++) {
-        code = generateAccessCode();
-        const { data: clash } = await supabase
-          .from('access_codes')
-          .select('code')
-          .eq('code', code)
-          .maybeSingle();
-        if (!clash) break;
-      }
-
-      const { error: insertError } = await supabase.from('access_codes').insert({
-        code,
-        email,
-        name,
-        stripe_session_id: session.id,
-        amount_paid: amount,
-      });
-
-      if (insertError) throw insertError;
-
-      await sendOrderConfirmationEmail({ to: email, name, code, amount });
-
-      console.log(`Issued code ${code} to ${email}`);
-    } catch (err) {
-      console.error('Error processing checkout.session.completed:', err);
-      // Still return 200 so Stripe doesn't hammer retries indefinitely;
-      // the payment succeeded regardless — you'll see the error in Vercel logs.
-    }
+    return res.status(200).json({received:true});
+  } catch (err) {
+    // Stripe retries, preserving the existing code and Resend idempotency key.
+    console.error('Course checkout processing failed:', err.message);
+    return res.status(500).json({error:'Course checkout processing failed'});
   }
-
-  return res.status(200).json({ received: true });
 }
