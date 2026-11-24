@@ -996,6 +996,25 @@ function wireNewsletter() {
    "exists" means a real file rather than an intention. */
 
 /** "Burgundy Maroon" → "burgundy-maroon", matching the filenames on disk. */
+// Cycle on page reload within this tab. Missing/removed colours are skipped;
+// if storage is unavailable, choose a valid colour without blocking the page.
+// The navy and maroon hero images are illustrations of the frozen black hat,
+// not new supplier mockups; product gallery photos remain independent.
+globalThis.__armoniaNextHatColour = function (available) {
+  const choices = ['Black', 'Navy Blue', 'Burgundy Maroon'].filter((colour) => Array.isArray(available) && available.includes(colour));
+  if (!choices.length) return 'Black';
+  try {
+    const key = 'armonia-hero-hat-colour';
+    const last = sessionStorage.getItem(key);
+    const index = (choices.indexOf(last) + 1) % choices.length;
+    const selected = choices[index];
+    sessionStorage.setItem(key, selected);
+    return selected;
+  } catch {
+    return choices[Math.floor(Math.random() * choices.length)];
+  }
+};
+
 globalThis.__armoniaColourSlug = function (colour) {
   return String(colour || '')
     .toLowerCase()

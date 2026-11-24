@@ -521,14 +521,19 @@ const PATCHES = [
     replace: 'hero:u.jsx(gg,{onShop:()=>He(),onProduct:_=>ul.some(p=>p.id==="hat-embroidered")?Pe(At,_):He()})',
   },
   {
-    name: 'hero starts with the frozen black hat',
+    name: 'cycle available hat colours on reload',
     find: 'function gg({onShop:s,onProduct:y}){const[h,f]=B.useState(At.initialColor)',
-    replace: 'function gg({onShop:s,onProduct:y}){const[h,f]=B.useState("Black")',
+    replace: 'function gg({onShop:s,onProduct:y}){const[h,f]=B.useState(()=>globalThis.__armoniaNextHatColour?globalThis.__armoniaNextHatColour(At.colors):"Black")',
   },
   {
-    name: 'hero only offers its frozen photograph colour',
+    name: 'hero offers only the available illustrated hat colours',
     find: 'className:"hero-swatch-row",children:At.colors.map(',
-    replace: 'className:"hero-swatch-row",children:At.colors.filter(K=>K==="Black").map(',
+    replace: 'className:"hero-swatch-row",children:At.colors.filter(K=>["Black","Navy Blue","Burgundy Maroon"].includes(K)&&Jt[K]).map(',
+  },
+  {
+    name: 'identify the approximate hat colour illustrations',
+    find: 'className:"hero-color-name",children:Jt[h].name',
+    replace: 'className:"hero-color-name",children:Jt[h].name+(h==="Black"?"":" · Colour illustration")',
   },
   {
     name: 'only show the existing black hat detail view',
@@ -702,7 +707,7 @@ const PATCHES = [
     // them would produce "/store/store/images/".
     name: 'hero photo resolution',
     find: 'yg=s=>{var h,f,m;const y=`/store/images/cap-hero-${s}.webp`;return((f=(h=globalThis.__ARMONIA_CONFIG__)==null?void 0:h.assets)==null?void 0:f[y])||(["sky","ink","ivory","orange"].includes(s)?Ka(y):((m=At==null?void 0:At.images)==null?void 0:m[s])||Ka("/store/images/cap-hero-sky.webp"))}',
-    replace: 'yg=s=>"/store/images/cap-hero-ink.webp"',
+    replace: 'yg=s=>({"Black":"/store/images/cap-hero-ink.webp","Navy Blue":"/store/images/cap-hero-navy-illustration.png","Burgundy Maroon":"/store/images/cap-hero-maroon-illustration.png"})[s]||"/store/images/cap-hero-ink.webp"',
   },
   {
     name: 'keep the frozen hero asset independent of live mockups',

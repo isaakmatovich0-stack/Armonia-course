@@ -14,7 +14,9 @@
 .hero .button-gold{box-shadow:0 10px 30px #0002}
 .hero .button-gold:hover{box-shadow:0 15px 34px #0004}
 .hero-stage .stage-glow{background:radial-gradient(ellipse at 51% 50%,#e6c78921,transparent 60%)}
-.hero-product-entry{left:17%;right:22%;top:10%}
+.hero-product-entry{left:4%;right:5%;top:6%}
+/* Pausing motion must not freeze the entrance fade at opacity zero. */
+.hero.animation-paused .hero-product-entry,.hero.animation-paused .floating-cap>img{animation:none!important;opacity:1}
 /* A transparent cutout needs normal compositing; multiply on a dark hero
    makes the actual garment almost black. Unprocessed photos stay readable. */
 img[data-photo-live="true"]{mix-blend-mode:normal!important}
@@ -43,7 +45,7 @@ img[data-photo-live="true"]{mix-blend-mode:normal!important}
 @media(max-width:767px){
   .suite-ribbon{gap:6px 12px;font-size:9px;flex-wrap:wrap;padding:9px 14px}
   .hero h1{letter-spacing:-.065em}
-  .hero-product-entry{left:12%;right:12%;top:12%}
+  .hero-product-entry{left:3%;right:3%;top:9%}
   .collection-section{padding-top:64px;padding-bottom:52px}
 }
 @media(prefers-reduced-motion:reduce){.product-image-wrap{transition:none}}
