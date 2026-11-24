@@ -23,11 +23,20 @@
  */
 
 import { buildSyncPlan } from '../lib/store/sync.js';
-import { buildOrderPayload } from '../lib/suppliers/printful.js';
+import { buildOrderPayload, buildShippingRateItems } from '../lib/suppliers/printful.js';
 import { clearCatalogCache, priceBag } from '../lib/store/catalog.js';
 
 const failures = [];
 const fail = (message) => failures.push(message);
+
+// Quotes need catalog variant IDs, not the store's fulfillment sync IDs.
+{
+  const catalog = { byId: new Map([['tee', { supplier: 'printful', supplierVariants: { 'tee|Black|M': '123' } }], ['hat', { supplier: 'printful', supplierVariants: { 'hat|Navy|*': '124' } }]]) };
+  const products = [{ variants: [{ syncVariantId: 123, variantId: 456 }, { syncVariantId: 124, variantId: 457 }] }];
+  const items = buildShippingRateItems([{ productId: 'tee', color: 'Black', size: 'M', quantity: 2 }, { productId: 'hat', color: 'Navy', size: 'ONE SIZE', quantity: 1 }], catalog, products);
+  if (JSON.stringify(items) !== JSON.stringify([{ variant_id: 456, quantity: 2 }, { variant_id: 457, quantity: 1 }])) fail('shipping must quote the exact catalog variants and quantities');
+  try { buildShippingRateItems([{ productId: 'tee', color: 'Black', size: 'L', quantity: 1 }], catalog, products); fail('unmapped variants must fail closed'); } catch { /* expected */ }
+}
 
 // Checkout must charge the selected variant, not just the advertised base.
 {

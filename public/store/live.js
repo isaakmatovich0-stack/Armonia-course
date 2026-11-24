@@ -171,17 +171,13 @@ function bagTotals() {
   const subtotal = bag.subtotalCents || 0;
   const discount = bag.discountCents || 0;
   const shipping = bag.shippingCents || 0;
-  const threshold = bag.freeShippingThresholdCents || (state.shipping && state.shipping.freeShippingThresholdCents) || 7500;
   return {
     subtotal,
     discount,
     shipping,
     total: bag.totalCents != null ? bag.totalCents : Math.max(0, subtotal - discount + shipping),
-    threshold,
-    remaining: Math.max(0, threshold - subtotal),
     promo: bag.promo || null,
     count: bag.count || 0,
-    freeShipping: shipping === 0 && (bag.lines || []).length > 0,
   };
 }
 
@@ -373,6 +369,8 @@ function mountBag(host, { onClose, onShop }) {
   let removed = null;
   let error = '';
   let checkoutError = '';
+  let address = { name: '', line1: '', line2: '', city: '', state: '', postal_code: '' };
+  let shippingQuote = null;
 
   const view = overlay('cart-modal store-bag-panel', close, { labelledBy: 'bag-title' });
   host.appendChild(view.root);
@@ -418,7 +416,7 @@ function mountBag(host, { onClose, onShop }) {
       }
 
       const scroll = el('div', { class: 'store-bag-scroll' });
-      scroll.appendChild(shippingProgress(totals));
+      scroll.appendChild(el('p', { class: 'shipping-progress' }, 'Shipping is calculated for your items and destination at checkout.'));
       if (error) scroll.appendChild(el('p', { class: 'store-bag-error' }, error));
       scroll.appendChild(el('div', { class: 'cart-items' }, lines.map(renderLine)));
       if (removed) scroll.appendChild(renderUndo());
@@ -429,25 +427,6 @@ function mountBag(host, { onClose, onShop }) {
     }
 
     view.panel.appendChild(renderCheckout(lines, totals));
-  }
-
-  function shippingProgress(totals) {
-    return el(
-      'div',
-      { class: 'shipping-progress' },
-      el(
-        'div',
-        {},
-        el(
-          'span',
-          {},
-          totals.remaining > 0
-            ? ['You’re ', el('strong', {}, money(totals.remaining)), ' from free US shipping.']
-            : ['Nice! ', el('strong', {}, 'Free US shipping'), ' is yours.'],
-        ),
-      ),
-      el('div', { class: 'progress-track' }, el('span', { style: { width: `${Math.min(100, (totals.subtotal / totals.threshold) * 100)}%` } })),
-    );
   }
 
   function renderLine(item) {
@@ -605,7 +584,7 @@ function mountBag(host, { onClose, onShop }) {
         'div',
         { class: 'store-sum-row' },
         el('span', {}, 'Shipping'),
-        el('span', {}, totals.shipping ? money(totals.shipping) : totals.freeShipping ? 'Free' : 'Calculated at checkout'),
+        el('span', {}, 'Calculated at checkout'),
       ),
       el(
         'button',
@@ -626,74 +605,70 @@ function mountBag(host, { onClose, onShop }) {
 
   function renderCheckout(lines, totals) {
     const live = state.checkoutLive !== false;
-    return el(
-      'div',
-      { class: 'checkout-content' },
-      el('button', { class: 'back-to-bag text-link', onClick: () => { step = 'bag'; render(); } }, [svg('back'), ' Back to your bag']),
-      el(
-        'div',
-        { class: 'store-checkout-lead' },
-        el('h3', {}, live ? 'Secure checkout by Stripe.' : 'Checkout is almost ready.'),
-        el(
-          'p',
-          {},
-          live
-            ? 'You’ll finish on Stripe’s secure page — card, Apple Pay, or Google Pay. Shipping and sales tax are confirmed there before you’re charged, and your receipt and order updates arrive by email.'
-            : 'Payments aren’t switched on yet. Your bag, saved pieces and the catalog are live; orders will go through the moment Stripe is connected.',
-        ),
-      ),
-      el(
-        'div',
-        { class: 'checkout-order-summary store-checkout-summary' },
+    const fields = [
+      ['name', 'Full name', 'name', true], ['line1', 'Street address', 'address-line1', true],
+      ['line2', 'Apartment, suite, etc. (optional)', 'address-line2', false],
+      ['city', 'City', 'address-level2', true], ['state', 'State (two-letter code)', 'address-level1', true],
+      ['postal_code', 'ZIP code', 'postal-code', true],
+    ];
+    const form = el('form', { class: 'store-shipping-form', onSubmit: (event) => event.preventDefault() });
+    fields.forEach(([key, label, autocomplete, required]) => {
+      const input = el('input', {
+        type: 'text', name: key, value: address[key], autocomplete, required,
+        maxlength: key === 'state' ? '2' : key === 'postal_code' ? '10' : '100',
+        onInput: (event) => {
+          address[key] = event.target.value;
+          shippingQuote = null;
+          const pay = view.panel.querySelector('.checkout-pay');
+          if (pay) pay.disabled = true;
+          const result = view.panel.querySelector('.store-quote-result');
+          if (result) result.textContent = 'Address changed — calculate shipping again.';
+        },
+      });
+      form.appendChild(el('label', { style: { display: 'block', marginBottom: '12px' } }, label, input));
+    });
+    return el('div', { class: 'checkout-content' },
+      el('button', { class: 'back-to-bag text-link', onClick: () => { step = 'bag'; shippingQuote = null; render(); } }, [svg('back'), ' Back to your bag']),
+      el('div', { class: 'store-checkout-lead' },
+        el('h3', {}, live ? 'Shipping address' : 'Checkout is almost ready.'),
+        el('p', {}, 'Enter your US delivery address to calculate shipping for the items in your bag. This is the address used for your order; return here to change it before paying.')),
+      form,
+      el('button', {
+        type: 'button', class: 'button button-dark', disabled: busy || !lines.length,
+        onClick: async () => {
+          if (!form.reportValidity()) return;
+          busy = true; checkoutError = ''; shippingQuote = null;
+          const capturedAddress = { ...address };
+          try {
+            const quote = await api('/shipping-quote', { method: 'POST', body: JSON.stringify({ address: capturedAddress }) });
+            if (JSON.stringify(capturedAddress) === JSON.stringify(address)) shippingQuote = quote;
+          } catch (err) { checkoutError = err.message; }
+          busy = false; render();
+        },
+      }, busy ? 'Calculating…' : 'Calculate shipping'),
+      el('div', { class: 'checkout-order-summary store-checkout-summary' },
         el('h3', {}, 'Your good things'),
-        lines.map((item) =>
-          el(
-            'div',
-            {},
-            el('span', {}, `${item.product.shortName || item.productId} × ${item.quantity} — ${colorName(item.color)} / ${item.size}`),
-            el('span', {}, money(item.line ? item.line.lineTotalCents : 0)),
-          ),
-        ),
+        lines.map((item) => el('div', {}, el('span', {}, `${item.product.shortName || item.productId} × ${item.quantity} — ${colorName(item.color)} / ${item.size}`), el('span', {}, money(item.line ? item.line.lineTotalCents : 0)))),
         el('div', {}, el('span', {}, 'Subtotal'), el('span', {}, money(totals.subtotal))),
         totals.discount > 0 ? el('div', {}, el('span', {}, 'Discount'), el('span', {}, `−${money(totals.discount)}`)) : null,
-        el('div', {}, el('span', {}, 'Standard US shipping'), el('span', {}, totals.shipping ? money(totals.shipping) : 'Free')),
-        el('div', { class: 'preview-total' }, el('strong', {}, 'Total'), el('strong', {}, money(totals.total))),
-        el('p', {}, (state.shipping && state.shipping.taxNote) || 'Sales tax is calculated at checkout based on your shipping address.'),
+        el('div', {}, el('span', {}, 'Standard shipping'), el('span', { class: 'store-quote-result' }, shippingQuote ? money(shippingQuote.amountCents) : 'Calculate above')),
+        el('div', { class: 'preview-total' }, el('strong', {}, shippingQuote ? 'Total' : 'Subtotal after discounts'), el('strong', {}, money(totals.total + (shippingQuote?.amountCents || 0)))),
       ),
       checkoutError ? el('p', { class: 'store-checkout-error' }, checkoutError) : null,
-      el(
-        'button',
-        {
-          class: 'button button-dark checkout-pay',
-          disabled: busy || !lines.length,
-          onClick: async (event) => {
-            const button = event.currentTarget;
-            busy = true;
-            checkoutError = '';
-            button.disabled = true;
-            button.textContent = 'Opening secure checkout…';
-            try {
-              const payload = await api('/checkout', { method: 'POST', body: JSON.stringify({}) });
-              if (!payload.url) throw new Error('Checkout could not be started. Please try again.');
-              toast('Taking you to secure checkout…');
-              window.location.href = payload.url;
-            } catch (err) {
-              busy = false;
-              checkoutError = err.message;
-              render();
-            }
-          },
+      el('button', {
+        type: 'button', class: 'button button-dark checkout-pay', disabled: busy || !shippingQuote || !lines.length,
+        onClick: async (event) => {
+          const button = event.currentTarget;
+          busy = true; checkoutError = ''; button.disabled = true; button.textContent = 'Opening secure checkout…';
+          try {
+            const payload = await api('/checkout', { method: 'POST', body: JSON.stringify({ address, fingerprint: shippingQuote.fingerprint }) });
+            if (!payload.url) throw new Error('Checkout could not be started. Please try again.');
+            window.location.href = payload.url;
+          } catch (err) { busy = false; checkoutError = err.message; shippingQuote = null; render(); }
         },
-        `Pay ${money(totals.total)}`,
-      ),
-      el('p', { class: 'checkout-privacy' }, 'Secure payment by Stripe · We never see or store your card details. US shipping only.'),
-      el('p', { class: 'checkout-privacy' }, [
-        'By continuing you agree to our ',
-        el('a', { href: '/terms.html', target: '_blank', rel: 'noopener' }, 'terms'),
-        ' and ',
-        el('a', { href: '/store/shipping#returns', target: '_blank', rel: 'noopener' }, 'returns policy'),
-        '.',
-      ]),
+      }, shippingQuote ? `Continue to payment · ${money(totals.total + shippingQuote.amountCents)}` : 'Calculate shipping to continue'),
+      el('p', { class: 'checkout-privacy' }, 'Secure payment by Stripe · US shipping only. To change the shipping address, return to this page before paying.'),
+      el('p', { class: 'checkout-privacy' }, ['By continuing you agree to our ', el('a', { href: '/terms.html', target: '_blank', rel: 'noopener' }, 'terms'), ' and ', el('a', { href: '/store/shipping#returns', target: '_blank', rel: 'noopener' }, 'returns policy'), '.']),
     );
   }
 
@@ -721,9 +696,7 @@ const INFO = {
       el(
         'p',
         {},
-        `Orders are packed and shipped from the United States within 2–4 business days. Standard shipping is ${money((state.shipping && state.shipping.standardShippingCents) || 600)} and free on orders of ${money(
-          (state.shipping && state.shipping.freeShippingThresholdCents) || 7500,
-        )} or more. You’ll get a tracking link by email as soon as your parcel is on its way.`,
+        'US shipping is calculated at checkout based on your items and delivery address. You’ll get a tracking link by email as soon as your parcel is on its way.',
       ),
       el('h3', { id: 'returns' }, 'Returns'),
       el(
@@ -1175,7 +1148,7 @@ async function loadCatalog() {
    delivery date. A "order by 15 December" that turns out to be wrong is the
    kind of promise a small shop cannot afford, so it has to be a deliberate act
    — type it in the admin's banner box — rather than a default. */
-const DECORATION_DEFAULT_TEXT = 'Free US shipping over $75 • Gift-ready, straight from our US partner';
+const DECORATION_DEFAULT_TEXT = 'Good things. Better together. • Discover the collection';
 
 /**
  * The falling layer, as the hero stage's first child so it sits behind the cap

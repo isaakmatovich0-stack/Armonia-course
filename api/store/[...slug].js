@@ -61,7 +61,8 @@ import {
   sendStoreContactNotification,
 } from '../../lib/email.js';
 import { submitToSupplier, applyShipment, syncPrintkkShipments } from '../../lib/store/fulfilment.js';
-import { eventEffect } from '../../lib/suppliers/printful.js';
+import { eventEffect, quoteShipping } from '../../lib/suppliers/printful.js';
+import { shippingAddress, printfulRecipient, quoteFingerprint } from '../../lib/store/shipping.js';
 
 /* ── Stripe webhooks need the untouched request body ───────────────────── */
 export const config = {
@@ -295,12 +296,31 @@ export default async function handler(req, res) {
       return clientError(res, 405, 'Method not allowed.');
     }
 
+    /* A quote is bound to the complete address, cart, and current prices. */
+    if (route === 'shipping-quote') {
+      if (method !== 'POST') return clientError(res, 405, 'Method not allowed.');
+      await refreshCatalog({ force: true });
+      const { cart, bag } = await resolveBag(req, { create: false });
+      if (cart) tagCart(res, cart);
+      if (!bag?.lines.length) return clientError(res, 400, 'Your bag is empty.');
+      let address;
+      try { address = shippingAddress(jsonBody(req).address); }
+      catch (err) { return clientError(res, 400, err.message); }
+      try {
+        const quote = await quoteShipping(printfulRecipient(address), bag.lines, loadCatalog());
+        return res.status(200).json({ amountCents: quote.amountCents, fingerprint: quoteFingerprint(address, bag.lines, quote.amountCents, bag.discountCents) });
+      } catch (err) {
+        console.error('[store] shipping quote failed:', err.message);
+        return clientError(res, 503, 'Shipping could not be calculated for this address and bag. Please try again.');
+      }
+    }
+
     /* ── checkout ────────────────────────────────────────────────────── */
     if (route === 'checkout') {
       if (method !== 'POST') return clientError(res, 405, 'Method not allowed.');
 
       const stripeApi = stripe();
-      await refreshCatalog();
+      await refreshCatalog({ force: true });
       const { cart, items, bag } = await resolveBag(req, { create: false });
       if (cart) tagCart(res, cart);
       if (!bag || bag.lines.length === 0) {
@@ -314,6 +334,18 @@ export default async function handler(req, res) {
 
       const catalog = loadCatalog();
       const shipping = publicShipping();
+      const body = jsonBody(req);
+      let address, quote;
+      try { address = shippingAddress(body.address); }
+      catch (err) { return clientError(res, 400, err.message); }
+      try { quote = await quoteShipping(printfulRecipient(address), bag.lines, catalog); }
+      catch (err) {
+        console.error('[store] shipping quote failed:', err.message);
+        return clientError(res, 503, 'Shipping could not be calculated. Please try again.');
+      }
+      if (body.fingerprint !== quoteFingerprint(address, bag.lines, quote.amountCents, bag.discountCents)) {
+        return clientError(res, 409, 'The bag, address, or shipping rate changed. Please calculate shipping again.');
+      }
       const metadataItems = itemsForMetadata(bag);
       const sessionItems = bag.lines.map((line) => ({
         productId: line.productId,
@@ -342,16 +374,13 @@ export default async function handler(req, res) {
         };
       });
 
-      if (bag.shippingCents > 0) {
-        lineItems.push({
-          quantity: 1,
-          price_data: {
-            currency: shipping.currency,
-            unit_amount: bag.shippingCents,
-            product_data: { name: 'Standard US shipping', description: shipping.estimate },
-          },
-        });
-      }
+      // Shipping is a Stripe line item so Checkout cannot replace the destination
+      // with a different address after the quote. It is recorded separately on
+      // the order from the trusted session metadata.
+      if (quote.amountCents > 0) lineItems.push({
+        quantity: 1,
+        price_data: { currency: 'usd', unit_amount: quote.amountCents, product_data: { name: 'Standard shipping' } },
+      });
 
       // A free-shipping code with a free-shipping order has nothing left to
       // discount, but it is still "applied": handing the customer an open promo
@@ -359,7 +388,7 @@ export default async function handler(req, res) {
       const promoApplied = Boolean(bag.promo && bag.promo.valid);
 
       let discounts;
-      const promoDiscountsSomething = promoApplied && (bag.promo.amountCents > 0 || (bag.promo.freeShipping && bag.shippingCents > 0));
+      const promoDiscountsSomething = promoApplied && bag.promo.amountCents > 0;
       if (promoDiscountsSomething) {
         try {
           const coupon = await ensureStripeCoupon(stripeApi, bag.promo);
@@ -374,7 +403,8 @@ export default async function handler(req, res) {
         mode: 'payment',
         payment_method_types: ['card'],
         line_items: lineItems,
-        allow_promotion_codes: !discounts && !promoApplied,
+        // Discounts are validated on the site; Stripe codes cannot bypass the shipping policy.
+        allow_promotion_codes: false,
         billing_address_collection: 'auto',
         success_url: `${STORE_URL}?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${STORE_URL}?checkout=cancelled`,
@@ -384,8 +414,10 @@ export default async function handler(req, res) {
           promo_code: bag.promo && bag.promo.valid ? bag.promo.code : '',
           items_json: JSON.stringify(metadataItems),
           source: 'armonia-store',
+          quoted_shipping_cents: String(quote.amountCents),
+          fixed_shipping_address: 'payment_intent',
         },
-        shipping_address_collection: { allowed_countries: shipping.countries },
+        payment_intent_data: { shipping: { name: address.name, address: { line1: address.line1, line2: address.line2 || undefined, city: address.city, state: address.state, postal_code: address.postal_code, country: address.country } } },
         phone_number_collection: { enabled: false },
         custom_text: {
           submit: { message: '30-day returns at our US fulfilment partner · Ships in 2–4 business days.' },
@@ -419,7 +451,7 @@ export default async function handler(req, res) {
           stripe_session_id: session.id,
           cart_id: cart.id,
           items: sessionItems,
-          amount_total: bag.totalCents,
+          amount_total: bag.totalCents + quote.amountCents,
           promo_code: bag.promo && bag.promo.valid ? bag.promo.code : null,
         });
       } catch (err) {
@@ -785,14 +817,11 @@ export default async function handler(req, res) {
  * limited to 500 per account, so the code is stable per promo and reused.
  */
 async function ensureStripeCoupon(stripeApi, promo) {
-  const couponId = `ac_${String(promo.code).replace(/[^A-Za-z0-9]/g, '').slice(0, 30).toUpperCase()}`;
+  const couponId = `ac_${String(promo.code).replace(/[^A-Za-z0-9]/g, '').slice(0, 30).toUpperCase()}_${promo.amountCents}`;
   try {
     return await stripeApi.coupons.retrieve(couponId);
   } catch {
     const params = { id: couponId, duration: 'once', name: `${promo.code} — ${promo.description || 'Discount'}` };
-    if (promo.freeShipping) {
-      return stripeApi.coupons.create({ ...params, amount_off: publicShipping().standardShippingCents, currency: 'usd', name: `${promo.code} — free shipping` });
-    }
     if (promo.amountCents && promo.amountCents > 0) {
       return stripeApi.coupons.create({ ...params, amount_off: promo.amountCents, currency: 'usd' });
     }
@@ -832,6 +861,16 @@ async function completeOrder(session, stripeApi) {
     }
   }
 
+  // For quoted checkouts the shipping destination is fixed on the payment
+  // intent, never the editable billing address. Fail/retry rather than fulfil
+  // to an unverified address if Stripe is temporarily unavailable.
+  if (session.metadata?.fixed_shipping_address === 'payment_intent') {
+    const id = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id;
+    if (!id || !stripeApi) throw new Error('Quoted checkout has no payment intent.');
+    const intent = await stripeApi.paymentIntents.retrieve(id);
+    if (!intent.shipping?.address || !intent.shipping?.name) throw new Error('Quoted checkout has no shipping destination.');
+    session = { ...session, shipping_details: intent.shipping };
+  }
   const record = orderFromStripeSession(session, { cartId, items });
   const { order, created } = await upsertOrder(record);
 

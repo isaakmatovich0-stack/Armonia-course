@@ -370,7 +370,7 @@ async function main() {
   const description =
     `Wear your connection. ${joined.charAt(0).toUpperCase()}${joined.slice(1)}` +
     ' from the Armonia Connect collection, embroidered and printed in the United States.' +
-    ' $6 flat US shipping, free over $75.';
+    ' US shipping is calculated at checkout.';
 
   // ── element overrides that name a dead product ───────────────────────────
   // The Studio export carries per-element tweaks keyed by CSS selector. A
