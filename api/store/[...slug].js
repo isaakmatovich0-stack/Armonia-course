@@ -65,6 +65,7 @@ import { eventEffect, quoteShipping } from '../../lib/suppliers/printful.js';
 import { shippingAddress, printfulRecipient, quoteFingerprint } from '../../lib/store/shipping.js';
 import { withQuotedShipping } from '../../lib/store/quoted-order.js';
 import { encodeCheckoutItems, decodeCheckoutItems } from '../../lib/store/checkout-items.js';
+import { rawBody } from '../../lib/store/raw-body.js';
 
 /* ── Stripe webhooks need the untouched request body ───────────────────── */
 export const config = {
@@ -82,26 +83,6 @@ function stripe() {
 }
 
 /* ── helpers ──────────────────────────────────────────────────────────── */
-
-async function rawBody(req) {
-  if (Buffer.isBuffer(req.body)) return req.body;
-  if (typeof req.body === 'string') return Buffer.from(req.body);
-  // A parsed body means something upstream already consumed the stream; the
-  // raw bytes Stripe signed are gone. Re-serialising JSON would not reproduce
-  // them, so fail loudly instead of hanging or accepting an unverified event.
-  if (req.body && typeof req.body === 'object') {
-    throw new Error('Request body was parsed before signature verification.');
-  }
-  if (req.readableEnded) {
-    throw new Error('Request body was already consumed before signature verification.');
-  }
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    req.on('data', (chunk) => chunks.push(chunk));
-    req.on('end', () => resolve(Buffer.concat(chunks)));
-    req.on('error', reject);
-  });
-}
 
 function jsonBody(req) {
   if (!req.body) return {};
@@ -204,7 +185,8 @@ export default async function handler(req, res) {
       if (!response.ok || !response.body || !['image/png', 'image/jpeg', 'image/webp'].includes(type)) return clientError(res, 502, 'Photo unavailable.');
       const limit = 5 * 1024 * 1024;
       if (Number(response.headers.get('content-length') || 0) > limit) return clientError(res, 502, 'Photo too large.');
-      const reader = response.body.getReader(), chunks = [];
+      const reader = response.body.getReader();
+      const chunks = [];
       let size = 0;
       try {
         while (true) {
