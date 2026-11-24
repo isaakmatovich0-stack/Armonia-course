@@ -451,7 +451,8 @@ export default async function handler(req, res) {
           promo_code: bag.promo && bag.promo.valid ? bag.promo.code : null,
         });
       } catch (err) {
-        console.warn('[store] could not record checkout session', err.message);
+        console.error('[store] could not record checkout session', err.message);
+        return clientError(res, 503, 'We could not safely open checkout. Please contact us before trying again.');
       }
 
       return res.status(200).json({ url: session.url, id: session.id });
