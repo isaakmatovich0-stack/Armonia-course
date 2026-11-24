@@ -12,7 +12,8 @@ const make = (id, color, size, preview) => ({
     ...(preview ? [{ type: 'preview', preview_url: preview }] : []),
   ],
 });
-const variants = [make(1, 'Black', 'S', 'https://example.com/black.png'), make(2, 'Black', 'M', 'https://example.com/black.png'), make(3, 'Navy', 'S', 'https://example.com/navy.png'), make(4, '', '', null)];
+const variants = [make(1, 'Black', 'S', 'https://example.com/black.png'), make(2, 'Black', 'M', 'https://example.com/black.png'), make(3, 'Navy', 'S', 'https://example.com/navy.png'), make(4, '', '', null), make(5, 'Maroon', 'S', 'https://example.com/maroon.png')];
+variants[4].files[1].filename = 'unisex-classic-tee-maroon-back-6b014756d8022.jpg';
 globalThis.fetch = async (url) => ({ ok: true, text: async () => JSON.stringify(url.endsWith('/store/products')
   ? { result: [{ id: 123 }] }
   : url.endsWith('/products/71') ? { result: { variants: [{ id: 1004, color: 'White', size: 'S' }] } }
@@ -23,6 +24,7 @@ assert.equal(products[0].variants[3].preview, null, 'print-file preview must not
 assert.equal(products[0].variants[3].colour, 'White', 'catalog metadata supplies missing variant colour');
 assert.equal(products[0].variants[3].size, 'S');
 assert.equal(products[0].variants[0].preview, 'https://example.com/black.png');
+assert.equal(products[0].variants[4].preview, null, 'a back-labelled mockup must not populate front images');
 assert.equal(products[0].variants[0].catalogProductId, 71);
 const rows = [{ id: 'shirt', name: 'Shirt', colors: ['Black', 'Navy', 'White'], sizes: ['S','M'], images: { Navy: 'https://example.com/owner.png' }, in_stock: true }];
 const [candidate] = findMockupPhotos(products, rows);
