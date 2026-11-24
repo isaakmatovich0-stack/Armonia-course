@@ -1,6 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "node store/printful-retry-preview.mjs",
   "rewrites": [
     {
       "source": "/store/shipping",
