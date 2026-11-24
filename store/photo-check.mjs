@@ -257,11 +257,15 @@ for (const [id, stem] of [['unisex-classic-tee','tee'], ['hoodie-embroidered','h
     if (!modal.querySelector('.gallery-controls')?.textContent.includes('BACK VIEW NOT AVAILABLE')) fail('missing back must be labelled unavailable');
     [...modal.querySelectorAll('.color-swatch')].find(b=>b.title==='Navy')?.click(); await wait(100);
   }
-  modal.querySelector('[aria-label="Side product view"]')?.click(); await wait(100);
-  image = modal.querySelector('.product-modal-image > img.product-photo');
+  const sideButton = modal.querySelector('[aria-label="Side product view"]');
   if (id === 'windbreaker-embroidered') {
-    if (!image?.getAttribute('src').startsWith('data:') || !modal.querySelector('.gallery-controls')?.textContent.includes('SIDE VIEW NOT AVAILABLE')) fail('missing windbreaker side must be labelled unavailable');
-  } else if (!image?.getAttribute('src').includes(`${stem === 'tee' ? 'classic-tee' : 'hoodie'}-navy-right`)) fail(`${id} navy side is incorrect`);
+    if (sideButton) fail('windbreaker must have only front and back views');
+  } else {
+    if (!sideButton) fail(`${id} has no side view`);
+    sideButton?.click(); await wait(100);
+    image = modal.querySelector('.product-modal-image > img.product-photo');
+    if (!image?.getAttribute('src').includes(`${stem === 'tee' ? 'classic-tee' : 'hoodie'}-navy-right`)) fail(`${id} navy side is incorrect`);
+  }
   modal.querySelector('[aria-label="Front product view"]')?.click(); await wait(100);
   image = modal.querySelector('.product-modal-image > img.product-photo');
   if (!image?.getAttribute('src').includes(`${stem}-navy`) || image?.getAttribute('src').includes('-back')) fail(`${id} navy front is incorrect`);
