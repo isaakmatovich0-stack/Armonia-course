@@ -74,6 +74,10 @@ const OUT = {
  * The hover scale is kept on the card's own transform so blending cannot clip
  * it. */
 const LIVE_PHOTO_CSS = `
+.store-shipping-form { margin: 20px 0; }
+.store-shipping-form label { font-size: 14px; font-weight: 600; }
+.store-shipping-form input { display: block; width: 100%; min-height: 44px; margin-top: 5px; padding: 10px; border: 1px solid #9da5a1; border-radius: 4px; background: #fff; color: #17282c; font: inherit; }
+.store-shipping-form input:focus { outline: 2px solid #a98243; outline-offset: 1px; }
 img[data-photo-live="true"] {
   mix-blend-mode: multiply;
   object-fit: contain;
@@ -476,7 +480,17 @@ const PATCHES = [
     // bundle's own money formatters, so live prices keep flowing through.
     name: 'shipping accordion copy',
     find: `children:["Launch plan: ",Fe(Gc)," standard US shipping, free for orders"," ",Fe(ba),"+. A 30-day return window is planned for unworn goods. This is a preview collection; fulfillment and final policies will be connected before launch."]`,
-    replace: `children:["Standard US shipping is ",Fe(Gc),", free on orders"," ",Fe(ba),"+. You have 30 days to return unworn goods, handled at our US fulfilment partner — and if anything arrives damaged or wrong, send a photo and we replace it free."]`,
+    replace: `children:["Shipping is calculated at checkout based on your items and delivery address. You have 30 days to return unworn goods, handled at our US fulfilment partner — and if anything arrives damaged or wrong, send a photo and we replace it free."]`,
+  },
+  {
+    name: 'product shipping message',
+    find: 'children:["Free US shipping on orders ",Fe(ba),"+"]',
+    replace: 'children:"Shipping calculated at checkout"',
+  },
+  {
+    name: 'announcement shipping message',
+    find: 'children:["FREE US SHIPPING ON ORDERS ",Fe(ba),"+"]',
+    replace: 'children:"SHIPPING CALCULATED AT CHECKOUT"',
   },
   {
     // Footer's "STORE PREVIEW" badge is a leftover from the demo export. The
@@ -840,14 +854,14 @@ async function renderPages() {
       body: `
       <div class="grid">
         <div class="card"><h3 style="margin-top:0">Ships from the US</h3><p style="margin:0">Packed in 2–4 business days, with tracking by email the moment it leaves.</p></div>
-        <div class="card"><h3 style="margin-top:0">Free over $75</h3><p style="margin:0">$6 flat standard shipping. Free on orders of $75 or more.</p></div>
+        <div class="card"><h3 style="margin-top:0">Calculated shipping</h3><p style="margin:0">Shipping is calculated at checkout based on your items and address.</p></div>
         <div class="card"><h3 style="margin-top:0">30-day returns</h3><p style="margin:0">Returns land at our US fulfilment partner, never overseas. Refunded within 5 business days of arrival.</p></div>
       </div>
 
       <div class="rule">${'<svg viewBox="0 0 100 100" fill="currentColor" aria-hidden="true"><path d="M50 0C50 33 67 50 100 50C67 50 50 67 50 100C50 67 33 50 0 50C33 50 50 33 50 0Z"/></svg>'}<i></i></div>
 
       <h2>Shipping</h2>
-      <p>Orders are packed and handed to the carrier within 2–4 business days. Standard shipping within the United States is <strong>$6</strong>, and free on orders of <strong>$75</strong> or more. Delivery after dispatch is typically 3–6 business days.</p>
+      <p>Shipping within the United States is calculated at checkout using the items in your order and your delivery address.</p>
       <p>You’ll get a confirmation as soon as you order and a tracking link as soon as your parcel is on its way. We ship within the United States only for now.</p>
 
       <h2 id="returns">Returns &amp; exchanges</h2>

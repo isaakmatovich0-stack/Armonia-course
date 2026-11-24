@@ -23,11 +23,53 @@
  */
 
 import { buildSyncPlan } from '../lib/store/sync.js';
-import { buildOrderPayload } from '../lib/suppliers/printful.js';
-import { clearCatalogCache, priceBag } from '../lib/store/catalog.js';
+import { buildOrderPayload, buildShippingRateItems } from '../lib/suppliers/printful.js';
+import { clearCatalogCache, priceBag, applyPromo } from '../lib/store/catalog.js';
+import { shippingAddress, quoteFingerprint } from '../lib/store/shipping.js';
+import { orderFromStripeSession } from '../lib/store/orders.js';
+import { withQuotedShipping } from '../lib/store/quoted-order.js';
+import { encodeCheckoutItems, decodeCheckoutItems } from '../lib/store/checkout-items.js';
 
 const failures = [];
 const fail = (message) => failures.push(message);
+
+{
+  const items = Array.from({ length: 20 }, (_, i) => ({ productId: `product-${i}`, name: 'A customer product', color: 'Black', size: 'M', quantity: 1, unitPriceCents: 3000 }));
+  const metadata = encodeCheckoutItems(items);
+  if (Object.values(metadata).some(value => value.length > 480) || JSON.stringify(decodeCheckoutItems(metadata)) !== JSON.stringify(items)) fail('checkout must preserve large mixed bags across bounded metadata chunks');
+}
+
+// Quotes need catalog variant IDs, not the store's fulfillment sync IDs.
+{
+  const catalog = { byId: new Map([['tee', { supplier: 'printful', supplierVariants: { 'tee|Black|M': '123' } }], ['hat', { supplier: 'printful', supplierVariants: { 'hat|Navy|One size': '124' } }]]) };
+  const products = [{ variants: [{ syncVariantId: 123, variantId: 456 }, { syncVariantId: 124, variantId: 457 }] }];
+  const items = buildShippingRateItems([{ productId: 'tee', color: 'Black', size: 'M', quantity: 2 }, { productId: 'hat', color: 'Navy', size: 'ONE SIZE', quantity: 1 }], catalog, products);
+  if (JSON.stringify(items) !== JSON.stringify([{ variant_id: 456, quantity: 2 }, { variant_id: 457, quantity: 1 }])) fail('shipping must quote the exact catalog variants and quantities');
+  try { buildShippingRateItems([{ productId: 'tee', color: 'Black', size: 'L', quantity: 1 }], catalog, products); fail('unmapped variants must fail closed'); } catch { /* expected */ }
+  const order = buildOrderPayload({ number: 'test', items: [{ productId: 'hat', color: 'Navy', size: 'ONE SIZE', quantity: 1 }] }, { 'hat|Navy|One size': '124' });
+  if (order.missing.length || order.payload.items[0]?.sync_variant_id !== 124) fail('fulfilment must resolve the same legacy one-size mapping as shipping');
+}
+
+// Address, cart, price and discount changes invalidate a shipping quote.
+{
+  const address = shippingAddress({ name: 'Test', line1: '1 Main St', city: 'Spring', state: 'tx', postal_code: '77373' });
+  const lines = [{ productId: 'tee', color: 'Black', size: 'M', quantity: 1, unitPriceCents: 3000 }];
+  const hash = quoteFingerprint(address, lines, 475, 0);
+  if (hash === quoteFingerprint({ ...address, postal_code: '90210' }, lines, 475, 0) || hash === quoteFingerprint(address, [{ ...lines[0], quantity: 2 }], 475, 0) || hash === quoteFingerprint(address, lines, 475, 100)) fail('shipping quote must bind address, cart and discount');
+  try { shippingAddress({ ...address, postal_code: 'not a zip' }); fail('invalid ZIP should fail'); } catch { /* expected */ }
+  if (applyPromo('FREE', 5000, { code: 'FREE', kind: 'free_shipping', active: true }).valid) fail('free shipping promos must no longer be accepted');
+  const session = { id: 'cs_check', amount_subtotal: 3475, amount_total: 3475, metadata: { fixed_shipping_address: 'payment_intent', quoted_shipping_cents: '475' }, shipping_details: { name: 'Test', address: { line1: '1 Main St', city: 'Spring', state: 'TX', postal_code: '77373', country: 'US' } }, customer_details: { name: 'Different billing name', address: { city: 'Billing City' } } };
+  const order = orderFromStripeSession(session);
+  if (order.amount_subtotal !== 3000 || order.amount_shipping !== 475 || order.shipping_address.city !== 'Spring' || order.name !== 'Test') fail('order must use the quoted destination and record shipping separately');
+}
+
+{
+  const session = { payment_intent: 'pi_test', metadata: { fixed_shipping_address: 'payment_intent' }, customer_details: { address: { city: 'Wrong billing address' } } };
+  const stripe = { paymentIntents: { retrieve: async () => ({ shipping: { name: 'Customer', address: { line1: '1 Main St', city: 'Spring', state: 'TX', postal_code: '77373', country: 'US' } } }) } };
+  const enriched = await withQuotedShipping(session, stripe);
+  if (enriched.shipping_details?.address.city !== 'Spring') fail('webhook must retrieve quoted shipping address');
+  try { await withQuotedShipping(session, { paymentIntents: { retrieve: async () => ({}) } }); fail('missing quoted address must fail closed'); } catch { /* expected */ }
+}
 
 // Checkout must charge the selected variant, not just the advertised base.
 {

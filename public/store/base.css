@@ -157,6 +157,10 @@
 
 /* ══════════ appended by build-store.mjs ══════════ */
 
+.store-shipping-form { margin: 20px 0; }
+.store-shipping-form label { font-size: 14px; font-weight: 600; }
+.store-shipping-form input { display: block; width: 100%; min-height: 44px; margin-top: 5px; padding: 10px; border: 1px solid #9da5a1; border-radius: 4px; background: #fff; color: #17282c; font: inherit; }
+.store-shipping-form input:focus { outline: 2px solid #a98243; outline-offset: 1px; }
 img[data-photo-live="true"] {
   mix-blend-mode: multiply;
   object-fit: contain;
