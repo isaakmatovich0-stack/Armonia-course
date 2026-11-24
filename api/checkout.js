@@ -8,7 +8,7 @@ import Stripe from 'stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-const SITE_URL = process.env.SITE_URL || 'https://armonia-mariachi.com';
+const SITE_URL = (process.env.SITE_URL || 'https://www.armoniaconnect.com').replace(/\/$/, '');
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -18,6 +18,7 @@ export default async function handler(req, res) {
   try {
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
+      metadata: { source: 'armonia-course' },
       payment_method_types: ['card'],
       line_items: [
         {
