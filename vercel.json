@@ -69,6 +69,5 @@
       "path": "/api/store/supplier-sync",
       "schedule": "0 14 * * *"
     }
-  ],
-  "buildCommand": "node store/sticker-preview-diagnostic.mjs"
+  ]
 }
