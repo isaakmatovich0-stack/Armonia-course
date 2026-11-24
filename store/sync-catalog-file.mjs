@@ -327,7 +327,7 @@ async function main() {
       // shows the product rather than a placeholder. Falling back to the first
       // colour is right when nothing has a photo yet — the card then honestly
       // shows the placeholder for a real colour, which is the best available.
-      initialColor: (colourKeys.find((key) => images[key]) || colourKeys[0] || 'Black'),
+      initialColor: (row.id === 'unisex-classic-tee' && colourKeys.includes('Black') ? 'Black' : colourKeys.find((key) => images[key]) || colourKeys[0] || 'Black'),
       badge: copy.badge || row.badge || '',
       subtitle: copy.subtitle || row.subtitle || '',
       description: copy.description || row.description || '',
