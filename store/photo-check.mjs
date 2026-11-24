@@ -68,7 +68,7 @@ const payload = {
       images: { Black: mockup('hoodie-black'), Navy: mockup('hoodie-navy') },
       backImages: { Black: mockup('hoodie-black-back'), Navy: mockup('hoodie-navy-back') },
     },
-    { id: 'windbreaker-embroidered', colors: ['Black','Navy'], sizes:['M'], priceCents: 6000, inStock: true, images: { Black: mockup('jacket-black'), Navy: mockup('jacket-navy') }, backImages: { Black: mockup('jacket-black-back'), Navy: mockup('jacket-navy-back') } },
+    { id: 'windbreaker-embroidered', colors: ['Black','Navy'], sizes:['M'], priceCents: 6000, inStock: true, images: { Black: mockup('jacket-black'), Navy: mockup('jacket-navy') }, backImages: { Black: '/store/images/windbreaker-black-back-printful.png' } },
     {
       id: 'hat-embroidered',
       colors: ['Black', 'Navy Blue', 'Burgundy Maroon'],
@@ -239,10 +239,14 @@ for (const [id, stem] of [['unisex-classic-tee','tee'], ['hoodie-embroidered','h
   if (!back) { fail(`${id} has no back view`); modal?.querySelector('[aria-label="Close dialog"]')?.click(); continue; }
   back.click(); await wait(100);
   let image = modal.querySelector('.product-modal-image > img.product-photo');
-  if (!image?.getAttribute('src').includes(`${stem}-black-back`)) fail(`${id} black back is incorrect`);
+  const blackBack = id === 'windbreaker-embroidered' ? '/store/images/windbreaker-black-back-printful.png' : `${stem}-black-back`;
+  if (!image?.getAttribute('src').includes(blackBack)) fail(`${id} black back is incorrect`);
   [...modal.querySelectorAll('.color-swatch')].find(b=>b.title==='Navy')?.click(); await wait(100);
   image = modal.querySelector('.product-modal-image > img.product-photo');
-  if (!image?.getAttribute('src').includes(`${stem}-navy-back`)) fail(`${id} navy back is incorrect`);
+  if (id === 'windbreaker-embroidered') {
+    if (!image?.getAttribute('src').startsWith('data:')) fail('missing navy windbreaker back must not borrow the black image');
+    if (!modal.querySelector('.gallery-controls')?.textContent.includes('BACK VIEW NOT AVAILABLE')) fail('missing navy windbreaker back must be labelled unavailable');
+  } else if (!image?.getAttribute('src').includes(`${stem}-navy-back`)) fail(`${id} navy back is incorrect`);
   if (id === 'unisex-classic-tee') {
     [...modal.querySelectorAll('.color-swatch')].find(b=>b.title==='Maroon')?.click(); await wait(100);
     image = modal.querySelector('.product-modal-image > img.product-photo');
