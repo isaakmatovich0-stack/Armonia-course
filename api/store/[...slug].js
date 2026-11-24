@@ -44,6 +44,8 @@ import { resolveBag, saveCart, loadPromo, cartCookie, isValidCartId } from '../.
 import {
   getCart,
   recordCheckoutSession,
+  reserveCheckoutAttempt,
+  saveCheckoutAttempt,
   recordPaidOrder,
   markSessionExpired,
   incrementPromoUse,
@@ -66,6 +68,7 @@ import { shippingAddress, printfulRecipient, quoteFingerprint } from '../../lib/
 import { withQuotedShipping } from '../../lib/store/quoted-order.js';
 import { encodeCheckoutItems, decodeCheckoutItems } from '../../lib/store/checkout-items.js';
 import { rawBody } from '../../lib/store/raw-body.js';
+import { checkoutAttemptKey, guardedCheckout, CheckoutGuardError } from '../../lib/store/checkout-guard.js';
 import { isStoreCheckout } from '../../lib/course-checkout.js';
 
 /* ── Stripe webhooks need the untouched request body ───────────────────── */
@@ -420,18 +423,13 @@ export default async function handler(req, res) {
 
       let session;
       try {
-        session = await stripeApi.checkout.sessions.create(sessionParams);
+        const key = checkoutAttemptKey(cart, body.fingerprint);
+        session = await guardedCheckout({ stripe: stripeApi, key, params: sessionParams, reserve: reserveCheckoutAttempt, save: saveCheckoutAttempt });
       } catch (err) {
-        console.error('[store] stripe session failed', err);
-        // Most common cause: tax/address config mismatch. Retry once without
-        // the optional niceties so a real customer isn't blocked.
-        try {
-          const { custom_text, invoice_creation, allow_promotion_codes, ...fallback } = sessionParams;
-          session = await stripeApi.checkout.sessions.create(fallback);
-        } catch (secondErr) {
-          console.error('[store] stripe session retry failed', secondErr);
-          return clientError(res, 502, 'We couldn’t open checkout just now. Please try again in a moment.');
-        }
+        if (err instanceof CheckoutGuardError) return clientError(res, 409, err.message);
+        // Never create a second session as a fallback after an ambiguous error.
+        console.error('[store] guarded checkout unavailable:', err.message);
+        return clientError(res, 503, 'We couldn’t safely open checkout. Please try again or contact us before paying.');
       }
 
       // Remember what we asked Stripe for, so a session that is paid but whose
