@@ -23,7 +23,7 @@
  */
 
 import { buildSyncPlan } from '../lib/store/sync.js';
-import { buildOrderPayload, buildShippingRateItems, eventEffect } from '../lib/suppliers/printful.js';
+import { buildOrderPayload, buildShippingEstimateItems, quoteShipping, eventEffect } from '../lib/suppliers/printful.js';
 import { clearCatalogCache, priceBag, applyPromo } from '../lib/store/catalog.js';
 import { shippingAddress, quoteFingerprint } from '../lib/store/shipping.js';
 import { orderFromStripeSession } from '../lib/store/orders.js';
@@ -58,15 +58,37 @@ if (eventEffect('order_canceled')?.fulfilment !== 'canceled' || eventEffect('ord
   if (!bytes.equals(original)) fail('raw body must not be reserialized');
 }
 
-// Quotes need catalog variant IDs, not the store's fulfillment sync IDs.
+// Quotes use the very same configured sync variants as fulfilment.
 {
   const catalog = { byId: new Map([['tee', { supplier: 'printful', supplierVariants: { 'tee|Black|M': '123' } }], ['hat', { supplier: 'printful', supplierVariants: { 'hat|Navy|One size': '124' } }]]) };
-  const products = [{ variants: [{ syncVariantId: 123, variantId: 456 }, { syncVariantId: 124, variantId: 457 }] }];
-  const items = buildShippingRateItems([{ productId: 'tee', color: 'Black', size: 'M', quantity: 2 }, { productId: 'hat', color: 'Navy', size: 'ONE SIZE', quantity: 1 }], catalog, products);
-  if (JSON.stringify(items) !== JSON.stringify([{ variant_id: 456, quantity: 2 }, { variant_id: 457, quantity: 1 }])) fail('shipping must quote the exact catalog variants and quantities');
-  try { buildShippingRateItems([{ productId: 'tee', color: 'Black', size: 'L', quantity: 1 }], catalog, products); fail('unmapped variants must fail closed'); } catch { /* expected */ }
+  const lines = [{ productId: 'tee', color: 'Black', size: 'M', quantity: 2, unitPriceCents: 3000 }, { productId: 'hat', color: 'Navy', size: 'ONE SIZE', quantity: 1 }];
+  const items = buildShippingEstimateItems(lines, catalog);
+  if (JSON.stringify(items) !== JSON.stringify([{ sync_variant_id: 123, quantity: 2, retail_price: '30.00' }, { sync_variant_id: 124, quantity: 1 }])) fail('shipping must estimate the same configured sync variants and quantities');
+  try { buildShippingEstimateItems([{ productId: 'tee', color: 'Black', size: 'L', quantity: 1 }], catalog); fail('unmapped variants must fail closed'); } catch { /* expected */ }
   const order = buildOrderPayload({ number: 'test', items: [{ productId: 'hat', color: 'Navy', size: 'ONE SIZE', quantity: 1 }] }, { 'hat|Navy|One size': '124' });
   if (order.missing.length || order.payload.items[0]?.sync_variant_id !== 124) fail('fulfilment must resolve the same legacy one-size mapping as shipping');
+  const originalFetch = globalThis.fetch, token = process.env.PRINTFUL_API_TOKEN, store = process.env.PRINTFUL_STORE_ID;
+  process.env.PRINTFUL_API_TOKEN = 'test'; process.env.PRINTFUL_STORE_ID = 'test';
+  let body;
+  globalThis.fetch = async (url, options) => {
+    if (!String(url).endsWith('/orders/estimate-costs')) throw new Error('Unexpected endpoint');
+    body = JSON.parse(options.body);
+    return new Response(JSON.stringify({ result: { costs: { currency: 'USD', shipping: '9.19' } } }), {status:200});
+  };
+  try {
+    const quote = await quoteShipping({ country_code:'US', state_code:'TX', zip:'77373' }, lines, catalog);
+    if (quote.amountCents !== 919 || body.shipping !== 'STANDARD' || JSON.stringify(body.items) !== JSON.stringify(items)) fail('shipping must use the estimated standard order cost');
+    globalThis.fetch = async () => new Response(JSON.stringify({ result: { costs: { currency: 'USD', shipping: 4.890000000000001 } } }), {status:200});
+    if ((await quoteShipping({country_code:'US',state_code:'TX',zip:'77373'},lines,catalog)).amountCents !== 489) fail('Printful numeric rounding artifacts should round to exact cents');
+    globalThis.fetch = async () => new Response(JSON.stringify({ result: { costs: { currency: 'USD', shipping: 4.891 } } }), {status:200});
+    try { await quoteShipping({country_code:'US',state_code:'TX',zip:'77373'},lines,catalog); fail('fractional cents must fail closed'); } catch { /* expected */ }
+    globalThis.fetch = async () => new Response(JSON.stringify({ result: { costs: { currency: 'EUR', shipping: '9.19' } } }), {status:200});
+    try { await quoteShipping({country_code:'US',state_code:'TX',zip:'77373'},lines,catalog); fail('invalid currency must fail closed'); } catch { /* expected */ }
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (token === undefined) delete process.env.PRINTFUL_API_TOKEN; else process.env.PRINTFUL_API_TOKEN = token;
+    if (store === undefined) delete process.env.PRINTFUL_STORE_ID; else process.env.PRINTFUL_STORE_ID = store;
+  }
 }
 
 // Address, cart, price and discount changes invalidate a shipping quote.
