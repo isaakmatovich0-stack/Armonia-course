@@ -69,5 +69,6 @@
       "path": "/api/store/supplier-sync",
       "schedule": "0 14 * * *"
     }
-  ]
+  ],
+  "buildCommand": "node store/checkout-stripe-preview.mjs"
 }
