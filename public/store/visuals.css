@@ -14,7 +14,9 @@
 .hero .button-gold{box-shadow:0 10px 30px #0002}
 .hero .button-gold:hover{box-shadow:0 15px 34px #0004}
 .hero-stage .stage-glow{background:radial-gradient(ellipse at 51% 50%,#e6c78921,transparent 60%)}
-.hero-product-entry{left:17%;right:22%;top:10%}
+.hero-product-entry{left:4%;right:5%;top:6%}
+/* Pausing motion must not freeze the entrance fade at opacity zero. */
+.hero.animation-paused .hero-product-entry,.hero.animation-paused .floating-cap>img{animation:none!important;opacity:1}
 /* A transparent cutout needs normal compositing; multiply on a dark hero
    makes the actual garment almost black. Unprocessed photos stay readable. */
 img[data-photo-live="true"]{mix-blend-mode:normal!important}
@@ -33,12 +35,17 @@ img[data-photo-live="true"]{mix-blend-mode:normal!important}
 .quick-add{border-radius:3px}
 .story-section{margin-top:15px;margin-bottom:30px}
 .story-copy{background:#1c3532}
+/* The logo replaces the old stars; tint it on gold surfaces for contrast. */
+.headline-spark{animation:none}
+.marquee-group>svg,.announcement-separator svg,.newsletter-graphic>svg{filter:brightness(0) saturate(100%) invert(13%) sepia(14%) saturate(1293%) hue-rotate(143deg) brightness(91%)}
+.announcement-separator svg{display:block;width:13px;height:18px}
+.newsletter-graphic>svg{opacity:.95}
 .site-footer{border-top:1px solid #e5be7345;background:#102326}
 :focus-visible{outline:2px solid #d6a94e;outline-offset:4px}
 @media(max-width:767px){
   .suite-ribbon{gap:6px 12px;font-size:9px;flex-wrap:wrap;padding:9px 14px}
   .hero h1{letter-spacing:-.065em}
-  .hero-product-entry{left:12%;right:12%;top:12%}
+  .hero-product-entry{left:3%;right:3%;top:9%}
   .collection-section{padding-top:64px;padding-bottom:52px}
 }
 @media(prefers-reduced-motion:reduce){.product-image-wrap{transition:none}}

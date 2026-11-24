@@ -498,6 +498,64 @@ const PATCHES = [
     every: true,
   },
   {
+    // Pin the centerpiece to the hat, regardless of the Studio featured setting.
+    // If the hat is removed from configuration, keep the illustration but send
+    // shoppers to the collection rather than a non-existent product.
+    name: 'always feature the hat',
+    find: 'At=ul.find(y=>y.id===s.featuredId)||ul[0]',
+    replace: 'At=ul.find(y=>y.id==="hat-embroidered")||{id:"hat-embroidered",name:"Armonia Connect Hat",type:"cap",price:0,colors:["Black"],initialColor:"Black",images:{}}',
+  },
+  {
+    name: 'ensure the frozen hero has a black swatch definition',
+    find: 'ul=s.products,Jt=s.colors,ba=s.site.shippingThreshold',
+    replace: 'ul=s.products,Jt={...s.colors,Black:s.colors.Black||{name:"Black",hex:"#212729"}},ba=s.site.shippingThreshold',
+  },
+  {
+    name: 'hide hero price if the hat is absent',
+    find: 'className:"hero-price",children:Fe(At.price)',
+    replace: 'className:"hero-price",children:ul.some(p=>p.id==="hat-embroidered")?Fe(At.price):""',
+  },
+  {
+    name: 'open the hat only when it exists',
+    find: 'hero:u.jsx(gg,{onShop:()=>He(),onProduct:_=>Pe(At,_)})',
+    replace: 'hero:u.jsx(gg,{onShop:()=>He(),onProduct:_=>ul.some(p=>p.id==="hat-embroidered")?Pe(At,_):He()})',
+  },
+  {
+    name: 'cycle available hat colours on reload',
+    find: 'function gg({onShop:s,onProduct:y}){const[h,f]=B.useState(At.initialColor)',
+    replace: 'function gg({onShop:s,onProduct:y}){const[h,f]=B.useState(()=>globalThis.__armoniaNextHatColour?globalThis.__armoniaNextHatColour(At.colors):"Black")',
+  },
+  {
+    name: 'hero offers only the available illustrated hat colours',
+    find: 'className:"hero-swatch-row",children:At.colors.map(',
+    replace: 'className:"hero-swatch-row",children:At.colors.filter(K=>["Black","Navy Blue","Burgundy Maroon"].includes(K)&&Jt[K]).map(',
+  },
+  {
+    name: 'identify the approximate hat colour illustrations',
+    find: 'className:"hero-color-name",children:Jt[h].name',
+    replace: 'className:"hero-color-name",children:Jt[h].name+(h==="Black"?"":" · Colour illustration")',
+  },
+  {
+    name: 'only show the existing black hat detail view',
+    find: 'de==="detail"&&s.type==="cap"?u.jsx("img",{key:`${s.id}-${A}-detail`,className:"product-photo product-photo-cap detail-view",src:Ka(`/images/cap-hero-${A}.webp`)',
+    replace: 'de==="detail"&&s.type==="cap"&&A==="Black"?u.jsx("img",{key:`${s.id}-${A}-detail`,className:"product-photo product-photo-cap detail-view",src:"/images/cap-hero-ink.webp"',
+  },
+  {
+    name: 'only offer the existing black hat detail thumbnail',
+    find: 's.type==="cap"&&u.jsx("button",{"aria-label":"Angled product view",onClick:()=>xe("detail"),className:de==="detail"?"active":"",children:u.jsx("img",{src:Ka(`/images/cap-hero-${A}.webp`),alt:""})})',
+    replace: 's.type==="cap"&&A==="Black"&&u.jsx("button",{"aria-label":"Angled product view",onClick:()=>xe("detail"),className:de==="detail"?"active":"",children:u.jsx("img",{src:"/images/cap-hero-ink.webp",alt:""})})',
+  },
+  {
+    name: 'replace decorative star component with brand logo',
+    find: 'function Bt({className:s="",...y}){return u.jsx("svg",{className:s,viewBox:"0 0 100 100",fill:"none","aria-hidden":"true",...y,children:u.jsx("path",{d:"M50 0C50 33 67 50 100 50C67 50 50 67 50 100C50 67 33 50 0 50C33 50 50 33 50 0Z",fill:"currentColor"})})}',
+    replace: 'function Bt({className:s="",...y}){return u.jsx(Yc,{className:s,...y})}',
+  },
+  {
+    name: 'replace announcement star with brand logo',
+    find: 'className:"announcement-separator",children:"✦"',
+    replace: 'className:"announcement-separator",children:u.jsx(Bt,{})',
+  },
+  {
     // The hero preloads four product photographs, one per colour. After the
     // catalogue was replaced with the real Printful products, those files
     // (cap-hero-sky/ink/ivory/orange.webp) describe a cap that no longer
@@ -507,7 +565,7 @@ const PATCHES = [
     name: 'hero preload follows the featured product',
     find: '["sky","ink","ivory","orange"].forEach(_=>{const W=new Image;W.src=Ka(`/images/cap-hero-${_}.webp`)})',
     replace:
-      '(()=>{const own=(At&&At.images)||{};const first=Object.values(own).find(Boolean);if(!first)return;const W=new Image;W.src=Ka(first)})()',
+      '(()=>{const W=new Image;W.src=Ka("/images/cap-hero-ink.webp")})()',
     every: true, // the path patch below runs first and rewrites the literal
   },
   {
@@ -649,12 +707,12 @@ const PATCHES = [
     // them would produce "/store/store/images/".
     name: 'hero photo resolution',
     find: 'yg=s=>{var h,f,m;const y=`/store/images/cap-hero-${s}.webp`;return((f=(h=globalThis.__ARMONIA_CONFIG__)==null?void 0:h.assets)==null?void 0:f[y])||(["sky","ink","ivory","orange"].includes(s)?Ka(y):((m=At==null?void 0:At.images)==null?void 0:m[s])||Ka("/store/images/cap-hero-sky.webp"))}',
-    replace: 'yg=s=>{var h,f;const photo=(h=globalThis.__armoniaPhotoFor)==null?void 0:h.call(globalThis,At,s);if(photo)return Ka(photo);if(globalThis.__armoniaLiveHasProduct&&globalThis.__armoniaLiveHasProduct(At.id))return _y;if((f=At.images)!=null&&f[s])return Ka(At.images[s]);return _y}',
+    replace: 'yg=s=>({"Black":"/store/images/cap-hero-ink.webp","Navy Blue":"/store/images/cap-hero-navy-illustration.png","Burgundy Maroon":"/store/images/cap-hero-maroon-illustration.png"})[s]||"/store/images/cap-hero-ink.webp"',
   },
   {
-    name: 'identify the featured hero product',
+    name: 'keep the frozen hero asset independent of live mockups',
     find: '"data-edit-image":"hero","data-edit-color":h,"data-asset-path":',
-    replace: '"data-edit-image":"hero","data-edit-color":h,"data-photo-product":At.id,"data-photo-colour":h,"data-photo-live":/^https?:/i.test(At.type==="cap"?yg(h):Or(At,h))?"true":void 0,"data-asset-path":',
+    replace: '"data-edit-image":"hero","data-edit-color":h,"data-asset-path":',
   },
   {
     name: 'hero swatch labels name the featured product',

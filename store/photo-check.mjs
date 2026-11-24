@@ -69,7 +69,7 @@ const payload = {
     },
     {
       id: 'hat-embroidered',
-      colors: ['Black', 'Navy Blue'],
+      colors: ['Black', 'Navy Blue', 'Burgundy Maroon'],
       sizes: ['ONE SIZE'],
       priceCents: 2300,
       inStock: true,
@@ -151,17 +151,38 @@ const swatch = (id, colour) => {
   }
 }
 
-/* The hero must show its featured product, never some other black product. */
+/* The hero stays a hat even if featuredId is a tee. Its two recolours are
+   explicitly marked illustrations; the live product gallery stays separate. */
 {
   const hero = w.document.querySelector('.floating-cap img');
-  if (!hero || !hero.getAttribute('src').includes('tee-black')) fail('hero did not use the featured tee photo');
-  const maroon = w.document.querySelector('.hero-swatch-row [aria-label="Show Unisex classic tee in Maroon"]');
-  if (!maroon) fail('featured-product hero colour control is missing');
-  else {
-    maroon.click(); await wait(300);
-    const next = w.document.querySelector('.floating-cap img');
-    if (!next || !next.getAttribute('src').startsWith('data:')) fail('hero borrowed a different product or colour when its photo was missing');
+  if (!hero || hero.getAttribute('src') !== '/store/images/cap-hero-ink.webp') fail('hero did not retain the frozen black hat');
+  if (!hero || !hero.getAttribute('alt').includes('Hat')) fail('hero is not labelled as the hat');
+  const controls = w.document.querySelectorAll('.hero-swatch-row button');
+  if (controls.length !== 3) fail('hero should offer the three hat colours');
+  for (const [colour,filename] of [['Navy Blue','navy'],['Burgundy Maroon','maroon']]) {
+    const button = [...controls].find(b => b.getAttribute('aria-label').endsWith(colour));
+    if (!button) { fail(`missing ${colour} hero swatch`); continue; }
+    button.click(); await wait(150);
+    const image = w.document.querySelector('.floating-cap img');
+    if (!image?.getAttribute('src').includes(`cap-hero-${filename}-illustration.png`)) fail(`${colour} shows the wrong hero image`);
+    if (!image?.getAttribute('alt').includes(colour) || !w.document.querySelector('.hero-color-name')?.textContent.includes('illustration')) fail(`${colour} illustration is not labelled`);
   }
+  controls[0].click(); await wait(150);
+  if (w.__armoniaNextHatColour(['Black','Navy Blue','Burgundy Maroon']) !== 'Navy Blue' || w.__armoniaNextHatColour(['Black','Navy Blue','Burgundy Maroon']) !== 'Burgundy Maroon' || w.__armoniaNextHatColour(['Black','Navy Blue','Burgundy Maroon']) !== 'Black') fail('hero does not cycle through colours on reload');
+  if (w.document.querySelector('path[d^="M50 0C50 33"]') || w.document.querySelector('.announcement-separator')?.textContent.includes('✦')) fail('a decorative star is still present');
+  for (const selector of ['.headline-spark', '.original-stamp>svg:last-child', '.marquee-group>svg', '.newsletter-graphic>svg', '.footer-signoff>svg', '.announcement-separator svg']) {
+    if (!w.document.querySelector(`${selector} image[href="/store/images/brand-logo.webp"]`)) fail(`brand mark missing at ${selector}`);
+  }
+  const heroButton = w.document.querySelector('.floating-cap');
+  heroButton.click(); await wait(300);
+  const modal = w.document.querySelector('[role="dialog"][data-editor-scope="product-hat-embroidered"]');
+  if (!modal) fail('hero did not open the hat product');
+  const angled = modal?.querySelector('[aria-label="Angled product view"]');
+  if (!angled || angled.querySelector('img')?.getAttribute('src') !== '/store/images/cap-hero-ink.webp') fail('black hat detail thumbnail is broken');
+  else { angled.click(); await wait(150); if (modal.querySelector('.detail-view')?.getAttribute('src') !== '/store/images/cap-hero-ink.webp') fail('black hat detail view is broken'); }
+  const close = w.document.querySelector('[aria-label="Close dialog"]');
+  if (close) close.click();
+  await wait(200);
 }
 
 /* ── second paint, via a swatch click ─────────────────────────────────── */
