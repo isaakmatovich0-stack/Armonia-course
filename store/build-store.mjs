@@ -725,6 +725,21 @@ const PATCHES = [
     replace: '${At.name} in ${Jt[h].name}',
   },
   {
+    name: 'apparel gallery supports matching back views',
+    find: 'de==="back"&&s.type==="windbreaker"?u.jsx("img",{key:`${s.id}-${A}-back`,className:"product-photo product-photo-windbreaker",src:Ka(s.backImages?s.backImages[A]:`/store/images/windbreaker-back-${A}.webp`),alt:`${s.name} back view`,width:"850",height:"850"})',
+    replace: 'de==="back"&&["tee","hoodie","windbreaker"].includes(s.type)?u.jsx("img",{key:`${s.id}-${A}-back`,className:`product-photo product-photo-${s.type}`,"data-photo-product":s.id,"data-photo-colour":A,"data-photo-side":"back","data-photo-live":/^https?:/i.test(globalThis.__armoniaPhotoFor?.(s,A,"back")||"")?"true":void 0,src:Ka(globalThis.__armoniaPhotoFor?.(s,A,"back")||globalThis.__armoniaPhotoPlaceholder),alt:`${s.name} in ${Jt[A].name}, back view`,width:"850",height:"850"})',
+  },
+  {
+    name: 'apparel back thumbnail',
+    find: 's.type==="windbreaker"&&u.jsx("button",{"aria-label":"Back product view",onClick:()=>xe("back"),className:de==="back"?"active":"",children:u.jsx("img",{src:Ka(s.backImages?s.backImages[A]:`/store/images/windbreaker-back-${A}.webp`),alt:"Back view"})})',
+    replace: '["tee","hoodie","windbreaker"].includes(s.type)&&u.jsx("button",{"aria-label":"Back product view",onClick:()=>xe("back"),className:de==="back"?"active":"",children:u.jsx("img",{"data-photo-product":s.id,"data-photo-colour":A,"data-photo-side":"back","data-photo-live":/^https?:/i.test(globalThis.__armoniaPhotoFor?.(s,A,"back")||"")?"true":void 0,src:Ka(globalThis.__armoniaPhotoFor?.(s,A,"back")||globalThis.__armoniaPhotoPlaceholder),alt:"Back view"})})',
+  },
+  {
+    name: 'apparel gallery label',
+    find: 's.type==="windbreaker"?"TWO-SIDED VIEW · FRONT & BACK":"THE LITTLE DETAILS MAKE IT."',
+    replace: '["tee","hoodie","windbreaker"].includes(s.type)?de==="back"&&!globalThis.__armoniaPhotoFor?.(s,A,"back")?"BACK VIEW NOT AVAILABLE":"TWO-SIDED VIEW · FRONT & BACK":"THE LITTLE DETAILS MAKE IT."',
+  },
+  {
     // Let the runtime correct a stale mockup.
     //
     // The page is built from store/catalog.json, which is generated. Once a

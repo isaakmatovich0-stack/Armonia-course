@@ -55,10 +55,10 @@
   const cache = new Map(), state = new WeakMap();
   let timer;
   function hash(text) { let h = 2166136261; for (let i=0;i<text.length;i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619); return (h >>> 0).toString(36); }
-  async function makeCutout(src, product, colour) {
+  async function makeCutout(src, product, colour, side) {
     // White/cream products can be indistinguishable from a white background.
     if (/white|ivory|cream|natural/i.test(colour)) return null;
-    const query = new URLSearchParams({product, colour, v: hash(src)});
+    const query = new URLSearchParams({product, colour, side, v: hash(src)});
     const url = src.startsWith('/store/images/') ? src : '/api/store/photo?' + query;
     const res = await fetch(url, {signal: AbortSignal.timeout(15000)});
     if (!res.ok) return null;
@@ -80,24 +80,24 @@
   }
   function scan() {
     for (const img of document.querySelectorAll('img[data-photo-product][data-photo-colour]')) {
-      const src = img.getAttribute('src'), product = img.dataset.photoProduct, colour = img.dataset.photoColour;
+      const src = img.getAttribute('src'), product = img.dataset.photoProduct, colour = img.dataset.photoColour, side = img.dataset.photoSide || 'front';
       const old = state.get(img);
       if (!src || !(/^https?:/i.test(src) || src.startsWith('/store/images/'))) continue;
-      if (old && old.src === src && old.product === product && old.colour === colour) {
+      if (old && old.src === src && old.product === product && old.colour === colour && old.side === side) {
         if (old.result) { img.setAttribute('data-cutout','true'); img.setAttribute('src',old.result); }
         continue;
       }
       img.removeAttribute('data-cutout');
       img.removeAttribute('data-cutout-source');
-      const entry = {src, product, colour}; state.set(img, entry);
-      const key = JSON.stringify([src,product,colour]);
+      const entry = {src, product, colour, side}; state.set(img, entry);
+      const key = JSON.stringify([src,product,colour,side]);
       // Bound memory in long sessions with many uploaded/replaced images.
       if (!cache.has(key)) {
         if (cache.size >= 50) continue;
-        cache.set(key, makeCutout(src,product,colour).catch(() => null));
+        cache.set(key, makeCutout(src,product,colour,side).catch(() => null));
       }
       cache.get(key).then((result) => {
-        if (!result || state.get(img) !== entry || img.getAttribute('src') !== src || img.dataset.photoProduct !== product || img.dataset.photoColour !== colour) return;
+        if (!result || state.get(img) !== entry || img.getAttribute('src') !== src || img.dataset.photoProduct !== product || img.dataset.photoColour !== colour || (img.dataset.photoSide || 'front') !== side) return;
         entry.result = result;
         img.setAttribute('data-cutout-source',src);
         img.setAttribute('data-cutout','true');
@@ -106,6 +106,6 @@
     }
   }
   function schedule() { clearTimeout(timer); timer = setTimeout(scan, 100); }
-  new MutationObserver(schedule).observe(document.documentElement, {childList:true,subtree:true,attributes:true,attributeFilter:['src','data-photo-live','data-photo-product','data-photo-colour']});
+  new MutationObserver(schedule).observe(document.documentElement, {childList:true,subtree:true,attributes:true,attributeFilter:['src','data-photo-live','data-photo-product','data-photo-colour','data-photo-side']});
   schedule();
 })();

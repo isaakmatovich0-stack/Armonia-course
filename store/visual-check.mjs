@@ -27,7 +27,7 @@ page.window.close();suite.window.close();
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'armonia-photo-'));
 process.env.STORE_LOCAL_DB='1';
 process.chdir(temp);fs.mkdirSync('store');fs.mkdirSync('.tmp');fs.copyFileSync(path.join(root,'store/catalog.json'),'store/catalog.json');
-fs.writeFileSync('.tmp/store-db.json',JSON.stringify({promos:{},products:{shirt:{id:'shirt',name:'Shirt',type:'tee',colors:['Black','Navy'],sizes:['M'],price_cents:2000,images:{Black:'https://files.cdn.printful.com/test.png',Navy:'https://evil.example/test.png'},in_stock:true}}}));
+fs.writeFileSync('.tmp/store-db.json',JSON.stringify({promos:{},products:{shirt:{id:'shirt',name:'Shirt',type:'tee',colors:['Black','Navy'],sizes:['M'],price_cents:2000,images:{Black:'https://files.cdn.printful.com/test.png',Navy:'https://evil.example/test.png'},back_images:{Black:'https://files.cdn.printful.com/back.png'},in_stock:true}}}));
 let urls=[];
 globalThis.fetch=async url=>{urls.push(String(url));return new Response(Buffer.from([137,80,78,71,13,10,26,10]),{status:200,headers:{'content-type':'image/png'}})};
 try {
@@ -37,6 +37,10 @@ try {
  assert.equal(ok.code,200);assert.equal(ok.headers['Content-Type'],'image/png');assert.equal(urls[0],'https://files.cdn.printful.com/test.png');
  assert.equal((await request('/api/store/photo?product=shirt&colour=Navy')).code,404);
  assert.equal((await request('/api/store/photo?product=shirt&colour=Unknown')).code,404);
- assert.equal(urls.length,1);
+ assert.equal((await request('/api/store/photo?product=shirt&colour=Black&side=back')).code,200);
+ assert.equal(urls[1],'https://files.cdn.printful.com/back.png');
+ assert.equal((await request('/api/store/photo?product=shirt&colour=Navy&side=back')).code,404);
+ assert.equal((await request('/api/store/photo?product=shirt&colour=Black&side=other')).code,400);
+ assert.equal(urls.length,2);
 } finally {process.chdir(root);fs.rmSync(temp,{recursive:true,force:true});}
 console.log('  ✓ visuals — safe cutout, suite navigation, and catalog-bound image proxy');
