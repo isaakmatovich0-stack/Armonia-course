@@ -737,7 +737,7 @@ const PATCHES = [
   {
     name: 'apparel gallery label',
     find: 's.type==="windbreaker"?"TWO-SIDED VIEW · FRONT & BACK":"THE LITTLE DETAILS MAKE IT."',
-    replace: '["tee","hoodie","windbreaker"].includes(s.type)?de==="back"&&!globalThis.__armoniaPhotoFor?.(s,A,"back")?"BACK VIEW NOT AVAILABLE":"TWO-SIDED VIEW · FRONT & BACK":"THE LITTLE DETAILS MAKE IT."',
+    replace: '["tee","hoodie","windbreaker"].includes(s.type)?!globalThis.__armoniaPhotoFor?.(s,A,de==="back"?"back":"front")?(de==="back"?"BACK VIEW NOT AVAILABLE":"FRONT VIEW NOT AVAILABLE"):"PRODUCT VIEW":"THE LITTLE DETAILS MAKE IT."',
   },
   {
     // Let the runtime correct a stale mockup.
