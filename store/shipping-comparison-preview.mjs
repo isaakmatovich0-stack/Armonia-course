@@ -15,3 +15,10 @@ const response=await fetch('https://api.printful.com/orders/estimate-costs',{met
 if(!response.ok) throw new Error('Estimate failed '+response.status);
 const estimate=(await response.json()).result;
 console.log('SHIPPING_COMPARISON',JSON.stringify({checkoutCharged:order.amount_shipping,rateCents:rate.amountCents,estimateShipping:estimate.costs?.shipping,total:estimate.costs?.total}));
+for (const p of catalog.products.filter(p=>p.inStock!==false)) {
+ try {
+  const sample={productId:p.id,color:p.colors[0],size:p.sizes[0],quantity:1,unitPriceCents:p.priceCents};
+  const q=await quoteShipping(payload.recipient,[sample],catalog);
+  console.log('PRODUCT_SHIPPING',JSON.stringify({product:p.id,cents:q.amountCents}));
+ } catch(err) {console.log('PRODUCT_SHIPPING',JSON.stringify({product:p.id,error:err.message}));}
+}
