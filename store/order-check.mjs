@@ -29,6 +29,9 @@ import { shippingAddress, quoteFingerprint } from '../lib/store/shipping.js';
 import { orderFromStripeSession } from '../lib/store/orders.js';
 import { withQuotedShipping } from '../lib/store/quoted-order.js';
 import { encodeCheckoutItems, decodeCheckoutItems } from '../lib/store/checkout-items.js';
+import { rawBody } from '../lib/store/raw-body.js';
+import { PassThrough } from 'node:stream';
+import Stripe from 'stripe';
 
 const failures = [];
 const fail = (message) => failures.push(message);
@@ -37,6 +40,20 @@ const fail = (message) => failures.push(message);
   const items = Array.from({ length: 20 }, (_, i) => ({ productId: `product-${i}`, name: 'A customer product', color: 'Black', size: 'M', quantity: 1, unitPriceCents: 3000 }));
   const metadata = encodeCheckoutItems(items);
   if (Object.values(metadata).some(value => value.length > 480) || JSON.stringify(decodeCheckoutItems(metadata)) !== JSON.stringify(items)) fail('checkout must preserve large mixed bags across bounded metadata chunks');
+}
+
+// Vercel parses req.body lazily but restores the untouched request stream.
+// The signature only verifies over the exact original bytes, not JSON output.
+{
+  const original = Buffer.from('{ "type" : "diagnostic.noop", "data": {"object":{}} }');
+  const restored = new PassThrough();
+  restored.end(original);
+  const req = { body: JSON.parse(original), readableEnded: true, on: restored.on.bind(restored), removeListener: restored.removeListener.bind(restored) };
+  const bytes = await rawBody(req);
+  const stripe = new Stripe('sk_test_dummy');
+  const header = stripe.webhooks.generateTestHeaderString({ payload: original.toString(), secret: 'whsec_local' });
+  try { stripe.webhooks.constructEvent(bytes, header, 'whsec_local'); } catch { fail('webhook must verify the restored exact bytes from Vercel'); }
+  if (!bytes.equals(original)) fail('raw body must not be reserialized');
 }
 
 // Quotes need catalog variant IDs, not the store's fulfillment sync IDs.
