@@ -3178,18 +3178,10 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
         <div class="paywall-divider"></div>
 
         <!-- Stripe CTA -->
-        <!--
-          REPLACE THIS with your own LIVE Stripe Payment Link before launch.
-          Create it at: Stripe Dashboard -> Payment links -> New
-          - Set price to $100.00, one-time
-          - Under "After payment," you do not need a redirect (the email handles next steps)
-          - Under "Customer information," turn ON "Collect customer's email" (usually on by default)
-          The test link below only works in Stripe test mode and will not charge real cards.
-        -->
-        <a href="https://buy.stripe.com/28EfZg5XZajU6Qx1GhbAs00" target="_blank" rel="noopener noreferrer" class="stripe-cta" aria-label="Pay with Stripe for $100">
+        <a target="_blank" rel="noopener noreferrer" class="stripe-cta" aria-disabled="true" aria-label="Loading checkout" style="pointer-events:none; opacity:0.6;">
           <div class="stripe-cta-inner">
             <span class="stripe-cta-logo">💳</span>
-            <span>Pay with Stripe — $100</span>
+            <span>Loading checkout…</span>
             <span aria-hidden="true">→</span>
           </div>
 </a>
@@ -3508,15 +3500,33 @@ document.addEventListener('mouseleave', () => { glow.style.opacity = '0'; });
 <script>
 // ── Promotional sale display (price shown only — actual checkout amount is
 // controlled by whichever Stripe Payment Link is active, set in admin) ──
-fetch('/api/site-content').then(r => r.json()).then(data => {
-  const c = data.content || {};
-  if (c['sale.enabled'] !== 'true') return;
+fetch('/api/site-content').then(r => {
+  if (!r.ok) throw new Error('Site content unavailable');
+  return r.json();
+}).then(data => {
+  if (!data.content || typeof data.content !== 'object') throw new Error('Invalid site content');
+  const c = data.content;
+  const stripeCta = document.querySelector('.stripe-cta');
+  const enableCheckout = (url, price) => {
+    if (!stripeCta) return;
+    stripeCta.href = url;
+    stripeCta.setAttribute('aria-label', `Pay with Stripe for $${price}`);
+    stripeCta.removeAttribute('aria-disabled');
+    stripeCta.style.pointerEvents = '';
+    stripeCta.style.opacity = '';
+    const label = stripeCta.querySelector('.stripe-cta-inner span:nth-child(2)');
+    if (label) label.textContent = `Pay with Stripe — $${price}`;
+  };
+  if (c['sale.enabled'] !== 'true') {
+    enableCheckout('https://buy.stripe.com/28EfZg5XZajU6Qx1GhbAs00', '100');
+    return;
+  }
 
   const salePrice = c['sale.price'] || '';
   const origPrice = c['sale.original_price'] || '100';
   const message = c['sale.message'] || `${100 - Math.round((salePrice/origPrice)*100)}% OFF — Limited Time`;
   const saleLink = c['sale.stripe_link'];
-  if (!salePrice || !saleLink) return; // don't show a half-configured sale
+  if (!/^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/.test(salePrice) || !/^https:\/\/buy\.stripe\.com\/[A-Za-z0-9]+$/.test(saleLink || '')) throw new Error('Invalid sale configuration');
 
   // Banner across the very top of the page
   const banner = document.createElement('div');
@@ -3550,14 +3560,13 @@ fetch('/api/site-content').then(r => r.json()).then(data => {
   const paywallDisplay = document.querySelector('.paywall-price-display');
   if (paywallDisplay) paywallDisplay.setAttribute('aria-label', `Price: $${salePrice} one-time payment, reduced from $${origPrice}`);
 
-  // Stripe CTA — swap to the sale-price payment link
-  const stripeCta = document.querySelector('.stripe-cta');
-  if (stripeCta) {
-    stripeCta.href = saleLink;
-    stripeCta.setAttribute('aria-label', `Pay with Stripe for $${salePrice}`);
-    const label = stripeCta.querySelector('.stripe-cta-inner span:nth-child(2)');
-    if (label) label.textContent = `Pay with Stripe — $${salePrice}`;
-  }
-}).catch(() => {});
+  // Never send a buyer to a stale regular-price link when sale settings fail to load.
+  enableCheckout(saleLink, salePrice);
+}).catch(() => {
+  const label = document.querySelector('.stripe-cta-inner span:nth-child(2)');
+  const cta = document.querySelector('.stripe-cta');
+  if (label) label.textContent = 'Checkout unavailable — please refresh';
+  if (cta) cta.setAttribute('aria-label', 'Checkout unavailable — please refresh');
+});
 </script>
 </body></html>
