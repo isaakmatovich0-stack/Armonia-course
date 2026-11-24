@@ -57,7 +57,7 @@ const payload = {
   products: [
     {
       id: 'unisex-classic-tee', colors: ['Black', 'Maroon', 'Navy'], sizes: ['M'],
-      priceCents: 2050, inStock: true, images: { Black: mockup('tee-black') },
+      priceCents: 2050, inStock: true, images: { Black: mockup('tee-black'), Navy: mockup('tee-navy') }, backImages: { Black: mockup('tee-black-back'), Navy: mockup('tee-navy-back') },
     },
     {
       id: 'hoodie-embroidered',
@@ -66,7 +66,9 @@ const payload = {
       priceCents: 4150,
       inStock: true,
       images: { Black: mockup('hoodie-black'), Navy: mockup('hoodie-navy') },
+      backImages: { Black: mockup('hoodie-black-back'), Navy: mockup('hoodie-navy-back') },
     },
+    { id: 'windbreaker-embroidered', colors: ['Black','Navy'], sizes:['M'], priceCents: 6000, inStock: true, images: { Black: mockup('jacket-black'), Navy: mockup('jacket-navy') }, backImages: { Black: mockup('jacket-black-back'), Navy: mockup('jacket-navy-back') } },
     {
       id: 'hat-embroidered',
       colors: ['Black', 'Navy Blue', 'Burgundy Maroon'],
@@ -225,6 +227,33 @@ const swatch = (id, colour) => {
       fail('switching the hat back to Black did not restore its mockup');
     }
   }
+}
+
+// Each garment view follows the currently selected colour, including after the
+// modal changes sides. Missing back photos must never borrow a front image.
+for (const [id, stem] of [['unisex-classic-tee','tee'], ['hoodie-embroidered','hoodie'], ['windbreaker-embroidered','jacket']]) {
+  swatch(id, 'Black'); await wait(100);
+  w.document.querySelector(`[data-product-id="${id}"] .product-image-button`)?.click(); await wait(150);
+  const modal = w.document.querySelector(`[data-editor-scope="product-${id}"]`);
+  const back = modal?.querySelector('[aria-label="Back product view"]');
+  if (!back) { fail(`${id} has no back view`); modal?.querySelector('[aria-label="Close dialog"]')?.click(); continue; }
+  back.click(); await wait(100);
+  let image = modal.querySelector('.product-modal-image > img.product-photo');
+  if (!image?.getAttribute('src').includes(`${stem}-black-back`)) fail(`${id} black back is incorrect`);
+  [...modal.querySelectorAll('.color-swatch')].find(b=>b.title==='Navy')?.click(); await wait(100);
+  image = modal.querySelector('.product-modal-image > img.product-photo');
+  if (!image?.getAttribute('src').includes(`${stem}-navy-back`)) fail(`${id} navy back is incorrect`);
+  if (id === 'unisex-classic-tee') {
+    [...modal.querySelectorAll('.color-swatch')].find(b=>b.title==='Maroon')?.click(); await wait(100);
+    image = modal.querySelector('.product-modal-image > img.product-photo');
+    if (!image?.getAttribute('src').startsWith('data:')) fail('missing tee back must use a neutral placeholder');
+    if (!modal.querySelector('.gallery-controls')?.textContent.includes('BACK VIEW NOT AVAILABLE')) fail('missing back must be labelled unavailable');
+    [...modal.querySelectorAll('.color-swatch')].find(b=>b.title==='Navy')?.click(); await wait(100);
+  }
+  modal.querySelector('[aria-label="Front product view"]')?.click(); await wait(100);
+  image = modal.querySelector('.product-modal-image > img.product-photo');
+  if (!image?.getAttribute('src').includes(`${stem}-navy`) || image?.getAttribute('src').includes('-back')) fail(`${id} navy front is incorrect`);
+  modal.querySelector('[aria-label="Close dialog"]')?.click(); await wait(100);
 }
 
 try { dom.window.close(); } catch { /* already gone */ }

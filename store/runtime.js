@@ -1035,10 +1035,10 @@ globalThis.__armoniaLiveHasProduct = function (id) {
   return state.catalog.has(id);
 };
 
-globalThis.__armoniaPhotoFor = function (product, colour) {
+globalThis.__armoniaPhotoFor = function (product, colour, side = 'front') {
   if (!product || !colour) return null;
   const live = state.catalog.get(product.id);
-  const map = live ? (live.images || {}) : (product.images || {});
+  const map = side === 'back' ? (live ? (live.backImages || {}) : (product.backImages || {})) : (live ? (live.images || {}) : (product.images || {}));
   const shot = map[colour];
   if (!shot) return null;
   return String(shot);
@@ -1067,6 +1067,7 @@ function applyLivePhotos(products) {
     if (product && product.id) {
       live.set(product.id, {
         images: (product.images && Object.keys(product.images).length) ? product.images : null,
+        backImages: product.backImages || {},
         colors: Array.isArray(product.colors) ? product.colors : [],
       });
     }
@@ -1080,7 +1081,8 @@ function applyLivePhotos(products) {
       const entry = live.get(img.getAttribute('data-photo-product'));
       const colour = img.getAttribute('data-photo-colour');
       if (!entry || !colour) return;
-      const wanted = (entry.images && entry.images[colour]) || globalThis.__armoniaPhotoPlaceholder;
+      const photos = img.getAttribute('data-photo-side') === 'back' ? entry.backImages : entry.images;
+      const wanted = (photos && photos[colour]) || globalThis.__armoniaPhotoPlaceholder;
       if (!wanted) return;
       if (!/^https?:/i.test(wanted)) img.removeAttribute('data-photo-live');
       // Mark first, then set the src. A photo baked into the page at build time
