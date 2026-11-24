@@ -460,6 +460,8 @@ for (const relative of ['api/admin/[...slug].js', 'api/store/[...slug].js']) {
     const schemaCols = new Set(
       [...tableMatch[1].matchAll(/^\s{2}([a-z_]+)\s+[a-z]/gm)].map((m) => m[1])
     );
+    const migrationSrc = fs.readFileSync(path.join(ROOT, 'supabase/schema-v17.sql'), 'utf8');
+    for (const match of migrationSrc.matchAll(/add column if not exists\s+([a-z_]+)/gi)) schemaCols.add(match[1]);
     const missingFromCode = [...schemaCols].filter((c) => !listed.has(c));
     const notInSchema = [...listed].filter((c) => !schemaCols.has(c));
     if (missingFromCode.length || notInSchema.length) {

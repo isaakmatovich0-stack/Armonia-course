@@ -321,6 +321,7 @@ async function main() {
       name: String(row.name || '').trim(),
       shortName: String(row.short_name || row.name || '').trim(),
       price: Math.round(Number(row.price_cents) || 0) / 100,
+      variantPrices: row.variant_prices || {},
       category: copy.category || row.category || 'Apparel',
       type: row.type,
       // Open on a colour that HAS a photograph where one exists, so the card

@@ -296,11 +296,11 @@ const SITE_COPY = {
  * rather than re-added: this map carries state, not products.
  */
 const PRODUCT_STATE = {
-  "unisex-classic-tee": { price: 20.5, inStock: true },
-  "windbreaker-embroidered": { price: 31, inStock: true },
-  "hat-embroidered": { price: 23, inStock: true },
-  "hoodie-embroidered": { price: 41.5, inStock: true },
-  "beanie-embroidered": { price: 17, inStock: true },
+  "unisex-classic-tee": { price: 30, inStock: true },
+  "windbreaker-embroidered": { price: 45, inStock: true },
+  "hat-embroidered": { price: 25, inStock: true },
+  "hoodie-embroidered": { price: 45, inStock: true },
+  "beanie-embroidered": { price: 20, inStock: true },
   "sticker": { price: 3.5, inStock: true },
 };
 
@@ -733,6 +733,21 @@ const PATCHES = [
     name: 'apparel back thumbnail',
     find: 's.type==="windbreaker"&&u.jsx("button",{"aria-label":"Back product view",onClick:()=>xe("back"),className:de==="back"?"active":"",children:u.jsx("img",{src:Ka(s.backImages?s.backImages[A]:`/store/images/windbreaker-back-${A}.webp`),alt:"Back view"})})',
     replace: '["tee","hoodie","windbreaker"].includes(s.type)&&(s.type==="windbreaker"?["back"]:["back","side"]).map(view=>u.jsx("button",{"aria-label":`${view==="back"?"Back":"Side"} product view`,onClick:()=>xe(view),className:de===view?"active":"",children:u.jsx("img",{"data-photo-product":s.id,"data-photo-colour":A,"data-photo-side":view,"data-photo-live":/^https?:/i.test(globalThis.__armoniaPhotoFor?.(s,A,view)||"")?"true":void 0,src:Ka(globalThis.__armoniaPhotoFor?.(s,A,view)||globalThis.__armoniaPhotoPlaceholder),alt:`${view} view`})},view))',
+  },
+  {
+    name: 'format cents consistently',
+    find: 'Fe=s=>new Intl.NumberFormat("en-US",{style:"currency",currency:Zn,minimumFractionDigits:0,maximumFractionDigits:2}).format(s)',
+    replace: 'Fe=s=>new Intl.NumberFormat("en-US",{style:"currency",currency:Zn,minimumFractionDigits:Number.isInteger(s)?0:2,maximumFractionDigits:2}).format(s)',
+  },
+  {
+    name: 'show starting price for variants',
+    find: 'className:"product-price",children:Fe(s.price)',
+    replace: 'className:"product-price",children:(globalThis.__armoniaHasVariantPrices?.(s)?"From ":"")+Fe(s.price)',
+  },
+  {
+    name: 'show selected size price in product modal',
+    find: 'className:"modal-price",children:[Fe(s.price)," ",u.jsx("span",{children:Zn})]',
+    replace: 'className:"modal-price",children:[Fe((globalThis.__armoniaVariantPrice?.(s,A,w)??Math.round(s.price*100))/100)," ",u.jsx("span",{children:Zn})]',
   },
   {
     name: 'apparel gallery label',

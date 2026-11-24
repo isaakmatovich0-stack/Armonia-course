@@ -63,7 +63,7 @@
       "id": "unisex-classic-tee",
       "name": "Unisex classic tee",
       "shortName": "Unisex classic tee",
-      "price": 20.5,
+      "price": 30,
       "category": "Apparel",
       "type": "tee",
       "initialColor": "Black",
@@ -100,7 +100,7 @@
       "id": "windbreaker-embroidered",
       "name": "Armonia Connect™ Windbreaker | Embroidered",
       "shortName": "Armonia Connect™ Windbreaker | Embroidered",
-      "price": 31,
+      "price": 45,
       "category": "Apparel",
       "type": "windbreaker",
       "initialColor": "Black",
@@ -127,13 +127,17 @@
       ],
       "images": {
         "Black": "/store/images/windbreaker-front-ink.webp"
+      },
+      "variantPrices": {
+        "Black|2XL": 4550,
+        "Navy|2XL": 4550
       }
     },
     {
       "id": "hat-embroidered",
       "name": "Armonia Connect™ Hat | Embroidered",
       "shortName": "Armonia Connect™ Hat | Embroidered",
-      "price": 23,
+      "price": 25,
       "category": "Accessories",
       "type": "cap",
       "initialColor": "Black",
@@ -164,7 +168,7 @@
       "id": "hoodie-embroidered",
       "name": "Armonia Connect™ Hoodie | Embroidered",
       "shortName": "Armonia Connect™ Hoodie | Embroidered",
-      "price": 41.5,
+      "price": 45,
       "category": "Apparel",
       "type": "hoodie",
       "initialColor": "Black",
@@ -203,7 +207,7 @@
       "id": "beanie-embroidered",
       "name": "Armonia Connect™ Beanie | Embroidered",
       "shortName": "Armonia Connect™ Beanie | Embroidered",
-      "price": 17,
+      "price": 20,
       "category": "Accessories",
       "type": "beanie",
       "initialColor": "Black",

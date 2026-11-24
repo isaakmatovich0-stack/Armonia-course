@@ -69,7 +69,7 @@ const payload = {
       backImages: { Black: mockup('hoodie-black-back'), Navy: mockup('hoodie-navy-back') },
       sideImages: { Black: '/store/images/printful-drive/unisex-heavy-blend-hoodie-black-right-6b05eb678f50e.png', Navy: '/store/images/printful-drive/unisex-heavy-blend-hoodie-navy-right-6b05eb67aac0a.png' },
     },
-    { id: 'windbreaker-embroidered', colors: ['Black','Navy'], sizes:['M'], priceCents: 6000, inStock: true, images: { Black: mockup('jacket-black'), Navy: mockup('jacket-navy') }, backImages: { Black: '/store/images/windbreaker-black-back-printful.png' } },
+    { id: 'windbreaker-embroidered', colors: ['Black','Navy'], sizes:['S','M','L','XL','2XL'], priceCents: 4500, variantPrices: { 'Black|2XL': 4550, 'Navy|2XL': 4550 }, inStock: true, images: { Black: mockup('jacket-black'), Navy: mockup('jacket-navy') }, backImages: { Black: '/store/images/windbreaker-black-back-printful.png' } },
     {
       id: 'hat-embroidered',
       colors: ['Black', 'Navy Blue', 'Burgundy Maroon'],
@@ -238,6 +238,14 @@ for (const [id, stem] of [['unisex-classic-tee','tee'], ['hoodie-embroidered','h
   swatch(id, 'Black'); await wait(100);
   w.document.querySelector(`[data-product-id="${id}"] .product-image-button`)?.click(); await wait(150);
   const modal = w.document.querySelector(`[data-editor-scope="product-${id}"]`);
+  if (id === 'windbreaker-embroidered') {
+    if (!w.document.querySelector(`[data-product-id="${id}"] .product-price`)?.textContent.includes('From')) fail('windbreaker card must show starting price');
+    const size2xl = [...(modal?.querySelectorAll('.size-options button') || [])].find(button => button.textContent === '2XL');
+    size2xl?.click(); await wait(100);
+    if (!modal?.querySelector('.modal-price')?.textContent.includes('45.50')) fail('windbreaker 2XL must display its exact price');
+    [...(modal?.querySelectorAll('.size-options button') || [])].find(button => button.textContent === 'M')?.click(); await wait(100);
+    if (!modal?.querySelector('.modal-price')?.textContent.includes('45')) fail('windbreaker M must display its base price');
+  }
   const back = modal?.querySelector('[aria-label="Back product view"]');
   if (!back) { fail(`${id} has no back view`); modal?.querySelector('[aria-label="Close dialog"]')?.click(); continue; }
   back.click(); await wait(100);
