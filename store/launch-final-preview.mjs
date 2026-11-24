@@ -1,20 +1,15 @@
-// Harmless, signed production probes and read-only delivery checks; no purchases.
+// Enable the previously configured course endpoint after deploying and probing its handler.
+// Only the endpoint destination and event subscription are updated; no payments are created.
 import Stripe from 'stripe';
 if(process.env.VERCEL_ENV!=='preview') throw new Error('Preview only');
 const stripe=new Stripe(process.env.STRIPE_SECRET_KEY);
-for(const [label,url,session] of [
-  ['course-rejects-store','https://www.armoniaconnect.com/api/webhook',{id:'cs_probe',payment_status:'paid',metadata:{source:'armonia-store'}}],
-  ['store-rejects-course','https://www.armoniaconnect.com/api/store/webhook',{id:'cs_probe',payment_status:'paid',metadata:{source:'armonia-course'}}],
-]) {
- const payload=JSON.stringify({id:'evt_probe_ignore',object:'event',type:'checkout.session.completed',data:{object:session}});
- const sig=stripe.webhooks.generateTestHeaderString({payload,secret:process.env.STRIPE_WEBHOOK_SECRET});
- const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','Stripe-Signature':sig},body:payload,signal:AbortSignal.timeout(12000)});
- console.log('PROBE',label,r.status,(await r.text()).slice(0,200));
-}
-const pfurl=new URL('https://www.armoniaconnect.com/api/store/supplier-webhook');pfurl.searchParams.set('token',process.env.PRINTFUL_WEBHOOK_TOKEN);
-const p=await fetch(pfurl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'armonia.noop'}),signal:AbortSignal.timeout(12000)});
-console.log('PROBE','supplier-noop',p.status,(await p.text()).slice(0,200));
-const m=(process.env.FROM_EMAIL||'').match(/@([^>\s]+)>?$/); const domain=m?.[1]?.toLowerCase();
-const r=await fetch('https://api.resend.com/domains',{headers:{Authorization:`Bearer ${process.env.RESEND_API_KEY}`},signal:AbortSignal.timeout(12000)});
-if(!r.ok) console.log('EMAIL_DOMAIN',JSON.stringify({http:r.status}));
-else {const json=await r.json();const d=(json.data||[]).find(x=>x.name?.toLowerCase()===domain);console.log('EMAIL_DOMAIN',JSON.stringify({configured:!!domain,found:!!d,status:d?.status||null}));}
+const all=await stripe.webhookEndpoints.list({limit:100});
+if(all.has_more) throw new Error('Endpoint list incomplete');
+const matches=all.data.filter(e=>['https://armoniaconnect.com/api/webhook','https://www.armoniaconnect.com/api/webhook'].includes(e.url));
+if(matches.length!==1) throw new Error('Unexpected course endpoint configuration');
+const old=matches[0];
+if(old.status==='disabled' && old.url==='https://armoniaconnect.com/api/webhook' && old.enabled_events.length===1 && old.enabled_events[0]==='checkout.session.completed') {
+  await stripe.webhookEndpoints.update(old.id,{url:'https://www.armoniaconnect.com/api/webhook',disabled:false,enabled_events:['checkout.session.completed','checkout.session.async_payment_succeeded']});
+} else if(old.status!=='enabled' || old.url!=='https://www.armoniaconnect.com/api/webhook') throw new Error('Endpoint changed since inspection; no update attempted');
+const current=await stripe.webhookEndpoints.retrieve(old.id);
+console.log('COURSE_ENDPOINT',JSON.stringify({url:current.url,status:current.status,events:current.enabled_events}));
