@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "node store/refund-once-preview.mjs",
   "rewrites": [
     {
       "source": "/store/shipping",
