@@ -78,6 +78,10 @@ if (eventEffect('order_canceled')?.fulfilment !== 'canceled' || eventEffect('ord
   try {
     const quote = await quoteShipping({ country_code:'US', state_code:'TX', zip:'77373' }, lines, catalog);
     if (quote.amountCents !== 919 || body.shipping !== 'STANDARD' || JSON.stringify(body.items) !== JSON.stringify(items)) fail('shipping must use the estimated standard order cost');
+    globalThis.fetch = async () => new Response(JSON.stringify({ result: { costs: { currency: 'USD', shipping: 4.890000000000001 } } }), {status:200});
+    if ((await quoteShipping({country_code:'US',state_code:'TX',zip:'77373'},lines,catalog)).amountCents !== 489) fail('Printful numeric rounding artifacts should round to exact cents');
+    globalThis.fetch = async () => new Response(JSON.stringify({ result: { costs: { currency: 'USD', shipping: 4.891 } } }), {status:200});
+    try { await quoteShipping({country_code:'US',state_code:'TX',zip:'77373'},lines,catalog); fail('fractional cents must fail closed'); } catch { /* expected */ }
     globalThis.fetch = async () => new Response(JSON.stringify({ result: { costs: { currency: 'EUR', shipping: '9.19' } } }), {status:200});
     try { await quoteShipping({country_code:'US',state_code:'TX',zip:'77373'},lines,catalog); fail('invalid currency must fail closed'); } catch { /* expected */ }
   } finally {
