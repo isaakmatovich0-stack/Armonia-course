@@ -24,9 +24,20 @@
 
 import { buildSyncPlan } from '../lib/store/sync.js';
 import { buildOrderPayload } from '../lib/suppliers/printful.js';
+import { clearCatalogCache, priceBag } from '../lib/store/catalog.js';
 
 const failures = [];
 const fail = (message) => failures.push(message);
+
+// Checkout must charge the selected variant, not just the advertised base.
+{
+  clearCatalogCache();
+  const bag = priceBag([
+    { productId: 'windbreaker-embroidered', color: 'Black', size: 'M', quantity: 1 },
+    { productId: 'windbreaker-embroidered', color: 'Navy', size: '2XL', quantity: 2 },
+  ]);
+  if (bag.lines[0]?.unitPriceCents !== 4500 || bag.lines[1]?.unitPriceCents !== 4550 || bag.subtotalCents !== 13600) fail('variant prices must be enforced server-side in the bag and checkout');
+}
 
 const variant = (syncVariantId, colour, size, shot) => ({
   syncVariantId,

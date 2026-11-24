@@ -1035,6 +1035,19 @@ globalThis.__armoniaLiveHasProduct = function (id) {
   return state.catalog.has(id);
 };
 
+// Retail prices are always selected by exact colour and size, in integer cents.
+// The live API wins over the build fallback, as it does for photographs.
+globalThis.__armoniaVariantPrice = function (product, colour, size) {
+  const live = state.catalog.get(product.id);
+  const prices = live ? (live.variantPrices || {}) : (product.variantPrices || {});
+  const override = prices[`${colour}|${size}`];
+  return Number.isSafeInteger(override) && override >= 0 ? override : (live?.priceCents ?? Math.round(product.price * 100));
+};
+globalThis.__armoniaHasVariantPrices = function (product) {
+  const live = state.catalog.get(product.id);
+  return Object.keys(live ? (live.variantPrices || {}) : (product.variantPrices || {})).length > 0;
+};
+
 globalThis.__armoniaPhotoFor = function (product, colour, side = 'front') {
   if (!product || !colour) return null;
   const live = state.catalog.get(product.id);
@@ -1121,7 +1134,7 @@ async function loadCatalog() {
     (payload.products || []).forEach((product) => state.catalog.set(product.id, product));
     state.products = state.products.map((product) => {
       const live = state.catalog.get(product.id);
-      return live && typeof live.priceCents === 'number' ? { ...product, price: live.priceCents / 100 } : product;
+      return live && typeof live.priceCents === 'number' ? { ...product, price: live.priceCents / 100, variantPrices: live.variantPrices || {} } : product;
     });
     state.checkoutLive = payload.checkoutLive !== false;
     applyLivePhotos(payload.products);
@@ -1131,7 +1144,7 @@ async function loadCatalog() {
     if (globalThis.__ARMONIA_CONFIG__ && Array.isArray(globalThis.__ARMONIA_CONFIG__.products)) {
       state.products.forEach((product) => {
         const target = globalThis.__ARMONIA_CONFIG__.products.find((entry) => entry.id === product.id);
-        if (target) target.price = product.price;
+        if (target) { target.price = product.price; target.variantPrices = product.variantPrices || {}; }
       });
     }
   } catch (err) {
@@ -1484,11 +1497,14 @@ function repaintPrices() {
     // money() takes cents — passing dollars here would render a $68 hoodie as
     // $0.68, and only for the second between a price change and the next render.
     document.querySelectorAll(`[data-product-id="${CSS.escape(product.id)}"] .product-price`).forEach((node) => {
-      node.textContent = money(live.priceCents);
+      node.textContent = (globalThis.__armoniaHasVariantPrices(product) ? 'From ' : '') + money(live.priceCents);
     });
-    const modal = document.querySelector(`[data-editor-product="${CSS.escape(product.id)}"] .modal-price`);
+    const details = document.querySelector(`[data-editor-product="${CSS.escape(product.id)}"]`);
+    const modal = details?.querySelector('.modal-price');
     if (modal && modal.firstChild && modal.firstChild.nodeType === Node.TEXT_NODE) {
-      modal.firstChild.nodeValue = money(live.priceCents);
+      const colour = details.querySelector('.color-swatch[aria-pressed="true"]')?.title || product.initialColor;
+      const size = details.querySelector('.size-options button[aria-pressed="true"]')?.textContent || product.sizes?.[0];
+      modal.firstChild.nodeValue = money(globalThis.__armoniaVariantPrice(product, colour, size));
     }
   });
 }
@@ -1642,6 +1658,7 @@ function start(bridge) {
   /* ── Data ── */
   const params = new URLSearchParams(window.location.search);
   loadCatalog().then(() => {
+    repaintPrices();
     startPriceWatch();
     loadBag().then(() => {
       loadShipping();
