@@ -1,6 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "node store/launch-audit-preview.mjs",
   "rewrites": [
     {
       "source": "/store/shipping",
