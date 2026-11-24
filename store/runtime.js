@@ -371,6 +371,8 @@ function mountBag(host, { onClose, onShop }) {
   let checkoutError = '';
   let address = { name: '', line1: '', line2: '', city: '', state: '', postal_code: '' };
   let shippingQuote = null;
+  let quoteBagSnapshot = '';
+  const bagSnapshot = () => JSON.stringify({ lines: (state.bag?.lines || []).map(({ productId, colorName, color, size, quantity, unitPriceCents }) => ({ productId, colorName, color, size, quantity, unitPriceCents })), discount: state.bag?.discountCents || 0 });
 
   const view = overlay('cart-modal store-bag-panel', close, { labelledBy: 'bag-title' });
   host.appendChild(view.root);
@@ -390,6 +392,7 @@ function mountBag(host, { onClose, onShop }) {
     view.panel.textContent = '';
     const lines = bagLines();
     const totals = bagTotals();
+    if (shippingQuote && quoteBagSnapshot !== bagSnapshot()) shippingQuote = null;
 
     view.panel.appendChild(
       el(
@@ -639,9 +642,10 @@ function mountBag(host, { onClose, onShop }) {
           if (!form.reportValidity()) return;
           busy = true; checkoutError = ''; shippingQuote = null;
           const capturedAddress = { ...address };
+          const capturedBag = bagSnapshot();
           try {
             const quote = await api('/shipping-quote', { method: 'POST', body: JSON.stringify({ address: capturedAddress }) });
-            if (JSON.stringify(capturedAddress) === JSON.stringify(address)) shippingQuote = quote;
+            if (JSON.stringify(capturedAddress) === JSON.stringify(address) && capturedBag === bagSnapshot()) { shippingQuote = quote; quoteBagSnapshot = capturedBag; }
           } catch (err) { checkoutError = err.message; }
           busy = false; render();
         },

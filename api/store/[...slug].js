@@ -63,6 +63,7 @@ import {
 import { submitToSupplier, applyShipment, syncPrintkkShipments } from '../../lib/store/fulfilment.js';
 import { eventEffect, quoteShipping } from '../../lib/suppliers/printful.js';
 import { shippingAddress, printfulRecipient, quoteFingerprint } from '../../lib/store/shipping.js';
+import { withQuotedShipping } from '../../lib/store/quoted-order.js';
 
 /* ── Stripe webhooks need the untouched request body ───────────────────── */
 export const config = {
@@ -857,13 +858,7 @@ async function completeOrder(session, stripeApi) {
   // For quoted checkouts the shipping destination is fixed on the payment
   // intent, never the editable billing address. Fail/retry rather than fulfil
   // to an unverified address if Stripe is temporarily unavailable.
-  if (session.metadata?.fixed_shipping_address === 'payment_intent') {
-    const id = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id;
-    if (!id || !stripeApi) throw new Error('Quoted checkout has no payment intent.');
-    const intent = await stripeApi.paymentIntents.retrieve(id);
-    if (!intent.shipping?.address || !intent.shipping?.name) throw new Error('Quoted checkout has no shipping destination.');
-    session = { ...session, shipping_details: intent.shipping };
-  }
+  session = await withQuotedShipping(session, stripeApi);
   const record = orderFromStripeSession(session, { cartId, items });
   const { order, created } = await upsertOrder(record);
 

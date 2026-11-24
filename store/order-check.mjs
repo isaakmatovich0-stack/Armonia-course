@@ -27,6 +27,7 @@ import { buildOrderPayload, buildShippingRateItems } from '../lib/suppliers/prin
 import { clearCatalogCache, priceBag, applyPromo } from '../lib/store/catalog.js';
 import { shippingAddress, quoteFingerprint } from '../lib/store/shipping.js';
 import { orderFromStripeSession } from '../lib/store/orders.js';
+import { withQuotedShipping } from '../lib/store/quoted-order.js';
 
 const failures = [];
 const fail = (message) => failures.push(message);
@@ -53,6 +54,14 @@ const fail = (message) => failures.push(message);
   const session = { id: 'cs_check', amount_subtotal: 3475, amount_total: 3475, metadata: { fixed_shipping_address: 'payment_intent', quoted_shipping_cents: '475' }, shipping_details: { name: 'Test', address: { line1: '1 Main St', city: 'Spring', state: 'TX', postal_code: '77373', country: 'US' } }, customer_details: { name: 'Different billing name', address: { city: 'Billing City' } } };
   const order = orderFromStripeSession(session);
   if (order.amount_subtotal !== 3000 || order.amount_shipping !== 475 || order.shipping_address.city !== 'Spring' || order.name !== 'Test') fail('order must use the quoted destination and record shipping separately');
+}
+
+{
+  const session = { payment_intent: 'pi_test', metadata: { fixed_shipping_address: 'payment_intent' }, customer_details: { address: { city: 'Wrong billing address' } } };
+  const stripe = { paymentIntents: { retrieve: async () => ({ shipping: { name: 'Customer', address: { line1: '1 Main St', city: 'Spring', state: 'TX', postal_code: '77373', country: 'US' } } }) } };
+  const enriched = await withQuotedShipping(session, stripe);
+  if (enriched.shipping_details?.address.city !== 'Spring') fail('webhook must retrieve quoted shipping address');
+  try { await withQuotedShipping(session, { paymentIntents: { retrieve: async () => ({}) } }); fail('missing quoted address must fail closed'); } catch { /* expected */ }
 }
 
 // Checkout must charge the selected variant, not just the advertised base.
