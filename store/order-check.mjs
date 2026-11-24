@@ -23,7 +23,7 @@
  */
 
 import { buildSyncPlan } from '../lib/store/sync.js';
-import { buildOrderPayload, buildShippingRateItems } from '../lib/suppliers/printful.js';
+import { buildOrderPayload, buildShippingRateItems, eventEffect } from '../lib/suppliers/printful.js';
 import { clearCatalogCache, priceBag, applyPromo } from '../lib/store/catalog.js';
 import { shippingAddress, quoteFingerprint } from '../lib/store/shipping.js';
 import { orderFromStripeSession } from '../lib/store/orders.js';
@@ -35,6 +35,8 @@ import Stripe from 'stripe';
 
 const failures = [];
 const fail = (message) => failures.push(message);
+
+if (eventEffect('order_canceled')?.fulfilment !== 'canceled' || eventEffect('order_failed')?.fulfilment !== 'failed') fail('supplier cancellation and failure must remain distinguishable');
 
 {
   const items = Array.from({ length: 20 }, (_, i) => ({ productId: `product-${i}`, name: 'A customer product', color: 'Black', size: 'M', quantity: 1, unitPriceCents: 3000 }));
