@@ -15,4 +15,10 @@ const matches = events.data.filter(e => e.data.object.id === id).map(e => ({ typ
 const { data: orders, error: orderError } = await supabase.from('store_orders').select('number,status,fulfilment_status,supplier_order_id').eq('stripe_session_id', id);
 if (orderError) throw new Error('Could not query order status.');
 const ship = pi?.shipping;
+const endpointChecks = [];
+for (const host of ['https://armoniaconnect.com', 'https://www.armoniaconnect.com']) {
+  const response = await fetch(`${host}/api/store/webhook`, { method: 'POST', body: '{}', redirect: 'manual' });
+  endpointChecks.push({ host, status: response.status, location: response.headers.get('location') });
+}
+console.log('ENDPOINT_CHECK', JSON.stringify(endpointChecks));
 console.log('ORDER_DIAGNOSTIC', JSON.stringify({ checkoutCreated: data[0].created_at, recordedAmount: data[0].amount_total, sessionStatus: session.status, paymentStatus: session.payment_status, amount: session.amount_total, intentStatus: pi?.status, addressComplete: Boolean(ship?.name && ship?.address?.line1 && ship?.address?.city && ship?.address?.state && ship?.address?.postal_code && ship?.address?.country === 'US'), metadataKeys: Object.keys(session.metadata || {}), events: matches, endpoints: endpoints.data.map(e => ({ url: e.url, status: e.status, enabled_events: e.enabled_events })), order: orders }));
