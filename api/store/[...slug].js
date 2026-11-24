@@ -90,7 +90,7 @@ async function rawBody(req) {
   if (req.body && typeof req.body === 'object') {
     throw new Error('Request body was parsed before signature verification.');
   }
-  if (req.readableEnded || req.complete) {
+  if (req.readableEnded) {
     throw new Error('Request body was already consumed before signature verification.');
   }
   return new Promise((resolve, reject) => {
@@ -165,6 +165,9 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
 
   try {
+    // Vercel's body parser is disabled for the signed Stripe webhook, so read
+    // the other POST bodies ourselves. Local development already supplies bytes.
+    if (method === 'POST' && route !== 'webhook' && req.body == null) req.body = await rawBody(req);
     /* ── catalog ─────────────────────────────────────────────────────── */
     if (route === 'catalog') {
       if (method !== 'GET') return clientError(res, 405, 'Method not allowed.');
