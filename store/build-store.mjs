@@ -732,7 +732,7 @@ const PATCHES = [
   {
     name: 'apparel back thumbnail',
     find: 's.type==="windbreaker"&&u.jsx("button",{"aria-label":"Back product view",onClick:()=>xe("back"),className:de==="back"?"active":"",children:u.jsx("img",{src:Ka(s.backImages?s.backImages[A]:`/store/images/windbreaker-back-${A}.webp`),alt:"Back view"})})',
-    replace: '["tee","hoodie","windbreaker"].includes(s.type)&&["back","side"].map(view=>u.jsx("button",{"aria-label":`${view==="back"?"Back":"Side"} product view`,onClick:()=>xe(view),className:de===view?"active":"",children:u.jsx("img",{"data-photo-product":s.id,"data-photo-colour":A,"data-photo-side":view,"data-photo-live":/^https?:/i.test(globalThis.__armoniaPhotoFor?.(s,A,view)||"")?"true":void 0,src:Ka(globalThis.__armoniaPhotoFor?.(s,A,view)||globalThis.__armoniaPhotoPlaceholder),alt:`${view} view`})},view))',
+    replace: '["tee","hoodie","windbreaker"].includes(s.type)&&(s.type==="windbreaker"?["back"]:["back","side"]).map(view=>u.jsx("button",{"aria-label":`${view==="back"?"Back":"Side"} product view`,onClick:()=>xe(view),className:de===view?"active":"",children:u.jsx("img",{"data-photo-product":s.id,"data-photo-colour":A,"data-photo-side":view,"data-photo-live":/^https?:/i.test(globalThis.__armoniaPhotoFor?.(s,A,view)||"")?"true":void 0,src:Ka(globalThis.__armoniaPhotoFor?.(s,A,view)||globalThis.__armoniaPhotoPlaceholder),alt:`${view} view`})},view))',
   },
   {
     name: 'apparel gallery label',
