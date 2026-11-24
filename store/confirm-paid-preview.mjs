@@ -1,22 +1,12 @@
-// TEMPORARY preview-only read-only check; no payment or order mutations.
+// TEMPORARY preview-only read-only check.
 import Stripe from 'stripe';
 import { supabase } from '../lib/supabase.js';
 if (process.env.VERCEL_ENV !== 'preview') throw new Error('Preview only');
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' });
-const { data: rows, error } = await supabase.from('store_orders').select('stripe_session_id,number,status,amount_total,amount_shipping,fulfilment_status,supplier_order_id,fulfilment_error').eq('number', 'AC-FVMXTA');
+const { data: rows, error } = await supabase.from('store_orders').select('stripe_session_id,number,status,fulfilment_status,supplier_order_id,fulfilment_error').eq('number', 'AC-FVMXTA');
 if (error || rows?.length !== 1) throw new Error('Order not found');
-const order = rows[0];
-const session = await stripe.checkout.sessions.retrieve(order.stripe_session_id);
 const events = await stripe.events.list({ type: 'checkout.session.completed', limit: 100 });
-const event = events.data.find(e => e.data.object.id === session.id);
-const endpoints = await stripe.webhookEndpoints.list({limit: 100});
-const endpoint = endpoints.data.find(e => e.url === 'https://www.armoniaconnect.com/api/store/webhook' && e.status === 'enabled');
-if (!endpoint || !event) throw new Error('Live endpoint or event missing');
-const retry = await fetch(`https://api.stripe.com/v1/events/${event.id}/retry`, { method: 'POST', headers: {Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}`, 'Content-Type': 'application/x-www-form-urlencoded'}, body: new URLSearchParams({ webhook_endpoint: endpoint.id }) });
-const retryBody = await retry.json();
-console.log('STRIPE_DELIVERY_RETRY', JSON.stringify({status: retry.status, object: retryBody.object, message: retryBody.error?.message}));
-const response = await fetch(`https://api.printful.com/orders/${order.supplier_order_id.split(':')[1]}`, {headers: {Authorization: `Bearer ${process.env.PRINTFUL_API_TOKEN}`, 'X-PF-Store-Id': process.env.PRINTFUL_STORE_ID}});
-const result = await response.json();
-if (!response.ok) throw new Error(`Printful lookup failed ${response.status}`);
-console.log('PRINTFUL_FAILURE_DETAIL', JSON.stringify({ keys: Object.keys(result.result || {}), errors: result.result?.errors, error: result.result?.error, status_reason: result.result?.status_reason, reason: result.result?.reason, failure_reason: result.result?.failure_reason, itemStatuses: result.result?.items?.map(i => ({ keys: Object.keys(i), status: i.status, error: i.error })) }));
-console.log('RECOVERY_VERIFY', JSON.stringify({number: order.number, payment: session.payment_status, paidCents: session.amount_total, shippingCents: order.amount_shipping, databaseFulfilment: order.fulfilment_status, printfulStatus: result.result?.status, printfulId: result.result?.id, printfulItemCount: result.result?.items?.length, printfulQuantity: result.result?.items?.reduce((n, item) => n + item.quantity, 0), pendingWebhooks: event?.pending_webhooks, endpoint: endpoints.data.filter(e => e.url === 'https://www.armoniaconnect.com/api/store/webhook').map(e => ({status: e.status, events: e.enabled_events}))}));
+const event = events.data.find(e => e.data.object.id === rows[0].stripe_session_id);
+if (!event) throw new Error('Event not found');
+const current = await stripe.events.retrieve(event.id);
+console.log('DELIVERY_VERIFY', JSON.stringify({pending_webhooks: current.pending_webhooks, fulfilment_status: rows[0].fulfilment_status, fulfilment_error: rows[0].fulfilment_error}));
