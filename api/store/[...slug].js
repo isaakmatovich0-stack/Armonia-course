@@ -43,8 +43,10 @@ import {
 import { resolveBag, saveCart, loadPromo, cartCookie, isValidCartId } from '../../lib/store/cart.js';
 import {
   getCart,
+  clearCartIfUnchanged,
   recordCheckoutSession,
   reserveCheckoutAttempt,
+  replaceCheckoutAttempt,
   saveCheckoutAttempt,
   recordPaidOrder,
   markSessionExpired,
@@ -68,7 +70,7 @@ import { shippingAddress, printfulRecipient, quoteFingerprint } from '../../lib/
 import { withQuotedShipping } from '../../lib/store/quoted-order.js';
 import { encodeCheckoutItems, decodeCheckoutItems } from '../../lib/store/checkout-items.js';
 import { rawBody } from '../../lib/store/raw-body.js';
-import { checkoutAttemptKey, guardedCheckout, CheckoutGuardError } from '../../lib/store/checkout-guard.js';
+import { guardedCheckout, CheckoutGuardError } from '../../lib/store/checkout-guard.js';
 import { isStoreCheckout } from '../../lib/course-checkout.js';
 
 /* ── Stripe webhooks need the untouched request body ───────────────────── */
@@ -404,6 +406,7 @@ export default async function handler(req, res) {
         customer_creation: 'always',
         metadata: {
           cart_id: cart.id,
+          cart_version: cart.updated_at,
           promo_code: bag.promo && bag.promo.valid ? bag.promo.code : '',
           ...itemMetadata,
           source: 'armonia-store',
@@ -423,13 +426,18 @@ export default async function handler(req, res) {
 
       let session;
       try {
-        const key = checkoutAttemptKey(cart, body.fingerprint);
-        session = await guardedCheckout({ stripe: stripeApi, key, params: sessionParams, reserve: reserveCheckoutAttempt, save: saveCheckoutAttempt });
+        const restartAfterPaid = body.restartAfterPaid || null;
+        if (restartAfterPaid && !/^cs_[A-Za-z0-9_]+$/.test(restartAfterPaid)) return clientError(res, 400, 'Invalid previous checkout.');
+        session = await guardedCheckout({
+          stripe: stripeApi, cartId: cart.id, params: sessionParams,
+          reserve: reserveCheckoutAttempt, save: saveCheckoutAttempt, replace: replaceCheckoutAttempt,
+          paidOrderRecorded: async (id) => Boolean(await findOrderBySession(id)), restartAfterPaid,
+        });
       } catch (err) {
-        if (err instanceof CheckoutGuardError) return clientError(res, 409, err.message);
+        if (err instanceof CheckoutGuardError) return clientError(res, 409, err.message, { code: err.code, ...(err.sessionId ? { previousSessionId: err.sessionId } : {}) });
         // Never create a second session as a fallback after an ambiguous error.
         console.error('[store] guarded checkout unavailable:', err.message);
-        return clientError(res, 503, 'We couldn’t safely open checkout. Please try again or contact us before paying.');
+        return clientError(res, 503, 'We couldn’t safely open checkout. Please contact us before trying again.');
       }
 
       // Remember what we asked Stripe for, so a session that is paid but whose
@@ -859,9 +867,11 @@ async function completeOrder(session, stripeApi) {
     }
   }
 
-  if (isValidCartId(cartId)) {
+  // Older sessions without a version leave the bag alone rather than risk
+  // erasing a newer bag. Duplicate deliveries must never clear it again.
+  if (created && isValidCartId(cartId) && session.metadata?.cart_version) {
     try {
-      await saveCart(cartId, { items: [], promoCode: null });
+      await clearCartIfUnchanged(cartId, session.metadata.cart_version);
     } catch (err) {
       console.warn('[store] could not empty the cart', err.message);
     }

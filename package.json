@@ -8,7 +8,7 @@
     "dev": "node dev-server.mjs",
     "build:store": "node store/build-store.mjs",
     "build:store:export": "node store/build-store.mjs --export",
-    "check": "node store/supplier-duplicate-check.mjs && node store/checkout-guard-check.mjs && node store/course-pricing-check.mjs && node store/course-webhook-check.mjs && node store/check.mjs && node store/render-check.mjs && node store/photo-check.mjs && node store/order-check.mjs && node store/mockup-ui-check.mjs && node store/mockup-data-check.mjs && node store/mockup-template-check.mjs && node store/mockup-api-check.mjs && node store/mockup-template-ui-check.mjs && node store/visual-check.mjs",
+    "check": "node store/checkout-ui-safety-check.mjs && node store/confirmation-ui-check.mjs && node store/checkout-reservation-check.mjs && node store/cart-clear-check.mjs && node store/supplier-duplicate-check.mjs && node store/checkout-guard-check.mjs && node store/course-pricing-check.mjs && node store/course-webhook-check.mjs && node store/check.mjs && node store/render-check.mjs && node store/photo-check.mjs && node store/order-check.mjs && node store/mockup-ui-check.mjs && node store/mockup-data-check.mjs && node store/mockup-template-check.mjs && node store/mockup-api-check.mjs && node store/mockup-template-ui-check.mjs && node store/visual-check.mjs",
     "sync:catalog": "node store/sync-catalog-file.mjs",
     "render:check": "node store/render-check.mjs",
     "photo:check": "node store/photo-check.mjs",
