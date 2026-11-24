@@ -485,20 +485,10 @@ export default async function handler(req, res) {
         return res.status(200).json({ ...publicOrder(row), pending: false });
       }
 
-      // Webhook may not have landed yet — tell the page to keep polling.
-      const stripeApi = stripe();
-      if (stripeApi) {
-        try {
-          const session = await stripeApi.checkout.sessions.retrieve(sessionId);
-          if (session && session.payment_status === 'paid') {
-            const items = JSON.parse(session.metadata?.items_json || '[]');
-            const { order } = await upsertOrder(orderFromStripeSession(session, { items }));
-            return res.status(200).json({ ...publicOrder(order), pending: false });
-          }
-        } catch (err) {
-          console.warn('[store] order lookup failed', err.message);
-        }
-      }
+      // Only the signed payment webhook may create and fulfil an order. If a
+      // lookup creates it first, the webhook sees an existing row and skips
+      // fulfilment; it could also record the billing address instead of the
+      // fixed shipping destination. Wait for the webhook instead.
       return res.status(200).json({ pending: true });
     }
 
