@@ -727,17 +727,17 @@ const PATCHES = [
   {
     name: 'apparel gallery supports matching back views',
     find: 'de==="back"&&s.type==="windbreaker"?u.jsx("img",{key:`${s.id}-${A}-back`,className:"product-photo product-photo-windbreaker",src:Ka(s.backImages?s.backImages[A]:`/store/images/windbreaker-back-${A}.webp`),alt:`${s.name} back view`,width:"850",height:"850"})',
-    replace: 'de==="back"&&["tee","hoodie","windbreaker"].includes(s.type)?u.jsx("img",{key:`${s.id}-${A}-back`,className:`product-photo product-photo-${s.type}`,"data-photo-product":s.id,"data-photo-colour":A,"data-photo-side":"back","data-photo-live":/^https?:/i.test(globalThis.__armoniaPhotoFor?.(s,A,"back")||"")?"true":void 0,src:Ka(globalThis.__armoniaPhotoFor?.(s,A,"back")||globalThis.__armoniaPhotoPlaceholder),alt:`${s.name} in ${Jt[A].name}, back view`,width:"850",height:"850"})',
+    replace: '["back","side"].includes(de)&&["tee","hoodie","windbreaker"].includes(s.type)?u.jsx("img",{key:`${s.id}-${A}-${de}`,className:`product-photo product-photo-${s.type}`,"data-photo-product":s.id,"data-photo-colour":A,"data-photo-side":de,"data-photo-live":/^https?:/i.test(globalThis.__armoniaPhotoFor?.(s,A,de)||"")?"true":void 0,src:Ka(globalThis.__armoniaPhotoFor?.(s,A,de)||globalThis.__armoniaPhotoPlaceholder),alt:`${s.name} in ${Jt[A].name}, ${de} view`,width:"850",height:"850"})',
   },
   {
     name: 'apparel back thumbnail',
     find: 's.type==="windbreaker"&&u.jsx("button",{"aria-label":"Back product view",onClick:()=>xe("back"),className:de==="back"?"active":"",children:u.jsx("img",{src:Ka(s.backImages?s.backImages[A]:`/store/images/windbreaker-back-${A}.webp`),alt:"Back view"})})',
-    replace: '["tee","hoodie","windbreaker"].includes(s.type)&&u.jsx("button",{"aria-label":"Back product view",onClick:()=>xe("back"),className:de==="back"?"active":"",children:u.jsx("img",{"data-photo-product":s.id,"data-photo-colour":A,"data-photo-side":"back","data-photo-live":/^https?:/i.test(globalThis.__armoniaPhotoFor?.(s,A,"back")||"")?"true":void 0,src:Ka(globalThis.__armoniaPhotoFor?.(s,A,"back")||globalThis.__armoniaPhotoPlaceholder),alt:"Back view"})})',
+    replace: '["tee","hoodie","windbreaker"].includes(s.type)&&["back","side"].map(view=>u.jsx("button",{"aria-label":`${view==="back"?"Back":"Side"} product view`,onClick:()=>xe(view),className:de===view?"active":"",children:u.jsx("img",{"data-photo-product":s.id,"data-photo-colour":A,"data-photo-side":view,"data-photo-live":/^https?:/i.test(globalThis.__armoniaPhotoFor?.(s,A,view)||"")?"true":void 0,src:Ka(globalThis.__armoniaPhotoFor?.(s,A,view)||globalThis.__armoniaPhotoPlaceholder),alt:`${view} view`})},view))',
   },
   {
     name: 'apparel gallery label',
     find: 's.type==="windbreaker"?"TWO-SIDED VIEW · FRONT & BACK":"THE LITTLE DETAILS MAKE IT."',
-    replace: '["tee","hoodie","windbreaker"].includes(s.type)?!globalThis.__armoniaPhotoFor?.(s,A,de==="back"?"back":"front")?(de==="back"?"BACK VIEW NOT AVAILABLE":"FRONT VIEW NOT AVAILABLE"):"PRODUCT VIEW":"THE LITTLE DETAILS MAKE IT."',
+    replace: '["tee","hoodie","windbreaker"].includes(s.type)?!globalThis.__armoniaPhotoFor?.(s,A,["back","side"].includes(de)?de:"front")?`${de.toUpperCase()} VIEW NOT AVAILABLE`:"PRODUCT VIEW":"THE LITTLE DETAILS MAKE IT."',
   },
   {
     // Let the runtime correct a stale mockup.

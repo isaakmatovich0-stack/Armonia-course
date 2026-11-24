@@ -185,8 +185,8 @@ export default async function handler(req, res) {
       await refreshCatalog();
       const product = publicCatalog().products.find((item) => item.id === id);
       const side = query.get('side') || 'front';
-      if (!['front', 'back'].includes(side)) return clientError(res, 400, 'Invalid photo side.');
-      const source = product && product.colors.includes(colour) && (side === 'back' ? product.backImages : product.images)?.[colour];
+      if (!['front', 'back', 'side'].includes(side)) return clientError(res, 400, 'Invalid photo side.');
+      const source = product && product.colors.includes(colour) && (side === 'side' ? product.sideImages : side === 'back' ? product.backImages : product.images)?.[colour];
       if (!source) return clientError(res, 404, 'Photo not found.');
       let url;
       try { url = new URL(source); } catch { return clientError(res, 404, 'Photo not available.'); }
