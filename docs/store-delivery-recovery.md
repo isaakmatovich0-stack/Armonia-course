@@ -48,8 +48,12 @@ The admin order book shows delivery states for the most recent orders and a
 separate global, read-only delivery queue panel. The global panel counts all
 managed jobs requiring review, expired leases, and jobs more than 15 minutes
 past their next eligible retry; it shows up to ten order numbers per category.
-Refresh it during launch. It does not send alerts, process jobs, monitor legacy
-orders, check Stripe webhook failures, or prove that providers delivered.
+Refresh it during launch. It does not send alerts, monitor legacy orders, check
+Stripe webhook failures, or prove that providers delivered. An authenticated
+operator may use “Process eligible delivery jobs” to run up to five claimable
+jobs at a time; this can submit paid orders and send receipts. Review jobs are
+not automatically resent. Check the provider before resolving any uncertain
+outcome.
 Counts can be zero while the monitor or scheduler itself has failed. The
 scheduled sweep is daily on the current Vercel plan, not real-time. The system
 cannot guarantee email delivery or detect refunds made directly in Stripe before

@@ -25,7 +25,7 @@ import { planCreation, applyCreation, loadManifest } from '../../lib/store/creat
 import { planReplace } from '../../lib/store/replace.js';
 import { applyReplace } from '../../lib/store/apply-replace.js';
 import { submitToSupplier, supplierStatus, cancelFulfilment } from '../../lib/store/fulfilment.js';
-import { deliveryStatesForOrders, deliveryAttention } from '../../lib/store/delivery-recovery.js';
+import { deliveryStatesForOrders, deliveryAttention, sweepDeliveryJobs } from '../../lib/store/delivery-recovery.js';
 import { isLocalMode } from '../../lib/store/db.js';
 import { health as printfulHealth, cancelOrder as cancelSupplierOrder,
          listSyncProducts, suggestMapping, getWebhook, setWebhook, webhookUrl,
@@ -389,6 +389,15 @@ export default async function handler(req, res) {
     if (isLocalMode()) return res.status(503).json({ error: 'Delivery monitoring is unavailable in local mode.' });
     try { return res.status(200).json(await deliveryAttention()); }
     catch (err) { console.error('[admin] delivery monitoring failed', err.message); return res.status(503).json({ error: 'Delivery monitoring is unavailable.' }); }
+  }
+
+  // Explicit operator action, protected by admin authentication. The worker
+  // will only process claimable jobs, never resend a job in review.
+  if (route === 'store-delivery-sweep') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
+    if (isLocalMode()) return res.status(503).json({ error: 'Delivery recovery is unavailable in local mode.' });
+    try { return res.status(200).json(await sweepDeliveryJobs()); }
+    catch (err) { console.error('[admin] delivery sweep failed', err.message); return res.status(503).json({ error: 'Delivery sweep failed. Refresh the queue and investigate; do not resend orders manually.' }); }
   }
 
   // ── /api/admin/store-orders ──
