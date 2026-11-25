@@ -428,7 +428,7 @@ export default async function handler(req, res) {
         phone_number_collection: { enabled: false },
         custom_text: {
           submit: { message: '30-day returns at our US fulfilment partner · Ships in 2–4 business days.' },
-          after_submit: { message: 'Thanks! Your receipt and order updates are on their way by email.' },
+          after_submit: { message: 'Thank you. If your order confirmation does not appear, please contact us before trying again.' },
         },
         invoice_creation: { enabled: true },
       };

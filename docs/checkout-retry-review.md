@@ -45,3 +45,23 @@ Before release:
   real payment or placing a supplier order.
 
 If payment status is uncertain, investigate it before asking anyone to retry.
+
+## Cutover procedure
+
+1. Apply the additive guard schema with `activated_at` NULL. This does not
+   affect the old live checkout, which does not read the setting.
+2. Deploy the guarded code. Verify production is promoted and that the
+   checkout endpoint returns the temporary-unavailability response.
+3. Wait longer than the previous deployment's maximum function duration (300
+   seconds) after promotion, with a safety margin, for old requests to drain.
+   Existing Stripe checkout pages remain usable and are not expired by rollout.
+4. Set `activated_at` to the database's current time. New carts are guarded;
+   older carts first scan Stripe before a new session is made. Reopening a
+   checkout for an old cart may expire its prior open session, but only when a
+   customer initiates the replacement and Stripe confirms it is unpaid.
+5. Verify the live endpoint is unpaused using non-purchasing checks. Monitor
+   errors. Setting `activated_at` to NULL pauses new guarded checkout if a
+   problem is discovered; do not replay payments or supplier submissions.
+
+This transition does not fix store receipt retry or supplier-delivery recovery,
+and cannot prevent duplicate purchases initiated from independent browsers.
