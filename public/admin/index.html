@@ -417,6 +417,7 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
         </div>
         <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:20px;">Every paid order from the store, newest first. Click an order to see exactly what to pack and where to send it.</p>
         <div id="supplierPanel" style="border:1px solid var(--border-gold); padding:14px 16px; margin-bottom:18px; font-size:0.8rem; color:var(--text-muted); line-height:1.9;"></div>
+        <div id="deliveryMonitor" role="status" style="border:1px solid var(--border-gold); padding:14px 16px; margin-bottom:18px; font-size:0.85rem; white-space:pre-line;">Checking delivery queue…</div>
         <div id="ordersStats" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:24px;"></div>
         <div id="ordersList"></div>
       </section>
@@ -2142,8 +2143,23 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
       }
     }
 
+    async function loadDeliveryMonitor() {
+      const box = document.getElementById('deliveryMonitor');
+      box.textContent = 'Checking delivery queue…';
+      try {
+        const data = await adminFetch('/api/admin/store-delivery-status');
+        const sample = list => (list || []).map(job => `${job.order} (${job.kind})`).join(', ');
+        box.textContent = `Delivery queue (all managed orders): ${data.review} need review, ${data.expiredLeases} expired leases, ${data.overdue} overdue.\n` +
+          [data.review ? `Review: ${sample(data.reviewSample)}` : '', data.expiredLeases ? `Expired: ${sample(data.expiredSample)}` : '', data.overdue ? `Overdue: ${sample(data.overdueSample)}` : ''].filter(Boolean).join('\n') +
+          '\nCheck providers before taking action; never blindly resend. Refresh to check again. This panel does not send alerts.';
+      } catch {
+        box.textContent = 'Delivery monitoring is unavailable. Investigate before relying on order processing.';
+      }
+    }
+
     async function loadStoreOrders() {
       loadSupplierPanel();
+      loadDeliveryMonitor();
       const list = document.getElementById('ordersList');
       const stats = document.getElementById('ordersStats');
       list.innerHTML = '<p style="color:var(--text-muted); font-size:0.85rem;">Loading orders…</p>';

@@ -6,9 +6,9 @@ New paid webhook orders opt into an outbox. A Postgres trigger inserts one
 receipt job and one supplier job in the *same transaction* as the order. Stripe
 redelivery can resume jobs even when the order row already exists. The existing
 secret-protected daily supplier sync also sweeps up to 20 jobs per invocation.
-No historical orders are backfilled or automatically resent. As of the pre-rollout
-read-only review, the only historical store order was refunded and its supplier
-order was canceled; do not replay it.
+No historical orders are backfilled or automatically resent. Historical orders
+must be reconciled individually. In particular, AC-58W5D6 has already been
+submitted to Printful as 189464396: do not replay or resubmit it.
 
 The additive migration `supabase/schema-store-delivery-recovery.sql` must be
 applied before deploying this application. Its opt-in flag defaults to false,
@@ -44,8 +44,14 @@ for review by the sweep. Leases exceed the 300-second function limit. Status
 changes through the order database are blocked during an in-flight supplier
 submission, and refunded/canceled orders are not newly submitted.
 
-The admin order book shows delivery states and a review count. Check it daily;
-the scheduled sweep is daily on the current Vercel plan, not real-time. The
-system cannot guarantee email delivery or detect refunds made directly in
-Stripe before the order book is updated. Investigate every uncertain payment or
-supplier outcome before asking a customer to retry or creating another order.
+The admin order book shows delivery states for the most recent orders and a
+separate global, read-only delivery queue panel. The global panel counts all
+managed jobs requiring review, expired leases, and jobs more than 15 minutes
+past their next eligible retry; it shows up to ten order numbers per category.
+Refresh it during launch. It does not send alerts, process jobs, monitor legacy
+orders, check Stripe webhook failures, or prove that providers delivered.
+Counts can be zero while the monitor or scheduler itself has failed. The
+scheduled sweep is daily on the current Vercel plan, not real-time. The system
+cannot guarantee email delivery or detect refunds made directly in Stripe before
+the order book is updated. Investigate every uncertain payment or supplier
+outcome before asking a customer to retry or creating another order.

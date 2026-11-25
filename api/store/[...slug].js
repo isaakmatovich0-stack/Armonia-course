@@ -71,6 +71,7 @@ import { eventEffect, quoteShipping } from '../../lib/suppliers/printful.js';
 import { shippingAddress, printfulRecipient, quoteFingerprint } from '../../lib/store/shipping.js';
 import { withQuotedShipping } from '../../lib/store/quoted-order.js';
 import { encodeCheckoutItems, decodeCheckoutItems } from '../../lib/store/checkout-items.js';
+import { isAddableSupplierVariant } from '../../lib/store/supplier-variants.js';
 import { rawBody } from '../../lib/store/raw-body.js';
 import { guardedCheckout, CheckoutGuardError } from '../../lib/store/checkout-guard.js';
 import { findLegacyCheckout } from '../../lib/store/legacy-checkout.js';
@@ -247,6 +248,11 @@ export default async function handler(req, res) {
           const size = String(body.size || product.sizes[0]);
           if (!product.colors.includes(color)) return clientError(res, 400, 'That colour is not available.');
           if (!product.sizes.includes(size)) return clientError(res, 400, 'That size is not available.');
+          // Never offer a combination that cannot be sent to Printful. Local
+          // development uses a file catalog without supplier mappings.
+          if (!isAddableSupplierVariant(product, color, size, { local: isLocalMode() })) {
+            return clientError(res, 400, 'That colour and size combination is currently unavailable. Please choose another.');
+          }
           const quantity = Math.max(1, Math.min(20, Math.floor(Number(body.quantity) || 1)));
           current.push({ productId: product.id, color, size, quantity });
         } else if (action === 'update') {

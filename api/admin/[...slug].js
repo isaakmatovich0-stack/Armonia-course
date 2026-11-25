@@ -25,7 +25,7 @@ import { planCreation, applyCreation, loadManifest } from '../../lib/store/creat
 import { planReplace } from '../../lib/store/replace.js';
 import { applyReplace } from '../../lib/store/apply-replace.js';
 import { submitToSupplier, supplierStatus, cancelFulfilment } from '../../lib/store/fulfilment.js';
-import { deliveryStatesForOrders } from '../../lib/store/delivery-recovery.js';
+import { deliveryStatesForOrders, deliveryAttention } from '../../lib/store/delivery-recovery.js';
 import { isLocalMode } from '../../lib/store/db.js';
 import { health as printfulHealth, cancelOrder as cancelSupplierOrder,
          listSyncProducts, suggestMapping, getWebhook, setWebhook, webhookUrl,
@@ -381,6 +381,14 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Read-only global queue health; never retries or changes a supplier order.
+  if (route === 'store-delivery-status') {
+    if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed.' });
+    if (isLocalMode()) return res.status(503).json({ error: 'Delivery monitoring is unavailable in local mode.' });
+    try { return res.status(200).json(await deliveryAttention()); }
+    catch (err) { console.error('[admin] delivery monitoring failed', err.message); return res.status(503).json({ error: 'Delivery monitoring is unavailable.' }); }
   }
 
   // ── /api/admin/store-orders ──
