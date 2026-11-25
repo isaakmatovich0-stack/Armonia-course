@@ -43,7 +43,13 @@ import {
 import { resolveBag, saveCart, loadPromo, cartCookie, isValidCartId } from '../../lib/store/cart.js';
 import {
   getCart,
+  clearCartIfUnchanged,
   recordCheckoutSession,
+  reserveCheckoutAttempt,
+  replaceCheckoutAttempt,
+  finishLegacyCheckout,
+  checkoutGuardActivatedAt,
+  saveCheckoutAttempt,
   recordPaidOrder,
   markSessionExpired,
   incrementPromoUse,
@@ -66,6 +72,8 @@ import { shippingAddress, printfulRecipient, quoteFingerprint } from '../../lib/
 import { withQuotedShipping } from '../../lib/store/quoted-order.js';
 import { encodeCheckoutItems, decodeCheckoutItems } from '../../lib/store/checkout-items.js';
 import { rawBody } from '../../lib/store/raw-body.js';
+import { guardedCheckout, CheckoutGuardError } from '../../lib/store/checkout-guard.js';
+import { findLegacyCheckout } from '../../lib/store/legacy-checkout.js';
 import { isStoreCheckout } from '../../lib/course-checkout.js';
 
 /* ── Stripe webhooks need the untouched request body ───────────────────── */
@@ -306,6 +314,14 @@ export default async function handler(req, res) {
     /* ── checkout ────────────────────────────────────────────────────── */
     if (route === 'checkout') {
       if (method !== 'POST') return clientError(res, 405, 'Method not allowed.');
+      // During cutover, stop new sessions until earlier server requests have
+      // drained and legacy sessions can be discovered without a race.
+      let activatedAt;
+      try { activatedAt = await checkoutGuardActivatedAt(); }
+      catch { return clientError(res, 503, 'Checkout is temporarily unavailable. Please contact us if you have already paid.'); }
+      if (!activatedAt || !Number.isFinite(Date.parse(activatedAt)) || Date.parse(activatedAt) > Date.now()) {
+        return clientError(res, 503, 'Checkout is temporarily unavailable. Please contact us if you have already paid.');
+      }
 
       const stripeApi = stripe();
       await refreshCatalog({ force: true });
@@ -401,6 +417,7 @@ export default async function handler(req, res) {
         customer_creation: 'always',
         metadata: {
           cart_id: cart.id,
+          cart_version: cart.updated_at,
           promo_code: bag.promo && bag.promo.valid ? bag.promo.code : '',
           ...itemMetadata,
           source: 'armonia-store',
@@ -411,7 +428,7 @@ export default async function handler(req, res) {
         phone_number_collection: { enabled: false },
         custom_text: {
           submit: { message: '30-day returns at our US fulfilment partner · Ships in 2–4 business days.' },
-          after_submit: { message: 'Thanks! Your receipt and order updates are on their way by email.' },
+          after_submit: { message: 'Thank you. If your order confirmation does not appear, please contact us before trying again.' },
         },
         invoice_creation: { enabled: true },
       };
@@ -420,18 +437,24 @@ export default async function handler(req, res) {
 
       let session;
       try {
-        session = await stripeApi.checkout.sessions.create(sessionParams);
+        const restartAfterPaid = body.restartAfterPaid || null;
+        if (restartAfterPaid && !/^cs_[A-Za-z0-9_]+$/.test(restartAfterPaid)) return clientError(res, 400, 'Invalid previous checkout.');
+        session = await guardedCheckout({
+          stripe: stripeApi, cartId: cart.id, params: sessionParams,
+          reserve: reserveCheckoutAttempt, save: saveCheckoutAttempt, replace: replaceCheckoutAttempt,
+          paidOrderRecorded: async (id) => Boolean(await findOrderBySession(id)), restartAfterPaid,
+          findLegacy: async () => {
+            const cartCreatedAt = Date.parse(cart.created_at);
+            if (!Number.isFinite(cartCreatedAt)) throw new Error('Cart creation time unavailable');
+            return cartCreatedAt > Date.parse(activatedAt) ? null : findLegacyCheckout(stripeApi, cart.id, cart.created_at);
+          },
+          finishLegacy: finishLegacyCheckout,
+        });
       } catch (err) {
-        console.error('[store] stripe session failed', err);
-        // Most common cause: tax/address config mismatch. Retry once without
-        // the optional niceties so a real customer isn't blocked.
-        try {
-          const { custom_text, invoice_creation, allow_promotion_codes, ...fallback } = sessionParams;
-          session = await stripeApi.checkout.sessions.create(fallback);
-        } catch (secondErr) {
-          console.error('[store] stripe session retry failed', secondErr);
-          return clientError(res, 502, 'We couldn’t open checkout just now. Please try again in a moment.');
-        }
+        if (err instanceof CheckoutGuardError) return clientError(res, 409, err.message, { code: err.code, ...(err.sessionId ? { previousSessionId: err.sessionId } : {}) });
+        // Never create a second session as a fallback after an ambiguous error.
+        console.error('[store] guarded checkout unavailable:', err.message);
+        return clientError(res, 503, 'We couldn’t safely open checkout. Please contact us before trying again.');
       }
 
       // Remember what we asked Stripe for, so a session that is paid but whose
@@ -445,7 +468,8 @@ export default async function handler(req, res) {
           promo_code: bag.promo && bag.promo.valid ? bag.promo.code : null,
         });
       } catch (err) {
-        console.warn('[store] could not record checkout session', err.message);
+        console.error('[store] could not record checkout session', err.message);
+        return clientError(res, 503, 'We could not safely open checkout. Please contact us before trying again.');
       }
 
       return res.status(200).json({ url: session.url, id: session.id });
@@ -861,9 +885,11 @@ async function completeOrder(session, stripeApi) {
     }
   }
 
-  if (isValidCartId(cartId)) {
+  // Older sessions without a version leave the bag alone rather than risk
+  // erasing a newer bag. Duplicate deliveries must never clear it again.
+  if (created && isValidCartId(cartId) && session.metadata?.cart_version) {
     try {
-      await saveCart(cartId, { items: [], promoCode: null });
+      await clearCartIfUnchanged(cartId, session.metadata.cart_version);
     } catch (err) {
       console.warn('[store] could not empty the cart', err.message);
     }

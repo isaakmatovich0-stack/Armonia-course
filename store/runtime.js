@@ -369,6 +369,7 @@ function mountBag(host, { onClose, onShop }) {
   let removed = null;
   let error = '';
   let checkoutError = '';
+  let paidSessionId = null;
   let address = { name: '', line1: '', line2: '', city: '', state: '', postal_code: '' };
   let shippingQuote = null;
   let quoteBagSnapshot = '';
@@ -392,7 +393,7 @@ function mountBag(host, { onClose, onShop }) {
     view.panel.textContent = '';
     const lines = bagLines();
     const totals = bagTotals();
-    if (shippingQuote && quoteBagSnapshot !== bagSnapshot()) shippingQuote = null;
+    if (shippingQuote && quoteBagSnapshot !== bagSnapshot()) { shippingQuote = null; paidSessionId = null; }
 
     view.panel.appendChild(
       el(
@@ -621,7 +622,7 @@ function mountBag(host, { onClose, onShop }) {
         maxlength: key === 'state' ? '2' : key === 'postal_code' ? '10' : '100',
         onInput: (event) => {
           address[key] = event.target.value;
-          shippingQuote = null;
+          shippingQuote = null; paidSessionId = null;
           const pay = view.panel.querySelector('.checkout-pay');
           if (pay) pay.disabled = true;
           const result = view.panel.querySelector('.store-quote-result');
@@ -631,7 +632,7 @@ function mountBag(host, { onClose, onShop }) {
       form.appendChild(el('label', { style: { display: 'block', marginBottom: '12px' } }, label, input));
     });
     return el('div', { class: 'checkout-content' },
-      el('button', { class: 'back-to-bag text-link', onClick: () => { step = 'bag'; shippingQuote = null; render(); } }, [svg('back'), ' Back to your bag']),
+      el('button', { class: 'back-to-bag text-link', onClick: () => { step = 'bag'; shippingQuote = null; paidSessionId = null; render(); } }, [svg('back'), ' Back to your bag']),
       el('div', { class: 'store-checkout-lead' },
         el('h3', {}, live ? 'Shipping address' : 'Checkout is almost ready.'),
         el('p', {}, 'Enter your US delivery address to calculate shipping for the items in your bag. This is the address used for your order; return here to change it before paying.')),
@@ -640,7 +641,7 @@ function mountBag(host, { onClose, onShop }) {
         type: 'button', class: 'button button-dark', disabled: busy || !lines.length,
         onClick: async () => {
           if (!form.reportValidity()) return;
-          busy = true; checkoutError = ''; shippingQuote = null;
+          busy = true; checkoutError = ''; shippingQuote = null; paidSessionId = null;
           const capturedAddress = { ...address };
           const capturedBag = bagSnapshot();
           try {
@@ -658,19 +659,26 @@ function mountBag(host, { onClose, onShop }) {
         el('div', {}, el('span', {}, 'Standard shipping'), el('span', { class: 'store-quote-result' }, shippingQuote ? money(shippingQuote.amountCents) : 'Calculate above')),
         el('div', { class: 'preview-total' }, el('strong', {}, shippingQuote ? 'Total' : 'Subtotal after discounts'), el('strong', {}, money(totals.total + (shippingQuote?.amountCents || 0)))),
       ),
-      checkoutError ? el('p', { class: 'store-checkout-error' }, checkoutError) : null,
+      checkoutError ? el('p', { class: 'store-checkout-error' }, checkoutError, ' If you may have already paid, do not pay again; contact us so we can check.') : null,
       el('button', {
         type: 'button', class: 'button button-dark checkout-pay', disabled: busy || !shippingQuote || !lines.length,
         onClick: async (event) => {
+          const previous = paidSessionId;
+          if (previous && !window.confirm('Your earlier order was paid. This is a separate new order and will charge you again if you complete payment. Continue?')) return;
           const button = event.currentTarget;
           busy = true; checkoutError = ''; button.disabled = true; button.textContent = 'Opening secure checkout…';
           try {
-            const payload = await api('/checkout', { method: 'POST', body: JSON.stringify({ address, fingerprint: shippingQuote.fingerprint }) });
-            if (!payload.url) throw new Error('Checkout could not be started. Please try again.');
+            const payload = await api('/checkout', { method: 'POST', body: JSON.stringify({ address, fingerprint: shippingQuote.fingerprint, ...(previous ? { restartAfterPaid: previous } : {}) }) });
+            if (!payload.url) throw new Error('Checkout could not be started. Please contact us before trying again.');
             window.location.href = payload.url;
-          } catch (err) { busy = false; checkoutError = err.message; shippingQuote = null; render(); }
+          } catch (err) {
+            busy = false; checkoutError = err.message;
+            if (err.payload?.code === 'paid' && /^cs_[A-Za-z0-9_]+$/.test(err.payload.previousSessionId || '')) paidSessionId = err.payload.previousSessionId;
+            else { paidSessionId = null; shippingQuote = null; }
+            render();
+          }
         },
-      }, shippingQuote ? `Continue to payment · ${money(totals.total + shippingQuote.amountCents)}` : 'Calculate shipping to continue'),
+      }, paidSessionId ? 'Place a separate new order' : shippingQuote ? `Continue to payment · ${money(totals.total + shippingQuote.amountCents)}` : 'Calculate shipping to continue'),
       el('p', { class: 'checkout-privacy' }, 'Secure payment by Stripe · US shipping only. To change the shipping address, return to this page before paying.'),
       el('p', { class: 'checkout-privacy' }, ['By continuing you agree to our ', el('a', { href: '/terms.html', target: '_blank', rel: 'noopener' }, 'terms'), ' and ', el('a', { href: '/store/shipping#returns', target: '_blank', rel: 'noopener' }, 'returns policy'), '.']),
     );
@@ -847,7 +855,7 @@ async function showOrderConfirmation(sessionId) {
   try {
     order = await api(`/order?session_id=${encodeURIComponent(sessionId)}`);
   } catch (err) {
-    toast('We could not load that order yet. If you were charged, your receipt is on its way by email.', 'error');
+    toast('We could not load that order yet. If you may have paid, please do not pay again; contact us so we can check.', 'error');
     return;
   }
   if (order.pending) {
@@ -880,10 +888,10 @@ async function showOrderConfirmation(sessionId) {
     el(
       'div',
       { class: 'order-success' },
-      el('span', { class: 'success-symbol' }, svg('check')),
-      el('h3', { id: 'order-title' }, ['That looks', el('br', {}), 'good on you.']),
-      el('p', {}, order.pending ? 'Your payment is confirmed and your order is being finalised. A receipt is on its way to your inbox.' : `Thanks${order.name ? `, ${String(order.name).split(' ')[0]}` : ''} — your order is confirmed and a receipt is on its way to ${order.email || 'your inbox'}.`),
-      el(
+      order.pending ? null : el('span', { class: 'success-symbol' }, svg('check')),
+      el('h3', { id: 'order-title' }, order.pending ? 'Checking your order' : ['That looks', el('br', {}), 'good on you.']),
+      el('p', {}, order.pending ? 'We are still checking your order. If you may have paid, please do not pay again. Contact us if confirmation does not appear.' : `Thanks${order.name ? `, ${String(order.name).split(' ')[0]}` : ''} — your order is confirmed. If you do not receive a receipt, please contact us.`),
+      order.pending ? null : el(
         'div',
         { class: 'order-confirmation' },
         el('span', {}, 'ORDER NUMBER'),
@@ -915,7 +923,7 @@ async function showOrderConfirmation(sessionId) {
         },
         ['Back to the good things ', svg('arrow')],
       ),
-      el('p', { class: 'store-order-note' }, 'Need to change something? Reply to your receipt email or ', el('a', { href: '/store/?contact=1' }, 'send us a note'), '.'),
+      el('p', { class: 'store-order-note' }, 'Questions about your order? ', el('a', { href: '/store/?contact=1' }, 'Send us a note'), '.'),
     ),
   );
 }
