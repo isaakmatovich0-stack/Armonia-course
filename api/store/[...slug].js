@@ -71,10 +71,12 @@ import { eventEffect, quoteShipping } from '../../lib/suppliers/printful.js';
 import { shippingAddress, printfulRecipient, quoteFingerprint } from '../../lib/store/shipping.js';
 import { withQuotedShipping } from '../../lib/store/quoted-order.js';
 import { encodeCheckoutItems, decodeCheckoutItems } from '../../lib/store/checkout-items.js';
+import { isAddableSupplierVariant } from '../../lib/store/supplier-variants.js';
 import { rawBody } from '../../lib/store/raw-body.js';
 import { guardedCheckout, CheckoutGuardError } from '../../lib/store/checkout-guard.js';
 import { findLegacyCheckout } from '../../lib/store/legacy-checkout.js';
 import { isStoreCheckout } from '../../lib/course-checkout.js';
+import { deliveryWorker } from '../../lib/store/delivery-recovery.js';
 
 /* ── Stripe webhooks need the untouched request body ───────────────────── */
 export const config = {
@@ -246,6 +248,11 @@ export default async function handler(req, res) {
           const size = String(body.size || product.sizes[0]);
           if (!product.colors.includes(color)) return clientError(res, 400, 'That colour is not available.');
           if (!product.sizes.includes(size)) return clientError(res, 400, 'That size is not available.');
+          // Never offer a combination that cannot be sent to Printful. Local
+          // development uses a file catalog without supplier mappings.
+          if (!isAddableSupplierVariant(product, color, size, { local: isLocalMode() })) {
+            return clientError(res, 400, 'That colour and size combination is currently unavailable. Please choose another.');
+          }
           const quantity = Math.max(1, Math.min(20, Math.floor(Number(body.quantity) || 1)));
           current.push({ productId: product.id, color, size, quantity });
         } else if (action === 'update') {
@@ -617,6 +624,12 @@ export default async function handler(req, res) {
       }
 
       try {
+        const delivery = {done:0, review:0, pending:0};
+        for (let i=0; i<20; i++) {
+          const job = await deliveryWorker.runOne();
+          if (!job) break;
+          if (Object.hasOwn(delivery,job.state)) delivery[job.state]++;
+        }
         const orders = await listStoreOrders({ limit: 200 });
         const result = await syncPrintkkShipments(orders, { ignoreThrottle: true });
         for (const order of result.updated || []) {
@@ -630,7 +643,7 @@ export default async function handler(req, res) {
             items: order.items || [],
           }).catch((err) => console.error('[store] shipping email failed', err));
         }
-        return res.status(200).json({ ok: true, checked: result.checked, shipped: (result.updated || []).length });
+        return res.status(200).json({ ok: true, checked: result.checked, shipped: (result.updated || []).length, delivery });
       } catch (err) {
         console.error('[store] supplier sync failed', err);
         return res.status(500).json({ error: 'Sync failed.' });
@@ -755,39 +768,24 @@ export default async function handler(req, res) {
           try {
             const { order, created } = await completeOrder(session, stripeApi);
             if (created && order && order.email) {
-              await sendStoreOrderConfirmation({
-                to: order.email,
-                name: order.name,
-                orderNumber: order.number,
-                items: order.items || [],
-                subtotalCents: order.amount_subtotal,
-                shippingCents: order.amount_shipping,
-                taxCents: order.amount_tax,
-                discountCents: order.amount_discount,
-                totalCents: order.amount_total,
-                shippingAddress: order.shipping_address,
-                promoCode: order.promo_code,
-              }).catch((err) => console.error('[store] receipt email failed', err));
-              await sendStoreOrderNotification({
-                orderNumber: order.number,
-                name: order.name,
-                email: order.email,
-                items: order.items || [],
-                totalCents: order.amount_total,
-                shippingAddress: order.shipping_address,
-              }).catch((err) => console.error('[store] shop alert failed', err));
+              // This shop alert remains best-effort; the customer receipt is
+              // tracked separately in the durable outbox below.
+              await sendStoreOrderNotification({orderNumber:order.number,name:order.name,email:order.email,
+                items:order.items || [],totalCents:order.amount_total,shippingAddress:order.shipping_address})
+                .catch((err) => console.error('[store] shop alert failed', err));
             }
-            // Fulfilment: hand the order to the supplier. A failure here must
-            // not fail the webhook — the money is already taken and the order is
-            // recorded, so the admin retries from the Store Orders panel rather
-            // than Stripe replaying an event whose side effects all succeeded.
-            if (created && order) {
-              await submitToSupplier(order)
-                .then((result) => {
-                  if (!result.ok && !result.skipped) console.error('[store] supplier submit failed:', result.error);
-                  else if (result.skipped) console.log('[store] supplier submit skipped:', result.reason);
-                })
-                .catch((err) => console.error('[store] supplier submit threw:', err));
+            if (order?.recovery_managed) {
+              const jobs = await deliveryWorker.runOrder(order.id);
+              // Stripe's retries complement the daily sweep. Review is a durable
+              // terminal state, not a license to repeat an uncertain supplier call.
+              if (jobs.some(job => job.state === 'pending' || job.state === 'running')) {
+                return res.status(500).json({error:'Order recorded; delivery retry pending.'});
+              }
+            } else if (created && order && isLocalMode()) {
+              // Development has no shared PostgreSQL outbox.
+              if (order.email) await sendStoreOrderConfirmation({to:order.email,name:order.name,orderNumber:order.number,
+                items:order.items || [],totalCents:order.amount_total,shippingAddress:order.shipping_address});
+              await submitToSupplier(order);
             }
             return res.status(200).json({ received: true, order: order ? order.number : null });
           } catch (err) {
@@ -874,6 +872,7 @@ async function completeOrder(session, stripeApi) {
   // to an unverified address if Stripe is temporarily unavailable.
   session = await withQuotedShipping(session, stripeApi);
   const record = orderFromStripeSession(session, { cartId, items });
+  if (!isLocalMode()) record.recovery_managed = true;
   const { order, created } = await upsertOrder(record);
 
   // Increment promo usage once, and empty the bag.

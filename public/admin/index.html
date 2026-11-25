@@ -417,6 +417,8 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
         </div>
         <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:20px;">Every paid order from the store, newest first. Click an order to see exactly what to pack and where to send it.</p>
         <div id="supplierPanel" style="border:1px solid var(--border-gold); padding:14px 16px; margin-bottom:18px; font-size:0.8rem; color:var(--text-muted); line-height:1.9;"></div>
+        <div id="deliveryMonitor" role="status" style="border:1px solid var(--border-gold); padding:14px 16px; margin-bottom:8px; font-size:0.85rem; white-space:pre-line;">Checking delivery queue…</div>
+        <button type="button" id="deliverySweepBtn" style="background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:8px 16px; margin-bottom:18px; cursor:pointer;">Process eligible delivery jobs</button>
         <div id="ordersStats" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:24px;"></div>
         <div id="ordersList"></div>
       </section>
@@ -2142,8 +2144,23 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
       }
     }
 
+    async function loadDeliveryMonitor() {
+      const box = document.getElementById('deliveryMonitor');
+      box.textContent = 'Checking delivery queue…';
+      try {
+        const data = await adminFetch('/api/admin/store-delivery-status');
+        const sample = list => (list || []).map(job => `${job.order} (${job.kind})`).join(', ');
+        box.textContent = `Delivery queue (all managed orders): ${data.review} need review, ${data.expiredLeases} expired leases, ${data.overdue} overdue.\n` +
+          [data.review ? `Review: ${sample(data.reviewSample)}` : '', data.expiredLeases ? `Expired: ${sample(data.expiredSample)}` : '', data.overdue ? `Overdue: ${sample(data.overdueSample)}` : ''].filter(Boolean).join('\n') +
+          '\nCheck providers before taking action; never blindly resend. Refresh to check again. This panel does not send alerts.';
+      } catch {
+        box.textContent = 'Delivery monitoring is unavailable. Investigate before relying on order processing.';
+      }
+    }
+
     async function loadStoreOrders() {
       loadSupplierPanel();
+      loadDeliveryMonitor();
       const list = document.getElementById('ordersList');
       const stats = document.getElementById('ordersStats');
       list.innerHTML = '<p style="color:var(--text-muted); font-size:0.85rem;">Loading orders…</p>';
@@ -2164,11 +2181,13 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
       const revenue = storeOrders.filter(o => o.status !== 'refunded' && o.status !== 'cancelled').reduce((sum, o) => sum + (o.amount_total || 0), 0);
       const units = storeOrders.reduce((sum, o) => sum + (Array.isArray(o.items) ? o.items.reduce((n, i) => n + (i.quantity || 0), 0) : 0), 0);
       const toShip = storeOrders.filter(o => o.status === 'paid' || o.status === 'packed').length;
+      const needsReview = storeOrders.filter(o => (o.delivery_jobs || []).some(j => j.state === 'review' || (j.state === 'running' && j.lease_until && Date.parse(j.lease_until) < Date.now()))).length;
       stats.innerHTML = [
         ['Orders', storeOrders.length],
         ['Revenue', money(revenue)],
         ['Items sold', units],
         ['Awaiting shipment', toShip],
+        ['Delivery review', needsReview],
       ].map(([label, value]) => `
         <div style="border:1px solid var(--border-gold); padding:14px 16px;">
           <div style="font-size:0.68rem; letter-spacing:1.4px; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px;">${label}</div>
@@ -2231,8 +2250,12 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
                   ${order.fulfilment_error ? `<br><span style="color:#e8a8a8; font-size:0.78rem;">${order.fulfilment_error}</span>` : ''}
                 </p>
               </div>` : ''}
+              ${order.recovery_managed ? `<div style="margin-top:18px; padding:14px 16px; border:1px solid var(--border-gold);">
+                <p style="font-size:0.68rem; text-transform:uppercase; letter-spacing:1px;">Delivery recovery</p>
+                ${(order.delivery_jobs || []).map(job => `<p style="font-size:0.8rem;">${job.kind === 'receipt' ? 'Receipt' : 'Supplier'}: ${['pending','running','done','review','skipped'].includes(job.state) ? job.state : 'unknown'}${job.state === 'review' || (job.state === 'running' && job.lease_until && Date.parse(job.lease_until) < Date.now()) ? ' — check the provider before taking action; do not resend blindly.' : ''}</p>`).join('') || '<p style="color:#e8a8a8;">Delivery status unavailable — investigate this order.</p>'}
+              </div>` : ''}
               <div style="display:flex; gap:8px; margin-top:18px; flex-wrap:wrap;">
-                <button type="button" data-send-supplier="${order.number}" style="background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:7px 14px; font-size:0.75rem; cursor:pointer;">Send to supplier</button>
+                <button type="button" ${order.recovery_managed ? 'disabled title="Protected order: verify supplier before taking action"' : ''} data-send-supplier="${order.number}" style="background:transparent; border:1px solid var(--border-gold); color:var(--gold-light); padding:7px 14px; font-size:0.75rem; cursor:pointer;">Send to supplier</button>
                 ${['paid', 'packed', 'shipped', 'refunded'].map(status => `<button type="button" data-order-status="${status}" data-order-id="${order.id}" style="background:${order.status === status ? 'var(--gold)' : 'transparent'}; color:${order.status === status ? 'var(--charcoal)' : 'var(--gold-light)'}; border:1px solid var(--border-gold); padding:7px 14px; font-size:0.75rem; text-transform:capitalize; cursor:pointer;">${status}</button>`).join('')}
                 <a href="mailto:${order.email || ''}?subject=${encodeURIComponent('Your Armonia Connect order ' + order.number)}" style="margin-left:auto; align-self:center; font-size:0.78rem; color:var(--gold-light); text-decoration:underline;">Email customer</a>
               </div>
@@ -2283,6 +2306,17 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
       });
     }
 
+    document.getElementById('deliverySweepBtn').addEventListener('click', async event => {
+      if (!confirm('Process up to five eligible delivery jobs? This can send receipts and submit paid orders to the supplier. Jobs requiring review will not be resent.')) return;
+      const button = event.currentTarget;
+      button.disabled = true;
+      button.textContent = 'Processing…';
+      try {
+        const result = await adminFetch('/api/admin/store-delivery-sweep', { method:'POST' });
+        alert(`Delivery jobs processed: ${result.done} done, ${result.review} need review, ${result.pending} awaiting retry, ${result.skipped} skipped. Check provider records before taking action.`);
+      } catch (err) { alert(err.message); }
+      finally { button.disabled = false; button.textContent = 'Process eligible delivery jobs'; loadStoreOrders(); }
+    });
     document.getElementById('refreshOrdersBtn').addEventListener('click', loadStoreOrders);
     document.getElementById('exportOrdersBtn').addEventListener('click', () => {
       if (!storeOrders.length) return;

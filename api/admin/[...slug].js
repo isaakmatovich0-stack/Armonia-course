@@ -25,6 +25,8 @@ import { planCreation, applyCreation, loadManifest } from '../../lib/store/creat
 import { planReplace } from '../../lib/store/replace.js';
 import { applyReplace } from '../../lib/store/apply-replace.js';
 import { submitToSupplier, supplierStatus, cancelFulfilment } from '../../lib/store/fulfilment.js';
+import { deliveryStatesForOrders, deliveryAttention, sweepDeliveryJobs } from '../../lib/store/delivery-recovery.js';
+import { isLocalMode } from '../../lib/store/db.js';
 import { health as printfulHealth, cancelOrder as cancelSupplierOrder,
          listSyncProducts, suggestMapping, getWebhook, setWebhook, webhookUrl,
          WEBHOOK_EVENTS, createSyncProduct, listProductTemplates, startTemplateMockup, getTemplateMockup } from '../../lib/suppliers/printful.js';
@@ -381,6 +383,23 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Read-only global queue health; never retries or changes a supplier order.
+  if (route === 'store-delivery-status') {
+    if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed.' });
+    if (isLocalMode()) return res.status(503).json({ error: 'Delivery monitoring is unavailable in local mode.' });
+    try { return res.status(200).json(await deliveryAttention()); }
+    catch (err) { console.error('[admin] delivery monitoring failed', err.message); return res.status(503).json({ error: 'Delivery monitoring is unavailable.' }); }
+  }
+
+  // Explicit operator action, protected by admin authentication. The worker
+  // will only process claimable jobs, never resend a job in review.
+  if (route === 'store-delivery-sweep') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
+    if (isLocalMode()) return res.status(503).json({ error: 'Delivery recovery is unavailable in local mode.' });
+    try { return res.status(200).json(await sweepDeliveryJobs()); }
+    catch (err) { console.error('[admin] delivery sweep failed', err.message); return res.status(503).json({ error: 'Delivery sweep failed. Refresh the queue and investigate; do not resend orders manually.' }); }
+  }
+
   // ── /api/admin/store-orders ──
   // The store's order book: every paid order, newest first, with the numbers
   // that matter for fulfilment (what to pack, where to send it, what was paid).
@@ -388,7 +407,9 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       try {
         const orders = await listStoreOrders({ limit: Math.min(500, Number(req.query.limit) || 200) });
-        return res.status(200).json({ orders });
+        const managed = orders.filter(order => order.recovery_managed).map(order => order.id);
+        const jobs = managed.length && !isLocalMode() ? await deliveryStatesForOrders(managed) : [];
+        return res.status(200).json({ orders: orders.map(order => ({...order, delivery_jobs: jobs.filter(job => job.order_id === order.id)})) });
       } catch (err) {
         console.error('Store orders fetch error:', err);
         return res.status(500).json({ error: 'Could not load store orders.' });
@@ -1176,6 +1197,7 @@ export default async function handler(req, res) {
       try {
         const order = await findOrderByNumber(String(orderNumber).trim());
         if (!order) return res.status(404).json({ error: 'That order number is not in the order book.' });
+        if (order.recovery_managed) return res.status(409).json({ error: 'This order uses protected delivery recovery. Check its delivery status and verify the supplier before taking action; do not submit it again from here.' });
         const result = await submitToSupplier(order);
         if (!result.ok) return res.status(400).json({ error: result.reason || result.error || 'Could not submit that order.' });
         return res.status(200).json({ ok: true, supplierOrderId: result.id, status: result.status, skipped: Boolean(result.skipped) });

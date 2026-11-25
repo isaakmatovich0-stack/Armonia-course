@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const admin=fs.readFileSync('api/admin/[...slug].js','utf8');
+const ui=fs.readFileSync('public/admin/index.html','utf8');
+const route=admin.slice(admin.indexOf("if (route === 'store-fulfilment')"));
+assert.ok(route.includes('if (order.recovery_managed) return res.status(409)'));
+assert.ok(route.indexOf('if (order.recovery_managed)')<route.indexOf('const result = await submitToSupplier(order)'));
+assert.match(ui,/\['Delivery review', needsReview\]/);
+assert.match(ui,/Protected order: verify supplier before taking action/);
+assert.match(ui,/check the provider before taking action; do not resend blindly/);
+console.log('Delivery admin safety checks passed');

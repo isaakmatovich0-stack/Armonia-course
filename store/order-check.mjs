@@ -30,6 +30,7 @@ import { orderFromStripeSession } from '../lib/store/orders.js';
 import { withQuotedShipping } from '../lib/store/quoted-order.js';
 import { encodeCheckoutItems, decodeCheckoutItems } from '../lib/store/checkout-items.js';
 import { rawBody } from '../lib/store/raw-body.js';
+import { isAddableSupplierVariant } from '../lib/store/supplier-variants.js';
 import { PassThrough } from 'node:stream';
 import Stripe from 'stripe';
 
@@ -56,6 +57,15 @@ if (eventEffect('order_canceled')?.fulfilment !== 'canceled' || eventEffect('ord
   const header = stripe.webhooks.generateTestHeaderString({ payload: original.toString(), secret: 'whsec_local' });
   try { stripe.webhooks.constructEvent(bytes, header, 'whsec_local'); } catch { fail('webhook must verify the restored exact bytes from Vercel'); }
   if (!bytes.equals(original)) fail('raw body must not be reserialized');
+}
+
+// Unmapped combinations must be rejected at add-to-bag, with the same
+// case-insensitive and wildcard rules as shipping and fulfilment.
+{
+  const product = { id: 'hoodie', supplier: 'printful', supplierVariants: { 'hoodie|Maroon|M': '123', 'hoodie|Black|One size': '456', 'hoodie|Navy|M': 'bad' } };
+  if (!isAddableSupplierVariant(product, 'Maroon', 'M') || !isAddableSupplierVariant(product, 'Black', 'ONE SIZE')) fail('mapped Printful variants must remain addable');
+  if (isAddableSupplierVariant(product, 'Maroon', '4XL') || isAddableSupplierVariant(product, 'Navy', 'M')) fail('missing or invalid Printful variants must not be addable');
+  if (!isAddableSupplierVariant(product, 'Maroon', '4XL', { local: true })) fail('local file-only catalog must remain usable');
 }
 
 // Quotes use the very same configured sync variants as fulfilment.
