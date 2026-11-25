@@ -25,6 +25,8 @@ import { planCreation, applyCreation, loadManifest } from '../../lib/store/creat
 import { planReplace } from '../../lib/store/replace.js';
 import { applyReplace } from '../../lib/store/apply-replace.js';
 import { submitToSupplier, supplierStatus, cancelFulfilment } from '../../lib/store/fulfilment.js';
+import { deliveryStatesForOrders } from '../../lib/store/delivery-recovery.js';
+import { isLocalMode } from '../../lib/store/db.js';
 import { health as printfulHealth, cancelOrder as cancelSupplierOrder,
          listSyncProducts, suggestMapping, getWebhook, setWebhook, webhookUrl,
          WEBHOOK_EVENTS, createSyncProduct, listProductTemplates, startTemplateMockup, getTemplateMockup } from '../../lib/suppliers/printful.js';
@@ -388,7 +390,9 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       try {
         const orders = await listStoreOrders({ limit: Math.min(500, Number(req.query.limit) || 200) });
-        return res.status(200).json({ orders });
+        const managed = orders.filter(order => order.recovery_managed).map(order => order.id);
+        const jobs = managed.length && !isLocalMode() ? await deliveryStatesForOrders(managed) : [];
+        return res.status(200).json({ orders: orders.map(order => ({...order, delivery_jobs: jobs.filter(job => job.order_id === order.id)})) });
       } catch (err) {
         console.error('Store orders fetch error:', err);
         return res.status(500).json({ error: 'Could not load store orders.' });
@@ -1176,6 +1180,7 @@ export default async function handler(req, res) {
       try {
         const order = await findOrderByNumber(String(orderNumber).trim());
         if (!order) return res.status(404).json({ error: 'That order number is not in the order book.' });
+        if (order.recovery_managed) return res.status(409).json({ error: 'This order uses protected delivery recovery. Check its delivery status and verify the supplier before taking action; do not submit it again from here.' });
         const result = await submitToSupplier(order);
         if (!result.ok) return res.status(400).json({ error: result.reason || result.error || 'Could not submit that order.' });
         return res.status(200).json({ ok: true, supplierOrderId: result.id, status: result.status, skipped: Boolean(result.skipped) });

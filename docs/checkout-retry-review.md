@@ -1,4 +1,4 @@
-# Store checkout retry work — not ready for release
+# Store checkout retry and delivery recovery review
 
 The branch uses one checkout slot per cart, with a digest of all Stripe session
 parameters. For changed parameters, it expires the previous open Stripe session
@@ -8,7 +8,7 @@ requests race. A paid and recorded order can only be followed by a separate
 purchase after explicit customer confirmation. Processing sessions are not
 replaced. A conditional cart-version check protects a new bag from late payment
 webhooks. The confirmation page no longer claims a pending payment is confirmed
-or promises a receipt has been sent. None of these changes are in production yet.
+or promises a receipt has been sent. The checkout guard was deployed and activated in PR #34. The delivery-recovery work below is a separate, not-yet-deployed change.
 
 Automated tests use simulated Stripe and storage to cover simultaneous retries,
 changes, timeouts, expired and completed sessions, explicit new-order consent,
@@ -28,7 +28,7 @@ Before release:
 - Exercise additional failure and true concurrent creation cases against Stripe
   test mode, including crashes before and after expiration, create, persistence,
   and retrieval. The required additive columns and index are installed on the
-  otherwise unused production retry table; no live checkout code uses them yet.
+  production retry table; the guarded checkout now uses them.
 - Roll out with checkout paused until the old deployment's requests have
   drained. Pre-existing carts are scanned against Stripe before their first
   guarded session. During the read-only review one legacy store session was
@@ -36,10 +36,9 @@ Before release:
   No session was changed. Review the cutover scan and test it against real
   PostgREST before activating checkout. Multiple relevant sessions fail closed.
   Independent browser carts cannot reliably be identified as duplicates.
-- Make paid-order email and supplier delivery recoverable after process failure.
-  Currently, failed email is only logged and an interruption after inserting an
-  order can skip automatic supplier submission. Printful external IDs and
-  unique Stripe session IDs help deduplicate, but do not prove delivery.
+- Deploy and verify durable receipt and supplier recovery. The implementation
+  and migration are described in `docs/store-delivery-recovery.md`. Existing
+  orders are excluded from automatic replay and must be reconciled separately.
 - Verify customer-facing messages, plan reconciliation of unknown outcomes older
   than Stripe's idempotency window, and validate the rollout without charging a
   real payment or placing a supplier order.
