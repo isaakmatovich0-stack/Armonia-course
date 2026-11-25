@@ -29,13 +29,13 @@ Before release:
   test mode, including crashes before and after expiration, create, persistence,
   and retrieval. The required additive columns and index are installed on the
   otherwise unused production retry table; no live checkout code uses them yet.
-- Account for old open production sessions created before release and for the
-  payment/webhook race. The existing session audit table had four rows marked
-  open, two created in the last 48 hours; their true Stripe statuses were not
-  checked in this review. The table is not guaranteed complete on production.
-  Avoid a rollout that can open a new session while an old one remains payable.
-  Independently created browser carts cannot be reliably identified as
-  duplicates, so no guarantee is possible across browsers.
+- Roll out with checkout paused until the old deployment's requests have
+  drained. Pre-existing carts are scanned against Stripe before their first
+  guarded session. During the read-only review one legacy store session was
+  still open and unpaid, one was paid, and two audit rows were actually expired.
+  No session was changed. Review the cutover scan and test it against real
+  PostgREST before activating checkout. Multiple relevant sessions fail closed.
+  Independent browser carts cannot reliably be identified as duplicates.
 - Make paid-order email and supplier delivery recoverable after process failure.
   Currently, failed email is only logged and an interruption after inserting an
   order can skip automatic supplier submission. Printful external IDs and

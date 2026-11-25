@@ -47,6 +47,8 @@ import {
   recordCheckoutSession,
   reserveCheckoutAttempt,
   replaceCheckoutAttempt,
+  finishLegacyCheckout,
+  checkoutGuardActivatedAt,
   saveCheckoutAttempt,
   recordPaidOrder,
   markSessionExpired,
@@ -71,6 +73,7 @@ import { withQuotedShipping } from '../../lib/store/quoted-order.js';
 import { encodeCheckoutItems, decodeCheckoutItems } from '../../lib/store/checkout-items.js';
 import { rawBody } from '../../lib/store/raw-body.js';
 import { guardedCheckout, CheckoutGuardError } from '../../lib/store/checkout-guard.js';
+import { findLegacyCheckout } from '../../lib/store/legacy-checkout.js';
 import { isStoreCheckout } from '../../lib/course-checkout.js';
 
 /* ── Stripe webhooks need the untouched request body ───────────────────── */
@@ -311,6 +314,14 @@ export default async function handler(req, res) {
     /* ── checkout ────────────────────────────────────────────────────── */
     if (route === 'checkout') {
       if (method !== 'POST') return clientError(res, 405, 'Method not allowed.');
+      // During cutover, stop new sessions until earlier server requests have
+      // drained and legacy sessions can be discovered without a race.
+      let activatedAt;
+      try { activatedAt = await checkoutGuardActivatedAt(); }
+      catch { return clientError(res, 503, 'Checkout is temporarily unavailable. Please contact us if you have already paid.'); }
+      if (!activatedAt || !Number.isFinite(Date.parse(activatedAt)) || Date.parse(activatedAt) > Date.now()) {
+        return clientError(res, 503, 'Checkout is temporarily unavailable. Please contact us if you have already paid.');
+      }
 
       const stripeApi = stripe();
       await refreshCatalog({ force: true });
@@ -432,6 +443,12 @@ export default async function handler(req, res) {
           stripe: stripeApi, cartId: cart.id, params: sessionParams,
           reserve: reserveCheckoutAttempt, save: saveCheckoutAttempt, replace: replaceCheckoutAttempt,
           paidOrderRecorded: async (id) => Boolean(await findOrderBySession(id)), restartAfterPaid,
+          findLegacy: async () => {
+            const cartCreatedAt = Date.parse(cart.created_at);
+            if (!Number.isFinite(cartCreatedAt)) throw new Error('Cart creation time unavailable');
+            return cartCreatedAt > Date.parse(activatedAt) ? null : findLegacyCheckout(stripeApi, cart.id, cart.created_at);
+          },
+          finishLegacy: finishLegacyCheckout,
         });
       } catch (err) {
         if (err instanceof CheckoutGuardError) return clientError(res, 409, err.message, { code: err.code, ...(err.sessionId ? { previousSessionId: err.sessionId } : {}) });

@@ -9,7 +9,7 @@ assert.throws(()=>checkoutParamsHash('bad',p1));
 let row=null, calls=[], sessions=new Map(), byKey=new Map(), now=Date.now();
 const clone=x=>structuredClone(x);
 const reserve=async(cart,hash,key)=>{
- if(!row) row={cart_id:cart,params_hash:hash,attempt_key:key,stripe_session_id:null,created_at:new Date(now).toISOString()};
+ if(!row) row={cart_id:cart,params_hash:hash,attempt_key:key,stripe_session_id:null,legacy_checked:true,created_at:new Date(now).toISOString()};
  return clone(row);
 };
 const save=async(key,id)=>{
@@ -18,7 +18,7 @@ const save=async(key,id)=>{
 };
 const replace=async(cart,key,id,hash,next,previousPaid=null)=>{
  if(row.cart_id===cart && row.attempt_key===key && row.stripe_session_id===id)
-  row={cart_id:cart,attempt_key:next,params_hash:hash,stripe_session_id:null,previous_paid_session_id:previousPaid,created_at:new Date(now).toISOString()};
+  row={cart_id:cart,attempt_key:next,params_hash:hash,stripe_session_id:null,previous_paid_session_id:previousPaid,legacy_checked:true,created_at:new Date(now).toISOString()};
  return clone(row);
 };
 const stripe={checkout:{sessions:{
