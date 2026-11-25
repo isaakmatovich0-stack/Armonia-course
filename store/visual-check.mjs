@@ -19,7 +19,7 @@ const empty=image(20,20);assert.equal(cut(empty,20,20),false);assert.equal(empty
 const page = new JSDOM(fs.readFileSync('public/store/index.html','utf8'));
 assert.equal(page.window.document.querySelector('.suite-ribbon a').getAttribute('href'),'/transcription/');
 const suite = new JSDOM(fs.readFileSync('public/transcription/index.html','utf8'));
-assert.match(suite.window.document.body.textContent,/coming soon/i);
+assert.match(suite.window.document.body.textContent,/transcription suite/i);
 assert.equal(suite.window.document.querySelector('.back').getAttribute('href'),'/store/');
 page.window.close();suite.window.close();
 

@@ -11,7 +11,8 @@
 // the first path segment after /api/.
 
 import { requireSession } from '../lib/requireSession.js';
-import { supabase } from '../lib/supabase.js';
+import { supabase, supabaseConfigured } from '../lib/supabase.js';
+import { TRANSCRIPTION_KEY, validateTranscriptionConfig } from '../lib/transcription-config.js';
 
 export const config = {
   api: { bodyParser: { sizeLimit: '6mb' } }, // generous enough for upload-photo; harmless for smaller JSON routes
@@ -34,6 +35,17 @@ export default async function handler(req, res) {
   // which is more robust across deployment configurations.
   const urlParts = req.url.split('?')[0].split('/').filter(Boolean); // ['api', 'profile']
   const route = urlParts[1];
+
+  if (route === 'transcription-content') {
+    if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+    res.setHeader('Cache-Control', 'no-store');
+    if (!supabaseConfigured && process.env.VERCEL !== '1') return res.status(200).json({ config: null });
+    const { data, error } = await supabase.from('site_content').select('value').eq('key', TRANSCRIPTION_KEY).maybeSingle();
+    if (error) return res.status(503).json({ error: 'The transcription collection is temporarily unavailable.' });
+    if (!data) return res.status(200).json({ config: null });
+    try { const config = JSON.parse(data.value); if (validateTranscriptionConfig(config)) throw new Error('Invalid saved content'); return res.status(200).json({ config }); }
+    catch { return res.status(500).json({ error: 'The transcription collection could not be read.' }); }
+  }
 
   // site-content is public (no login) — everything else below requires a session.
   if (route === 'site-content') {

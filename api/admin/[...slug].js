@@ -12,6 +12,7 @@
 // clicked from email — everything else requires a valid admin token.
 
 import { requireAdmin } from '../../lib/requireAdmin.js';
+import { TRANSCRIPTION_KEY, validateTranscriptionConfig } from '../../lib/transcription-config.js';
 import { supabase } from '../../lib/supabase.js';
 import { hashPassword, verifyPassword } from '../../lib/password.js';
 import { sendAdminVerificationEmail, sendGeneratedCodeEmail, sendGeneratedCodeBatchEmail } from '../../lib/email.js';
@@ -121,6 +122,36 @@ export default async function handler(req, res) {
   // ══════════════ Everything below requires a valid admin token ══════════════
   const admin = requireAdmin(req);
   if (admin.error) return res.status(admin.status).json({ error: admin.error });
+
+  // Suite content is a single versioned document; reject stale writes so two
+  // admin sessions cannot silently overwrite one another.
+  if (route === 'transcription-content') {
+    res.setHeader('Cache-Control', 'no-store');
+    if (req.method === 'GET') {
+      const { data, error } = await supabase.from('site_content').select('value,updated_at').eq('key', TRANSCRIPTION_KEY).maybeSingle();
+      if (error) return res.status(503).json({ error: 'Could not load suite content.' });
+      if (!data) return res.status(200).json({ config: null, revision: null });
+      try { const config = JSON.parse(data.value); if (validateTranscriptionConfig(config)) throw new Error('invalid'); return res.status(200).json({ config, revision: data.updated_at }); }
+      catch { return res.status(500).json({ error: 'Saved suite content is invalid. It was not changed.' }); }
+    }
+    if (req.method === 'PUT') {
+      const { config, revision } = req.body || {};
+      const problem = validateTranscriptionConfig(config);
+      if (problem) return res.status(400).json({ error: problem });
+      if (revision !== null && (typeof revision !== 'string' || !revision)) return res.status(400).json({ error: 'Missing content revision. Reload before saving.' });
+      const value = JSON.stringify(config), updated_at = new Date(Math.max(Date.now(), revision ? (Date.parse(revision) || 0) + 1 : 0)).toISOString();
+      if (revision === null) {
+        const { data, error } = await supabase.from('site_content').insert({ key: TRANSCRIPTION_KEY, value, updated_at }).select('updated_at').maybeSingle();
+        if (error) { if (error.code === '23505') return res.status(409).json({ error: 'Suite content changed elsewhere. Reload before saving.' }); return res.status(500).json({ error: 'Could not save suite content.' }); }
+        return res.status(200).json({ ok: true, revision: data.updated_at });
+      }
+      const { data, error } = await supabase.from('site_content').update({ value, updated_at }).eq('key', TRANSCRIPTION_KEY).eq('updated_at', revision).select('updated_at').maybeSingle();
+      if (error) return res.status(500).json({ error: 'Could not save suite content.' });
+      if (!data) return res.status(409).json({ error: 'Suite content changed elsewhere. Reload before saving.' });
+      return res.status(200).json({ ok: true, revision: data.updated_at });
+    }
+    return res.status(405).json({ error: 'Method not allowed.' });
+  }
 
   // ── /api/admin/account ──
   if (route === 'account') {

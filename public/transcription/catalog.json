@@ -1,0 +1,62 @@
+{
+  "media": {
+    "heroBackgroundVideo": "",
+    "screeningYoutubeUrl": "",
+    "screeningTitle": "",
+    "screeningDescription": "",
+    "heroBackgroundImage": "",
+    "screeningBackgroundImage": ""
+  },
+  "featuredId": "sample-vihuela",
+  "pieces": [
+    {
+      "id": "sample-vihuela",
+      "title": "Your first transcription",
+      "artist": "Example listing",
+      "instrument": "Vihuela",
+      "description": "A sample listing to show how a transcription, its story, and a preview will appear in your collection.",
+      "cover": "/transcription/images/studio-editorial.jpg",
+      "previewUrl": "",
+      "checkoutUrl": "",
+      "priceLabel": "",
+      "sample": true
+    },
+    {
+      "id": "sample-guitarra",
+      "title": "Another favorite",
+      "artist": "Example listing",
+      "instrument": "Guitarra",
+      "description": "Your original cover image, music details, and a preview can live here.",
+      "cover": "/transcription/images/strings-closeup.jpg",
+      "previewUrl": "",
+      "checkoutUrl": "",
+      "priceLabel": "",
+      "sample": true
+    },
+    {
+      "id": "sample-guitarron",
+      "title": "The next piece",
+      "artist": "Example listing",
+      "instrument": "Guitarrón",
+      "description": "Give each piece its own artwork and tell musicians what makes it special.",
+      "cover": "/transcription/images/stage-lights.jpg",
+      "previewUrl": "",
+      "checkoutUrl": "",
+      "priceLabel": "",
+      "sample": true
+    },
+    {
+      "id": "sample-ensemble",
+      "title": "Made to be played",
+      "artist": "Example listing",
+      "instrument": "Ensemble",
+      "description": "A place for arrangements that bring the whole group together.",
+      "cover": "/isaak-portrait.jpg",
+      "previewUrl": "",
+      "checkoutUrl": "",
+      "priceLabel": "",
+      "sample": true
+    }
+  ],
+  "news": []
+}

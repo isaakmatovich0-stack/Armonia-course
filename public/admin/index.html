@@ -12,6 +12,7 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
   if (url) { const el = document.getElementById('faviconLink'); if (el) el.href = url; }
 }).catch(() => {});
 </script>
+<link rel="stylesheet" href="/admin/transcription-admin.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
@@ -136,6 +137,7 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
       <div class="tab" data-panel="updates">Course Updates <span id="updatesTabBadge" class="tab-badge" style="display:none;"></span></div>
       <div class="tab" data-panel="orders">Store Orders <span id="ordersTabBadge" class="tab-badge" style="display:none;"></span></div>
       <div class="tab" data-panel="products">Products &amp; Prices</div>
+      <div class="tab" data-panel="transcription">Transcription Suite</div>
       <div class="tab" data-panel="announcements">Post Announcement</div>
       <div class="tab" data-panel="content">Site Text</div>
       <div class="tab-divider"></div>
@@ -145,6 +147,9 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
       <div class="tab" data-panel="account">Account Settings</div>
     </div>
     <main>
+      <section class="panel" id="panel-transcription">
+        <div id="transcriptionAdmin"><p>Loading transcription editor…</p></div>
+      </section>
       <section class="panel active" id="panel-students">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:10px;">
           <div class="student-type-filter" id="studentTypeFilter" style="display:flex; gap:8px;">
@@ -850,6 +855,7 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
         if (tab.dataset.panel === 'updates') { loadCourseUpdates(); }
         if (tab.dataset.panel === 'orders') { loadStoreOrders(); }
         if (tab.dataset.panel === 'products') { loadStoreProducts(); }
+        if (tab.dataset.panel === 'transcription') { window.transcriptionAdmin.open(adminFetch); }
       });
     });
 
@@ -3501,5 +3507,6 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
       });
     }
   </script>
+<script src="/admin/transcription-admin.js"></script>
 </body>
 </html>
