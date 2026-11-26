@@ -56,6 +56,7 @@ export default async function handler(req, res) {
   try {
     if (session.metadata?.source === 'armonia-transcription') {
       const outcome = await deliverTranscription({db:supabase, session, send:sendTranscriptionDeliveryEmail});
+      if (outcome.retry) return res.status(500).json({error:'Delivery could not start; retry requested.'});
       return res.status(200).json({received:true, ...outcome});
     }
     if (!await isCourseCheckout(session, {stripe, supabase})) return res.status(200).json({received:true, ignored:'not a course checkout'});

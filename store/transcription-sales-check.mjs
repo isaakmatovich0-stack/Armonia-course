@@ -78,3 +78,28 @@ const signature=signedStripe.webhooks.generateTestHeaderString({payload,secret:'
 assert.equal((await invoke(signature)).code,200);assert.equal(providerCalls,1);assert.equal(orders.get(third).state,'sent');
 assert.equal((await invoke(signature)).code,200);assert.equal(providerCalls,1);
 process.stdout.write('Signed webhook and mocked email-attachment delivery passed.\n');
+
+// An expired unpaid checkout can be reset; a completed checkout cannot.
+const expiredOrder='ba0f2f3a-c989-4deb-b9a6-031327cf93a3';
+await startTranscriptionCheckout({...args,orderId:expiredOrder});
+const expiredStripe={checkout:{sessions:{async retrieve(){return {id:'cs_test_example',status:'expired',payment_status:'unpaid'};}}}};
+await assert.rejects(()=>startTranscriptionCheckout({...args,orderId:expiredOrder,stripe:expiredStripe}), err=>err.code === 'checkout_expired');
+const completeStripe={checkout:{sessions:{async retrieve(){return {id:'cs_test_example',status:'complete',payment_status:'paid'};}}}};
+await assert.rejects(()=>startTranscriptionCheckout({...args,orderId:expiredOrder,stripe:completeStripe}), err=>!err.code);
+
+// When an event wins the race to persist the session, the verified session
+// can safely claim the empty slot. A different recorded session is rejected.
+const race='9fa511ad-cd2e-40c0-a064-4358c94f034d';
+orders.set(race,{id:race,piece_id:'sample-vihuela',piece_title:'Test',price_cents:1500,asset_path:products.get('sample-vihuela').asset_path,state:'awaiting_payment',stripe_session_id:null});
+const raceSession={...session,id:'cs_race',metadata:{...session.metadata,order_id:race}};
+assert.deepEqual(await deliverTranscription({db,session:raceSession,send:async()=>({data:{id:'email_race'}})}),{sent:true});
+assert.equal(orders.get(race).stripe_session_id,'cs_race');
+await assert.rejects(()=>deliverTranscription({db,session:{...raceSession,id:'cs_other'},send}));
+
+const unavailable='d2883bd7-2d44-4d68-98d9-3570fbef461f';
+orders.set(unavailable,{id:unavailable,piece_id:'sample-vihuela',piece_title:'Test',price_cents:1500,asset_path:'missing.pdf',state:'awaiting_payment',stripe_session_id:'cs_test_example'});
+const unavailableSession={...session,metadata:{...session.metadata,order_id:unavailable}};
+let attempts=0;
+assert.deepEqual(await deliverTranscription({db,session:unavailableSession,send:async()=>{attempts++;}}),{retry:true});
+assert.equal(attempts,0);assert.equal(orders.get(unavailable).state,'awaiting_payment');
+process.stdout.write('Expired checkout, session race and safe pre-send retry passed.\n');

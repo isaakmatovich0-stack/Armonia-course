@@ -83,7 +83,13 @@
       const key = `armonia-transcription-checkout/${piece.id}`;
       let orderId; try { orderId = sessionStorage.getItem(key); if (!orderId) { orderId = crypto.randomUUID(); sessionStorage.setItem(key,orderId); } } catch { throw new Error('Please enable browser storage to start checkout safely.'); }
       const response = await fetch('/api/transcription-checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pieceId:piece.id,orderId})});
-      const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Could not open checkout.');
+      const data = await response.json();
+      if (!response.ok) {
+        // Only discard the id after the server has confirmed an expired, unpaid
+        // Stripe session. An uncertain or completed attempt must never be reset.
+        if (data.code === 'checkout_expired') { try { sessionStorage.removeItem(key); } catch { /* no automatic retry */ } }
+        throw new Error(data.error || 'Could not open checkout.');
+      }
       const url = new URL(data.url); if (url.protocol !== 'https:' || url.hostname !== 'checkout.stripe.com') throw new Error('Checkout address is invalid.');
       location.assign(url.href);
     } catch (err) { button.disabled = false; button.textContent = old; const status = el('p','preview-note',err.message + ' If you already paid, contact us rather than starting another payment.'); button.parentElement.append(status); }

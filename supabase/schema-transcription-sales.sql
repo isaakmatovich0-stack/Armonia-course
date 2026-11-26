@@ -31,3 +31,34 @@ alter table public.transcription_sale_orders enable row level security;
 -- Deliberately no anon/authenticated policies. Only server-side service role
 -- may read/write orders, private asset paths, or private storage objects.
 -- This does not change existing buckets or their policies.
+
+-- Fixed-window per-edge-IP checkout limiting. Hashes are keyed by an environment
+-- secret before arriving here; raw addresses are never stored. The atomic
+-- upsert serializes concurrent attempts for the same client and time window.
+create table if not exists public.transcription_checkout_limits (
+  client_hash text not null,
+  window_start timestamptz not null,
+  attempts integer not null,
+  primary key (client_hash, window_start)
+);
+create index if not exists transcription_checkout_limits_window_idx on public.transcription_checkout_limits (window_start);
+alter table public.transcription_checkout_limits enable row level security;
+create or replace function public.transcription_checkout_rate_limit(p_client_hash text)
+returns boolean language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  n integer;
+  window_time timestamptz := to_timestamp(floor(extract(epoch from now()) / 900) * 900);
+begin
+  if p_client_hash is null or p_client_hash !~ '^[0-9a-f]{64}$' then return false; end if;
+  insert into public.transcription_checkout_limits as limits (client_hash, window_start, attempts)
+    values (p_client_hash, window_time, 1)
+    on conflict on constraint transcription_checkout_limits_pkey do update set attempts = limits.attempts + 1
+    returning attempts into n;
+  if random() < 0.01 then
+    delete from public.transcription_checkout_limits where window_start < now() - interval '1 day';
+  end if;
+  return n <= 10;
+end;
+$$;
+revoke all on function public.transcription_checkout_rate_limit(text) from public, anon, authenticated;
+grant execute on function public.transcription_checkout_rate_limit(text) to service_role;

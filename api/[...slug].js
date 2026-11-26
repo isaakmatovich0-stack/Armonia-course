@@ -14,7 +14,10 @@ import { requireSession } from '../lib/requireSession.js';
 import { supabase, supabaseConfigured } from '../lib/supabase.js';
 import { TRANSCRIPTION_KEY, validateTranscriptionConfig } from '../lib/transcription-config.js';
 import Stripe from 'stripe';
-import { salesConfigured, startTranscriptionCheckout, SALES_BUCKET } from '../lib/transcription-sales.js';
+import { salesConfigured, startTranscriptionCheckout, SALES_BUCKET, isOrderId, isPieceId } from '../lib/transcription-sales.js';
+import crypto from 'node:crypto';
+import { reconcileTranscriptionOrders } from '../lib/transcription-reconcile.js';
+import { sendTranscriptionDeliveryEmail, sendTranscriptionReconciliationAlert } from '../lib/email.js';
 
 export const config = {
   api: { bodyParser: { sizeLimit: '6mb' } }, // generous enough for upload-photo; harmless for smaller JSON routes
@@ -38,6 +41,20 @@ export default async function handler(req, res) {
   const urlParts = req.url.split('?')[0].split('/').filter(Boolean); // ['api', 'profile']
   const route = urlParts[1];
 
+  if (route === 'transcription-reconcile') {
+    if (req.method !== 'GET') return res.status(405).json({error:'Method not allowed.'});
+    const expected = process.env.CRON_SECRET || '';
+    const actual = req.headers.authorization || '';
+    const expectedAuth = Buffer.from(`Bearer ${expected}`), supplied = Buffer.from(actual);
+    if (!expected || supplied.length !== expectedAuth.length || !crypto.timingSafeEqual(supplied,expectedAuth)) return res.status(401).json({error:'Unauthorized.'});
+    if (process.env.TRANSCRIPTION_RECONCILE_ENABLED !== 'true') return res.status(200).json({disabled:true});
+    if (!supabaseConfigured || !process.env.STRIPE_SECRET_KEY || !process.env.RESEND_API_KEY) return res.status(503).json({error:'Reconciliation is not configured.'});
+    try {
+      const result = await reconcileTranscriptionOrders({db:supabase,stripe:new Stripe(process.env.STRIPE_SECRET_KEY),send:sendTranscriptionDeliveryEmail,notify:sendTranscriptionReconciliationAlert});
+      return res.status(200).json(result);
+    } catch (err) { console.error('[transcription] reconciliation error:',err.message); return res.status(500).json({error:'Reconciliation failed.'}); }
+  }
+
   if (route === 'transcription-sales') {
     if (req.method !== 'GET') return res.status(405).json({error:'Method not allowed.'});
     res.setHeader('Cache-Control','no-store');
@@ -51,13 +68,26 @@ export default async function handler(req, res) {
   if (route === 'transcription-checkout') {
     if (req.method !== 'POST') return res.status(405).json({error:'Method not allowed.'});
     if (!salesConfigured()) return res.status(503).json({error:'Online sales are not available yet.'});
+    if (!isPieceId(req.body?.pieceId) || !isOrderId(req.body?.orderId)) return res.status(400).json({error:'Invalid checkout request.'});
+    // Vercel supplies this header at the trusted edge; never accept a
+    // user-provided forwarded-for chain as a client identity.
+    const ip = req.headers['x-real-ip'];
+    if (process.env.VERCEL !== '1' || typeof ip !== 'string' || !ip || ip.length > 100) return res.status(503).json({error:'Online sales are temporarily unavailable.'});
     try {
+      const key = crypto.createHmac('sha256',process.env.TRANSCRIPTION_RATE_LIMIT_SECRET).update(ip).digest('hex');
+      const rate = await supabase.rpc('transcription_checkout_rate_limit',{p_client_hash:key});
+      if (rate.error || typeof rate.data !== 'boolean') return res.status(503).json({error:'Online sales are temporarily unavailable.'});
+      if (!rate.data) return res.status(429).json({error:'Too many checkout attempts. Please wait and try again.'});
       const bucket = await supabase.storage.getBucket(SALES_BUCKET);
       if (bucket.error || !bucket.data || bucket.data.public) return res.status(503).json({error:'Online sales are not available yet.'});
       const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
       const result = await startTranscriptionCheckout({db:supabase,stripe,pieceId:req.body?.pieceId,orderId:req.body?.orderId,siteUrl:'https://www.armoniaconnect.com'});
       return res.status(200).json(result);
-    } catch (err) { console.error('[transcription] checkout failed:',err.message); return res.status(400).json({error:'Could not start checkout. Please try again or contact us.'}); }
+    } catch (err) {
+      console.error('[transcription] checkout failed:',err.message);
+      if (err.code === 'checkout_expired') return res.status(409).json({code:'checkout_expired',error:'This checkout expired. Please start again.'});
+      return res.status(400).json({error:'Could not start checkout. Please try again or contact us.'});
+    }
   }
 
   if (route === 'transcription-content') {

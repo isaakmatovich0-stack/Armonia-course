@@ -68,6 +68,10 @@
     {
       "path": "/api/store/supplier-sync",
       "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/transcription-reconcile",
+      "schedule": "0 15 * * *"
     }
   ]
 }

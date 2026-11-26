@@ -127,10 +127,12 @@ export default async function handler(req, res) {
   if (route === 'transcription-sales') {
     if (req.method === 'GET') {
       const products = await supabase.from('transcription_sale_products').select('*').order('updated_at',{ascending:false});
-      const orders = await supabase.from('transcription_sale_orders').select('id,piece_title,customer_email,state,last_error,created_at,updated_at,resend_id').order('created_at',{ascending:false}).limit(50);
-      const attention = await supabase.from('transcription_sale_orders').select('id,piece_title,customer_email,state,last_error,created_at,updated_at,resend_id').in('state',['sending','review']).order('updated_at',{ascending:true}).limit(100);
-      if (products.error || orders.error || attention.error) return res.status(503).json({error:'Sales storage is not ready. Apply the transcription sales schema first.'});
-      return res.status(200).json({products:products.data || [],orders:orders.data || [],attention:attention.data || [],checkoutEnabled:salesConfigured()});
+      const fields = 'id,piece_title,customer_email,state,last_error,created_at,updated_at,resend_id,stripe_session_id';
+      const orders = await supabase.from('transcription_sale_orders').select(fields).order('created_at',{ascending:false}).limit(50);
+      const attention = await supabase.from('transcription_sale_orders').select(fields).in('state',['sending','review']).order('updated_at',{ascending:true}).limit(100);
+      const pending = await supabase.from('transcription_sale_orders').select(fields).eq('state','awaiting_payment').order('created_at',{ascending:true}).limit(100);
+      if (products.error || orders.error || attention.error || pending.error) return res.status(503).json({error:'Sales storage is not ready. Apply the transcription sales schema first.'});
+      return res.status(200).json({products:products.data || [],orders:orders.data || [],attention:attention.data || [],pending:pending.data || [],checkoutEnabled:salesConfigured(),reconciliationEnabled:process.env.TRANSCRIPTION_RECONCILE_ENABLED === 'true'});
     }
     if (req.method === 'PUT') {
       const {pieceId,priceCents,assetPath,enabled} = req.body || {};
