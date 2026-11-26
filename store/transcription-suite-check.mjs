@@ -53,7 +53,7 @@ const realCatalog = {
 };
 const mediaDom = new JSDOM(html, { url: 'https://example.test/transcription/', runScripts: 'outside-only', virtualConsole: console });
 const w = mediaDom.window;
-w.fetch = async () => ({ ok: true, json: async () => ({config: realCatalog}) });
+w.fetch = async url => ({ ok: true, json: async () => String(url).includes('transcription-sales') ? ({products:[{piece_id:'real-one',price_cents:1450}]}) : ({config: realCatalog}) });
 w.matchMedia = () => ({ matches: false });
 w.HTMLElement.prototype.scrollIntoView = () => {};
 let plays = 0, pauses = 0;
@@ -72,6 +72,8 @@ assert.match(find('#screening-player iframe').src, /^https:\/\/www\.youtube-noco
 assert.equal(w.document.querySelectorAll('.news-video').length, 1, 'non-YouTube hosts do not embed');
 find('.product-image').click();
 assert.match(find('#dialog-content').textContent, /Advanced/);
+assert.match(find('#dialog-content').textContent, /BUY FOR \$14\.50/);
+assert.match(find('#dialog-content').textContent, /PDF is sent/);
 assert.match(find('#dialog-content').textContent, /Full ensemble/);
 assert(find('.score-preview img'));
 find('.piece-video button').click(); assert(find('.piece-video iframe'));

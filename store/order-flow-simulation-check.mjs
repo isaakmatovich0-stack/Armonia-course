@@ -52,7 +52,9 @@ try {
  const quote=await call('shipping-quote',{cart,body:{address}});assert.equal(quote.code,200,JSON.stringify(quote.body));assert.equal(quote.body.amountCents,919);
  const body={address,fingerprint:quote.body.fingerprint};const first=await call('checkout',{cart,body});assert.equal(first.code,200,JSON.stringify(first.body));
  const again=await call('checkout',{cart,body});assert.equal(again.code,200,JSON.stringify(again.body));assert.equal(first.body.id,again.body.id);assert.equal(stripeCreates,1);
- const session=sessions.get(first.body.id);Object.assign(session,{status:'complete',payment_status:'paid',payment_intent:'pi_test_fake',customer_details:{email:'buyer@example.invalid',name:'Test Customer',address:{line1:'Different billing address'}},amount_subtotal:5419,amount_total:5419,currency:'usd'});
+ // Synthetic payment references deliberately accompany the paid session. They
+ // must never cross the boundary into a supplier order or its recipient.
+ const session=sessions.get(first.body.id);Object.assign(session,{status:'complete',payment_status:'paid',payment_intent:'pi_test_fake',payment_method:'pm_test_fake',customer_details:{email:'buyer@example.invalid',name:'Test Customer',address:{line1:'Different billing address'}},amount_subtotal:5419,amount_total:5419,currency:'usd'});
  const processing=await call('checkout',{cart,body});assert.equal(processing.code,409);assert.equal(processing.body.code,'completed');assert.equal(stripeCreates,1);
  const event={id:'evt_test_fake',object:'event',type:'checkout.session.completed',data:{object:session}};
  const payload=JSON.stringify(event);const signature=Stripe.webhooks.generateTestHeaderString({payload,secret:'whsec_fake'});
@@ -63,6 +65,14 @@ try {
  assert.equal(order.amount_subtotal,4500);assert.equal(order.amount_shipping,919);assert.equal(order.amount_total,5419);assert.equal(order.shipping_address.line1,address.line1);
  assert.equal(order.items[0].productId,'windbreaker-embroidered');assert.equal(order.items[0].size,'M');assert.equal(order.fulfilment_status,'submitted');
  assert.equal(supplierCreates,1);assert.equal(supplierConfirms,1);assert.equal(supplierPayload.external_id,order.number);assert.equal(supplierPayload.items[0].sync_variant_id,12345);assert.equal(supplierPayload.recipient.address1,address.line1);
+ // Printful receives only fulfillment details. The customer’s Stripe payment
+ // identifiers and any future card/payment fields must not be forwarded.
+ assert.deepEqual(Object.keys(supplierPayload).sort(),['external_id','items','recipient','shipping']);
+ assert.deepEqual(Object.keys(supplierPayload.recipient).sort(),['address1','address2','city','country_code','email','name','state_code','zip']);
+ assert.deepEqual(Object.keys(supplierPayload.items[0]).sort(),['quantity','retail_price','sync_variant_id']);
+ assert.ok(!JSON.stringify(supplierPayload).includes('pi_test_fake'));
+ assert.ok(!JSON.stringify(supplierPayload).includes('pm_test_fake'));
+ assert.equal(stripeCreates,1);
  assert.equal(emailPayloads.filter(x=>x.subject.includes('is confirmed')).length,1);assert.equal(emailPayloads.filter(x=>x.subject.includes('New order')).length,1);
  const confirmation=await call(`order?session_id=${session.id}`,{method:'GET'});assert.equal(confirmation.code,200);assert.equal(confirmation.body.pending,false);assert.equal(confirmation.body.number,order.number);
  const empty=await call('bag',{method:'GET',cart});assert.equal(empty.body.count,0);

@@ -2,6 +2,8 @@
 
 The suite is at `/transcription/`. Use the **Transcription Suite** tab in Armonía Admin to edit images, products, the featured piece, videos, and the performance journal. Save all changes to publish. The authenticated API stores the configuration in the existing `site_content` table, with stale-write protection. `public/transcription/catalog.json` supplies the example starter collection only until the first save. If the database is unavailable, the collection shows an error instead of silently reverting to examples.
 
+> Digital sales and private PDF email delivery are being prepared separately and remain disabled. See [transcription sales setup](transcription-sales-setup.md) for prerequisites and operational limitations.
+
 ## Compositions
 
 Expand each example in the admin editor to replace it, or remove it and add your actual entries. Give each a unique, stable `id`, `title`, `artist`, `instrument`, `description`, and `cover` URL. Set `sample` to `false` only for real pieces. `featuredId` should match the ID of the piece to feature. Available filter categories are `Vihuela`, `Guitarra`, `Guitarrón`, and `Ensemble` (additional instruments still appear under All). Put cover images you have permission to use in `public/transcription/images/` and reference them as `/transcription/images/filename.jpg`, or use an HTTPS URL.

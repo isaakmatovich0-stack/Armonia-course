@@ -13,6 +13,7 @@
 
 import { requireAdmin } from '../../lib/requireAdmin.js';
 import { TRANSCRIPTION_KEY, validateTranscriptionConfig } from '../../lib/transcription-config.js';
+import { SALES_BUCKET, salesConfigured, isPieceId, newAssetPath, readPublicCatalog } from '../../lib/transcription-sales.js';
 import { supabase } from '../../lib/supabase.js';
 import { hashPassword, verifyPassword } from '../../lib/password.js';
 import { sendAdminVerificationEmail, sendGeneratedCodeEmail, sendGeneratedCodeBatchEmail } from '../../lib/email.js';
@@ -122,6 +123,51 @@ export default async function handler(req, res) {
   // ══════════════ Everything below requires a valid admin token ══════════════
   const admin = requireAdmin(req);
   if (admin.error) return res.status(admin.status).json({ error: admin.error });
+
+  if (route === 'transcription-sales') {
+    if (req.method === 'GET') {
+      const products = await supabase.from('transcription_sale_products').select('*').order('updated_at',{ascending:false});
+      const orders = await supabase.from('transcription_sale_orders').select('id,piece_title,customer_email,state,last_error,created_at,updated_at,resend_id').order('created_at',{ascending:false}).limit(50);
+      const attention = await supabase.from('transcription_sale_orders').select('id,piece_title,customer_email,state,last_error,created_at,updated_at,resend_id').in('state',['sending','review']).order('updated_at',{ascending:true}).limit(100);
+      if (products.error || orders.error || attention.error) return res.status(503).json({error:'Sales storage is not ready. Apply the transcription sales schema first.'});
+      return res.status(200).json({products:products.data || [],orders:orders.data || [],attention:attention.data || [],checkoutEnabled:salesConfigured()});
+    }
+    if (req.method === 'PUT') {
+      const {pieceId,priceCents,assetPath,enabled} = req.body || {};
+      if (!isPieceId(pieceId) || !Number.isInteger(priceCents) || priceCents < 50 || priceCents > 1000000 || typeof enabled !== 'boolean' || typeof assetPath !== 'string' || !new RegExp(`^${pieceId}/[0-9a-f-]{36}\\.pdf$`,'i').test(assetPath)) return res.status(400).json({error:'Provide a valid product, price, and uploaded PDF.'});
+      try {
+        const catalog = await readPublicCatalog(supabase);
+        if (!catalog?.pieces.some(p => p.id === pieceId && p.sample === false)) return res.status(400).json({error:'Save this real product in the suite before setting up sales.'});
+        const bucket = await supabase.storage.getBucket(SALES_BUCKET);
+        if (bucket.error || !bucket.data || bucket.data.public) return res.status(503).json({error:'Private sales storage is not ready.'});
+        const file = await supabase.storage.from(SALES_BUCKET).download(assetPath);
+        if (file.error || !file.data) return res.status(400).json({error:'Uploaded PDF not found.'});
+        const data = Buffer.from(await file.data.arrayBuffer());
+        if (data.length > 3*1024*1024 || data.subarray(0,5).toString() !== '%PDF-') return res.status(400).json({error:'The score must be a PDF under 3 MB.'});
+        const saved = await supabase.from('transcription_sale_products').upsert({piece_id:pieceId,price_cents:priceCents,asset_path:assetPath,enabled,updated_at:new Date().toISOString()});
+        if (saved.error) throw saved.error;
+        return res.status(200).json({ok:true});
+      } catch(err) { console.error('[transcription] save sale product failed',err.message); return res.status(500).json({error:'Could not save product sales settings.'}); }
+    }
+    return res.status(405).json({error:'Method not allowed.'});
+  }
+  if (route === 'transcription-upload-pdf') {
+    if (req.method !== 'POST') return res.status(405).json({error:'Method not allowed.'});
+    const {pieceId,pdfBase64} = req.body || {};
+    if (!isPieceId(pieceId) || typeof pdfBase64 !== 'string' || pdfBase64.length > 4300000) return res.status(400).json({error:'Choose a PDF under 3 MB.'});
+    try {
+      const catalog = await readPublicCatalog(supabase);
+      if (!catalog?.pieces.some(p=>p.id === pieceId && p.sample === false)) return res.status(400).json({error:'Save this real product in the suite first.'});
+      const bucket = await supabase.storage.getBucket(SALES_BUCKET);
+      if (bucket.error || !bucket.data || bucket.data.public) return res.status(503).json({error:'Private sales storage is not ready.'});
+      const buffer = Buffer.from(pdfBase64.split(',').pop(),'base64');
+      if (buffer.length > 3*1024*1024 || buffer.subarray(0,5).toString() !== '%PDF-') return res.status(400).json({error:'Choose a PDF under 3 MB.'});
+      const path = newAssetPath(pieceId);
+      const {error} = await supabase.storage.from(SALES_BUCKET).upload(path,buffer,{contentType:'application/pdf',upsert:false});
+      if (error) throw error;
+      return res.status(200).json({assetPath:path});
+    } catch(err) { console.error('[transcription] PDF upload failed',err.message); return res.status(500).json({error:'Could not upload PDF.'}); }
+  }
 
   // Suite content is a single versioned document; reject stale writes so two
   // admin sessions cannot silently overwrite one another.

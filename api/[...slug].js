@@ -13,6 +13,8 @@
 import { requireSession } from '../lib/requireSession.js';
 import { supabase, supabaseConfigured } from '../lib/supabase.js';
 import { TRANSCRIPTION_KEY, validateTranscriptionConfig } from '../lib/transcription-config.js';
+import Stripe from 'stripe';
+import { salesConfigured, startTranscriptionCheckout, SALES_BUCKET } from '../lib/transcription-sales.js';
 
 export const config = {
   api: { bodyParser: { sizeLimit: '6mb' } }, // generous enough for upload-photo; harmless for smaller JSON routes
@@ -35,6 +37,28 @@ export default async function handler(req, res) {
   // which is more robust across deployment configurations.
   const urlParts = req.url.split('?')[0].split('/').filter(Boolean); // ['api', 'profile']
   const route = urlParts[1];
+
+  if (route === 'transcription-sales') {
+    if (req.method !== 'GET') return res.status(405).json({error:'Method not allowed.'});
+    res.setHeader('Cache-Control','no-store');
+    if (!salesConfigured()) return res.status(200).json({products:[]});
+    const bucket = await supabase.storage.getBucket(SALES_BUCKET);
+    if (bucket.error || !bucket.data || bucket.data.public) return res.status(503).json({error:'Sales are unavailable.'});
+    const {data,error} = await supabase.from('transcription_sale_products').select('piece_id,price_cents').eq('enabled',true);
+    if (error) return res.status(503).json({error:'Sales are unavailable.'});
+    return res.status(200).json({products:data || []});
+  }
+  if (route === 'transcription-checkout') {
+    if (req.method !== 'POST') return res.status(405).json({error:'Method not allowed.'});
+    if (!salesConfigured()) return res.status(503).json({error:'Online sales are not available yet.'});
+    try {
+      const bucket = await supabase.storage.getBucket(SALES_BUCKET);
+      if (bucket.error || !bucket.data || bucket.data.public) return res.status(503).json({error:'Online sales are not available yet.'});
+      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+      const result = await startTranscriptionCheckout({db:supabase,stripe,pieceId:req.body?.pieceId,orderId:req.body?.orderId,siteUrl:'https://www.armoniaconnect.com'});
+      return res.status(200).json(result);
+    } catch (err) { console.error('[transcription] checkout failed:',err.message); return res.status(400).json({error:'Could not start checkout. Please try again or contact us.'}); }
+  }
 
   if (route === 'transcription-content') {
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });

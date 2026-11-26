@@ -149,6 +149,7 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
     <main>
       <section class="panel" id="panel-transcription">
         <div id="transcriptionAdmin"><p>Loading transcription editor…</p></div>
+        <div id="transcriptionSales"></div>
       </section>
       <section class="panel active" id="panel-students">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:10px;">
@@ -3508,5 +3509,6 @@ fetch('/api/site-content').then(r => r.json()).then(d => {
     }
   </script>
 <script src="/admin/transcription-admin.js"></script>
+<script src="/admin/transcription-sales.js"></script>
 </body>
 </html>
