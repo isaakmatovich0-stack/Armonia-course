@@ -227,6 +227,13 @@ const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const pathname = url.pathname;
 
+  // Mirror the temporary production unpublishing redirect. Static assets and
+  // the admin starter catalog remain available for editing, not as a privacy control.
+  if (['/transcription', '/transcription/', '/transcription/index.html'].includes(pathname)) {
+    res.writeHead(307, { Location: '/store/', 'Cache-Control': 'no-store' });
+    return res.end();
+  }
+
   // Preview hosts (e.g. *.e2b.app) and any origin: dev only, allow all.
   res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
   res.setHeader('Access-Control-Allow-Credentials', 'true');

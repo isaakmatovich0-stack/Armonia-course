@@ -1010,7 +1010,7 @@ function renderPage(config, { licenses } = {}) {
 <script type="application/json" id="armonia-config">${json(config)}</script>
 </head>
 <body ${attrString}>
-<nav class="suite-ribbon" aria-label="Explore Armonia Connect"><span>Explore Armonia Connect</span><a href="/transcription/">Transcription Suite <span aria-hidden="true">↗</span></a><a href="/course/">Course login <span aria-hidden="true">↗</span></a><a href="/">Home <span aria-hidden="true">↗</span></a></nav>
+<nav class="suite-ribbon" aria-label="Explore Armonia Connect"><span>Explore Armonia Connect</span><a href="/course/">Course login <span aria-hidden="true">↗</span></a><a href="/">Home <span aria-hidden="true">↗</span></a></nav>
 <div id="root"></div>
 <noscript>
   <div style="padding:48px 24px;font-family:Georgia,serif;background:#f6f3eb;color:#142529;text-align:center">

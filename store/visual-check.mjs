@@ -17,7 +17,8 @@ assert(cut(data,20,20));assert.equal(data[3],0);assert.equal(data[detail+3],255)
 const scene=image(20,20);scene[0]=0;assert.equal(cut(scene,20,20),false);assert.equal(scene[3],255);
 const empty=image(20,20);assert.equal(cut(empty,20,20),false);assert.equal(empty[3],255);
 const page = new JSDOM(fs.readFileSync('public/store/index.html','utf8'));
-assert.equal(page.window.document.querySelector('.suite-ribbon a').getAttribute('href'),'/transcription/');
+assert.equal(page.window.document.querySelector('.suite-ribbon a').getAttribute('href'),'/course/');
+assert.equal(page.window.document.querySelector('.suite-ribbon a[href="/transcription/"]'), null);
 const suite = new JSDOM(fs.readFileSync('public/transcription/index.html','utf8'));
 assert.match(suite.window.document.body.textContent,/transcription suite/i);
 assert.equal(suite.window.document.querySelector('.back').getAttribute('href'),'/store/');

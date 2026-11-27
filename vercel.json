@@ -16,6 +16,21 @@
   ],
   "redirects": [
     {
+      "source": "/transcription",
+      "destination": "/store/",
+      "permanent": false
+    },
+    {
+      "source": "/transcription/",
+      "destination": "/store/",
+      "permanent": false
+    },
+    {
+      "source": "/transcription/index.html",
+      "destination": "/store/",
+      "permanent": false
+    },
+    {
       "source": "/shop",
       "destination": "/store/",
       "permanent": false
