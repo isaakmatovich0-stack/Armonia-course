@@ -32,7 +32,8 @@ try {
  for(const [name,value] of Object.entries({name:'Buyer',line1:'1 Main',city:'Spring',state:'TX',postal_code:'77373'})) {
   const input=w.document.querySelector(`input[name="${name}"]`); input.value=value;input.dispatchEvent(new w.Event('input',{bubbles:true}));
  }
- [...w.document.querySelectorAll('button')].find(b=>b.textContent==='Calculate shipping').click();await wait();
+ await new Promise(resolve=>setTimeout(resolve,650));await wait();
+ assert.equal(w.document.querySelector('.checkout-pay').disabled,false,'shipping is calculated without a button click');
  w.document.querySelector('.checkout-pay').click();await wait();
  assert.equal(checkoutBodies.length,1);
  assert.equal(checkoutBodies[0].restartAfterPaid,undefined);
