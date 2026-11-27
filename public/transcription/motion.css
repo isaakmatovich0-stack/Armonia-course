@@ -14,3 +14,5 @@
 .motion-paused .hero h1>span,.motion-paused .hero h1 em{animation:none!important;opacity:1;transform:none}
 
 .hero-art-image{background-image:linear-gradient(0deg,#2b130e70,#2b130e1c),var(--hero-art-image, url("/transcription/images/studio-editorial.jpg"))}
+
+.purchase-status{padding:16px 20px;margin:0 0 28px;background:#f6edde;border-left:3px solid #a74632;color:#49372b;font:14px/1.5 var(--sans)}.purchase-status[hidden]{display:none}.dialog-delivery-note{font:12px/1.5 var(--sans)!important;color:#786c5e!important}.dialog-actions button:disabled{opacity:.6;cursor:wait}

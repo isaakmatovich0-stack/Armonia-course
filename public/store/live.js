@@ -373,7 +373,62 @@ function mountBag(host, { onClose, onShop }) {
   let address = { name: '', line1: '', line2: '', city: '', state: '', postal_code: '' };
   let shippingQuote = null;
   let quoteBagSnapshot = '';
+  let quoteTimer = null;
+  let quoteVersion = 0;
+  let quoteLoading = false;
+  let quoteError = '';
+  let closed = false;
   const bagSnapshot = () => JSON.stringify({ lines: (state.bag?.lines || []).map(({ productId, colorName, color, size, quantity, unitPriceCents }) => ({ productId, colorName, color, size, quantity, unitPriceCents })), discount: state.bag?.discountCents || 0 });
+  let observedBag = bagSnapshot();
+  const addressComplete = () => Boolean(address.name.trim() && address.line1.trim() && address.city.trim() && /^[A-Za-z]{2}$/.test(address.state.trim()) && /^\d{5}(-\d{4})?$/.test(address.postal_code.trim()));
+
+  function cancelQuote() {
+    clearTimeout(quoteTimer); quoteTimer = null; quoteVersion++; quoteLoading = false;
+  }
+
+  // Refresh only the quote-related controls; replacing the form while a person
+  // is typing would lose focus, selection and browser autofill state.
+  function syncQuoteUI() {
+    if (closed || step !== 'checkout') return;
+    const result = view.panel.querySelector('.store-quote-result');
+    const status = view.panel.querySelector('.store-quote-status');
+    const retry = view.panel.querySelector('.store-quote-retry');
+    const totalLabel = view.panel.querySelector('.store-total-label');
+    const totalValue = view.panel.querySelector('.store-total-value');
+    const pay = view.panel.querySelector('.checkout-pay');
+    const waiting = quoteLoading ? 'Calculating shipping…' : quoteError ? 'Unavailable' : 'Enter delivery address';
+    if (result) result.textContent = shippingQuote ? money(shippingQuote.amountCents) : waiting;
+    if (status) status.textContent = quoteError || (quoteLoading ? 'Calculating shipping for your address…' : shippingQuote ? 'Shipping calculated for this address.' : 'Shipping will be calculated automatically when your address is complete.');
+    if (retry) retry.hidden = !quoteError;
+    if (totalLabel) totalLabel.textContent = shippingQuote ? 'Total' : 'Subtotal after discounts';
+    if (totalValue) totalValue.textContent = money(bagTotals().total + (shippingQuote?.amountCents || 0));
+    if (pay) {
+      pay.disabled = busy || quoteLoading || !shippingQuote || !bagLines().length;
+      pay.textContent = paidSessionId ? 'Place a separate new order' : shippingQuote ? `Continue to payment · ${money(bagTotals().total + shippingQuote.amountCents)}` : quoteLoading ? 'Calculating shipping…' : 'Enter address to continue';
+    }
+  }
+
+  function scheduleQuote({ resetPaid = true, immediate = false } = {}) {
+    cancelQuote(); shippingQuote = null; quoteBagSnapshot = ''; quoteError = '';
+    if (resetPaid) paidSessionId = null;
+    if (closed || step !== 'checkout' || !addressComplete() || !bagLines().length) { syncQuoteUI(); return; }
+    const version = quoteVersion, capturedAddress = { ...address }, capturedBag = bagSnapshot();
+    quoteLoading = true; syncQuoteUI();
+    quoteTimer = setTimeout(async () => {
+      quoteTimer = null;
+      try {
+        const quote = await api('/shipping-quote', { method: 'POST', body: JSON.stringify({ address: capturedAddress }) });
+        if (version !== quoteVersion || closed || step !== 'checkout' || JSON.stringify(capturedAddress) !== JSON.stringify(address) || capturedBag !== bagSnapshot()) return;
+        if (!Number.isSafeInteger(quote.amountCents) || quote.amountCents < 0 || !/^[a-f0-9]{64}$/i.test(quote.fingerprint || '')) throw new Error('Shipping could not be calculated. Please try again.');
+        shippingQuote = quote; quoteBagSnapshot = capturedBag;
+      } catch (err) {
+        if (version !== quoteVersion || closed || step !== 'checkout' || capturedBag !== bagSnapshot()) return;
+        quoteError = err.message || 'Shipping could not be calculated. Please try again.';
+      } finally {
+        if (version === quoteVersion && !closed && step === 'checkout') { quoteLoading = false; syncQuoteUI(); }
+      }
+    }, immediate ? 0 : 600);
+  }
 
   const view = overlay('cart-modal store-bag-panel', close, { labelledBy: 'bag-title' });
   host.appendChild(view.root);
@@ -384,16 +439,23 @@ function mountBag(host, { onClose, onShop }) {
   })();
 
   function close() {
+    closed = true; cancelQuote();
     off();
     view.cleanup();
     onClose();
   }
 
   function render() {
+    if (closed) return;
+    const active = view.panel.contains(document.activeElement) && document.activeElement.matches('input[name]') ? document.activeElement : null;
+    const focusedName = active?.name;
+    const selectionStart = active?.selectionStart, selectionEnd = active?.selectionEnd;
     view.panel.textContent = '';
     const lines = bagLines();
     const totals = bagTotals();
-    if (shippingQuote && quoteBagSnapshot !== bagSnapshot()) { shippingQuote = null; paidSessionId = null; }
+    const currentBag = bagSnapshot();
+    if (currentBag !== observedBag) { observedBag = currentBag; if (step === 'checkout') scheduleQuote(); }
+    if (shippingQuote && quoteBagSnapshot !== currentBag) { shippingQuote = null; paidSessionId = null; }
 
     view.panel.appendChild(
       el(
@@ -431,6 +493,11 @@ function mountBag(host, { onClose, onShop }) {
     }
 
     view.panel.appendChild(renderCheckout(lines, totals));
+    syncQuoteUI();
+    if (focusedName) {
+      const replacement = view.panel.querySelector(`input[name="${focusedName}"]`);
+      if (replacement) { replacement.focus(); if (selectionStart != null && selectionEnd != null) replacement.setSelectionRange(selectionStart, selectionEnd); }
+    }
   }
 
   function renderLine(item) {
@@ -597,6 +664,7 @@ function mountBag(host, { onClose, onShop }) {
           onClick: () => {
             step = 'checkout';
             render();
+            if (addressComplete()) scheduleQuote();
             loadShipping().then(render);
           },
         },
@@ -617,68 +685,58 @@ function mountBag(host, { onClose, onShop }) {
     ];
     const form = el('form', { class: 'store-shipping-form', onSubmit: (event) => event.preventDefault() });
     fields.forEach(([key, label, autocomplete, required]) => {
+      const updateAddress = (event) => {
+        if (address[key] === event.target.value) return;
+        address[key] = event.target.value;
+        scheduleQuote();
+      };
       const input = el('input', {
         type: 'text', name: key, value: address[key], autocomplete, required,
         maxlength: key === 'state' ? '2' : key === 'postal_code' ? '10' : '100',
-        onInput: (event) => {
-          address[key] = event.target.value;
-          shippingQuote = null; paidSessionId = null;
-          const pay = view.panel.querySelector('.checkout-pay');
-          if (pay) pay.disabled = true;
-          const result = view.panel.querySelector('.store-quote-result');
-          if (result) result.textContent = 'Address changed — calculate shipping again.';
-        },
+        pattern: key === 'state' ? '[A-Za-z]{2}' : key === 'postal_code' ? '[0-9]{5}(-[0-9]{4})?' : null,
+        onInput: updateAddress, onChange: updateAddress,
       });
       form.appendChild(el('label', { style: { display: 'block', marginBottom: '12px' } }, label, input));
     });
     return el('div', { class: 'checkout-content' },
-      el('button', { class: 'back-to-bag text-link', onClick: () => { step = 'bag'; shippingQuote = null; paidSessionId = null; render(); } }, [svg('back'), ' Back to your bag']),
+      el('button', { class: 'back-to-bag text-link', onClick: () => { cancelQuote(); step = 'bag'; shippingQuote = null; paidSessionId = null; render(); } }, [svg('back'), ' Back to your bag']),
       el('div', { class: 'store-checkout-lead' },
         el('h3', {}, live ? 'Shipping address' : 'Checkout is almost ready.'),
-        el('p', {}, 'Enter your US delivery address to calculate shipping for the items in your bag. This is the address used for your order; return here to change it before paying.')),
+        el('p', {}, 'Enter your US delivery address. Shipping is calculated automatically when your address is complete. This is the address used for your order.')),
       form,
-      el('button', {
-        type: 'button', class: 'button button-dark', disabled: busy || !lines.length,
-        onClick: async () => {
-          if (!form.reportValidity()) return;
-          busy = true; checkoutError = ''; shippingQuote = null; paidSessionId = null;
-          const capturedAddress = { ...address };
-          const capturedBag = bagSnapshot();
-          try {
-            const quote = await api('/shipping-quote', { method: 'POST', body: JSON.stringify({ address: capturedAddress }) });
-            if (JSON.stringify(capturedAddress) === JSON.stringify(address) && capturedBag === bagSnapshot()) { shippingQuote = quote; quoteBagSnapshot = capturedBag; }
-          } catch (err) { checkoutError = err.message; }
-          busy = false; render();
-        },
-      }, busy ? 'Calculating…' : 'Calculate shipping'),
+      el('p', { class: 'store-quote-status', role: 'status', 'aria-live': 'polite' }),
+      el('button', { type: 'button', class: 'store-quote-retry text-link', hidden: true,
+        onClick: () => { if (form.reportValidity()) scheduleQuote({ immediate: true }); },
+      }, 'Retry shipping calculation'),
       el('div', { class: 'checkout-order-summary store-checkout-summary' },
         el('h3', {}, 'Your good things'),
         lines.map((item) => el('div', {}, el('span', {}, `${item.product.shortName || item.productId} × ${item.quantity} — ${colorName(item.color)} / ${item.size}`), el('span', {}, money(item.line ? item.line.lineTotalCents : 0)))),
         el('div', {}, el('span', {}, 'Subtotal'), el('span', {}, money(totals.subtotal))),
         totals.discount > 0 ? el('div', {}, el('span', {}, 'Discount'), el('span', {}, `−${money(totals.discount)}`)) : null,
-        el('div', {}, el('span', {}, 'Standard shipping'), el('span', { class: 'store-quote-result' }, shippingQuote ? money(shippingQuote.amountCents) : 'Calculate above')),
-        el('div', { class: 'preview-total' }, el('strong', {}, shippingQuote ? 'Total' : 'Subtotal after discounts'), el('strong', {}, money(totals.total + (shippingQuote?.amountCents || 0)))),
+        el('div', {}, el('span', {}, 'Standard shipping'), el('span', { class: 'store-quote-result' }, shippingQuote ? money(shippingQuote.amountCents) : 'Enter delivery address')),
+        el('div', { class: 'preview-total' }, el('strong', { class: 'store-total-label' }, shippingQuote ? 'Total' : 'Subtotal after discounts'), el('strong', { class: 'store-total-value' }, money(totals.total + (shippingQuote?.amountCents || 0)))),
       ),
       checkoutError ? el('p', { class: 'store-checkout-error' }, checkoutError, ' If you may have already paid, do not pay again; contact us so we can check.') : null,
       el('button', {
         type: 'button', class: 'button button-dark checkout-pay', disabled: busy || !shippingQuote || !lines.length,
         onClick: async (event) => {
+          if (!shippingQuote || quoteLoading || quoteBagSnapshot !== bagSnapshot() || !addressComplete()) return;
           const previous = paidSessionId;
           if (previous && !window.confirm('Your earlier order was paid. This is a separate new order and will charge you again if you complete payment. Continue?')) return;
           const button = event.currentTarget;
           busy = true; checkoutError = ''; button.disabled = true; button.textContent = 'Opening secure checkout…';
+          form.querySelectorAll('input').forEach(input => { input.disabled = true; });
           try {
             const payload = await api('/checkout', { method: 'POST', body: JSON.stringify({ address, fingerprint: shippingQuote.fingerprint, ...(previous ? { restartAfterPaid: previous } : {}) }) });
             if (!payload.url) throw new Error('Checkout could not be started. Please contact us before trying again.');
             window.location.href = payload.url;
           } catch (err) {
             busy = false; checkoutError = err.message;
-            if (err.payload?.code === 'paid' && /^cs_[A-Za-z0-9_]+$/.test(err.payload.previousSessionId || '')) paidSessionId = err.payload.previousSessionId;
-            else { paidSessionId = null; shippingQuote = null; }
-            render();
+            if (err.payload?.code === 'paid' && /^cs_[A-Za-z0-9_]+$/.test(err.payload.previousSessionId || '')) { paidSessionId = err.payload.previousSessionId; render(); }
+            else { paidSessionId = null; render(); scheduleQuote({ resetPaid: false }); }
           }
         },
-      }, paidSessionId ? 'Place a separate new order' : shippingQuote ? `Continue to payment · ${money(totals.total + shippingQuote.amountCents)}` : 'Calculate shipping to continue'),
+      }, paidSessionId ? 'Place a separate new order' : shippingQuote ? `Continue to payment · ${money(totals.total + shippingQuote.amountCents)}` : 'Enter address to continue'),
       el('p', { class: 'checkout-privacy' }, 'Secure payment by Stripe · US shipping only. To change the shipping address, return to this page before paying.'),
       el('p', { class: 'checkout-privacy' }, ['By continuing you agree to our ', el('a', { href: '/terms.html', target: '_blank', rel: 'noopener' }, 'terms'), ' and ', el('a', { href: '/store/shipping#returns', target: '_blank', rel: 'noopener' }, 'returns policy'), '.']),
     );
@@ -690,6 +748,7 @@ function mountBag(host, { onClose, onShop }) {
   loadShipping().then(() => render());
 
   return () => {
+    closed = true; cancelQuote();
     off();
     view.cleanup();
   };
@@ -1742,6 +1801,9 @@ const LIVE_CSS = `
 .store-checkout-lead h3{font-size:14px;font-weight:600;letter-spacing:-.2px;line-height:1.35}
 .store-checkout-lead p{font-size:10.5px;line-height:1.85;color:#566350;margin-top:8px}
 .store-checkout-summary{margin:0 31px}
+.store-quote-status{margin:0 31px 10px;font-size:11px;line-height:1.5;color:#566350}
+.store-quote-retry{align-self:flex-start;margin:0 31px 14px}
+.store-quote-retry[hidden]{display:none}
 .store-checkout-summary>div span:first-child{flex:1;padding-right:12px;line-height:1.5}
 .store-checkout-summary>div{padding:6px 0}
 .checkout-pay{flex-shrink:0;width:calc(100% - 62px);margin:20px 31px 0;height:50px;font-size:10.5px;letter-spacing:1.4px}
@@ -1798,6 +1860,7 @@ const LIVE_CSS = `
   .store-bag-error{margin:12px 22px 0}
   .store-checkout-lead{padding:0 22px 14px}
   .store-checkout-summary{margin:0 22px}
+  .store-quote-status,.store-quote-retry{margin-left:22px;margin-right:22px}
   .checkout-pay{width:calc(100% - 44px);margin:18px 22px 0}
   .checkout-content>.checkout-privacy{margin:10px 22px 0}
   .store-order-panel .order-success{padding:18px 22px 26px}

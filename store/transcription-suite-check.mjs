@@ -53,7 +53,7 @@ const realCatalog = {
 };
 const mediaDom = new JSDOM(html, { url: 'https://example.test/transcription/', runScripts: 'outside-only', virtualConsole: console });
 const w = mediaDom.window;
-w.fetch = async () => ({ ok: true, json: async () => ({config: realCatalog}) });
+w.fetch = async url => ({ ok: true, json: async () => String(url).includes('transcription-sales') ? ({products:[{piece_id:'real-one',price_cents:1450}]}) : ({config: realCatalog}) });
 w.matchMedia = () => ({ matches: false });
 w.HTMLElement.prototype.scrollIntoView = () => {};
 let plays = 0, pauses = 0;
@@ -72,6 +72,8 @@ assert.match(find('#screening-player iframe').src, /^https:\/\/www\.youtube-noco
 assert.equal(w.document.querySelectorAll('.news-video').length, 1, 'non-YouTube hosts do not embed');
 find('.product-image').click();
 assert.match(find('#dialog-content').textContent, /Advanced/);
+assert.match(find('#dialog-content').textContent, /BUY FOR \$14\.50/);
+assert.match(find('#dialog-content').textContent, /PDF is sent/);
 assert.match(find('#dialog-content').textContent, /Full ensemble/);
 assert(find('.score-preview img'));
 find('.piece-video button').click(); assert(find('.piece-video iframe'));
@@ -79,3 +81,17 @@ find('[data-close-dialog]').click(); assert.equal(find('#dialog-content iframe')
 assert.equal(errors.length, 0, errors.map(e => e.message).join('\n'));
 mediaDom.window.close();
 process.stdout.write('Transcription media configuration passed.\n');
+
+// A browser may start a fresh attempt only after the server confirms that its
+// previous Stripe session expired unpaid; generic errors retain the same ID.
+for (const expired of [true,false]) {
+  const checkoutDom=new JSDOM(html,{url:'https://example.test/transcription/',runScripts:'outside-only',virtualConsole:console});
+  const x=checkoutDom.window;x.matchMedia=()=>({matches:true});x.HTMLElement.prototype.scrollIntoView=()=>{};
+  Object.defineProperty(x.crypto,'randomUUID',{value:()=> 'a1111111-1111-4111-8111-111111111111'});
+  const key='armonia-transcription-checkout/real-one';x.sessionStorage.setItem(key,'b1111111-1111-4111-8111-111111111111');
+  x.fetch=async url=>String(url).endsWith('transcription-sales')?{ok:true,json:async()=>({products:[{piece_id:'real-one',price_cents:1450}]})}:String(url).endsWith('transcription-checkout')?{ok:false,json:async()=>expired?({code:'checkout_expired',error:'Expired'}):({error:'Unknown failure'})}:{ok:true,json:async()=>({config:realCatalog})};
+  x.eval(script);await new Promise(resolve=>setTimeout(resolve,10));x.document.querySelector('.product-image').click();
+  [...x.document.querySelectorAll('#dialog-content button')].find(b=>b.textContent.includes('BUY FOR')).click();await new Promise(resolve=>setTimeout(resolve,10));
+  assert.equal(x.sessionStorage.getItem(key),expired?null:'b1111111-1111-4111-8111-111111111111');checkoutDom.window.close();
+}
+process.stdout.write('Expired checkout browser reset safety passed.\n');

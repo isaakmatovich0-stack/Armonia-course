@@ -3,7 +3,8 @@
 import Stripe from 'stripe';
 import { supabase } from '../lib/supabase.js';
 import { generateAccessCode } from '../lib/generateCode.js';
-import { sendOrderConfirmationEmail } from '../lib/email.js';
+import { sendOrderConfirmationEmail, sendTranscriptionDeliveryEmail } from '../lib/email.js';
+import { deliverTranscription } from '../lib/transcription-sales.js';
 import { rawBody } from '../lib/store/raw-body.js';
 import { isCourseCheckout } from '../lib/course-checkout.js';
 
@@ -53,6 +54,11 @@ export default async function handler(req, res) {
   const session = event.data.object;
   if (!['paid', 'no_payment_required'].includes(session.payment_status)) return res.status(200).json({received:true, ignored:'not paid'});
   try {
+    if (session.metadata?.source === 'armonia-transcription') {
+      const outcome = await deliverTranscription({db:supabase, session, send:sendTranscriptionDeliveryEmail});
+      if (outcome.retry) return res.status(500).json({error:'Delivery could not start; retry requested.'});
+      return res.status(200).json({received:true, ...outcome});
+    }
     if (!await isCourseCheckout(session, {stripe, supabase})) return res.status(200).json({received:true, ignored:'not a course checkout'});
     const row = await getOrCreateCode(session);
     if (!row.access_email_sent_at) {

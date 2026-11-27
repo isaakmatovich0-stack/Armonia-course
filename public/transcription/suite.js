@@ -2,7 +2,7 @@
   'use strict';
   const $ = (selector, parent = document) => parent.querySelector(selector);
   const $$ = (selector, parent = document) => [...parent.querySelectorAll(selector)];
-  const state = { pieces: [], news: [], media: {}, featuredId: '', filter: 'All', search: '', saved: [] };
+  const state = { pieces: [], news: [], media: {}, sales: new Map(), featuredId: '', filter: 'All', search: '', saved: [] };
   const storageKey = 'armonia-transcription-saved-v1';
   const email = 'maestro.armoniaconnect@gmail.com';
   try { const saved = JSON.parse(localStorage.getItem(storageKey) || '[]'); if (Array.isArray(saved)) state.saved = saved.filter(id => typeof id === 'string'); } catch { /* storage can be blocked */ }
@@ -75,6 +75,25 @@
   function showDialog(dialog) { if (typeof dialog.showModal === 'function') dialog.showModal(); else dialog.setAttribute('open', ''); }
   function hideDialog(dialog) { if (typeof dialog.close === 'function' && dialog.open) dialog.close(); else dialog.removeAttribute('open'); dialog.querySelectorAll('iframe').forEach(frame => frame.remove()); }
   function mail(subject, body) { location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`; }
+  const priceFor = piece => state.sales.has(piece.id) ? new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(state.sales.get(piece.id) / 100) : (piece.priceLabel || '');
+  async function purchase(piece, button) {
+    if (!crypto.randomUUID) { button.textContent = 'Please use a current browser'; return; }
+    button.disabled = true; const old = button.textContent; button.textContent = 'OPENING CHECKOUT…';
+    try {
+      const key = `armonia-transcription-checkout/${piece.id}`;
+      let orderId; try { orderId = sessionStorage.getItem(key); if (!orderId) { orderId = crypto.randomUUID(); sessionStorage.setItem(key,orderId); } } catch { throw new Error('Please enable browser storage to start checkout safely.'); }
+      const response = await fetch('/api/transcription-checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pieceId:piece.id,orderId})});
+      const data = await response.json();
+      if (!response.ok) {
+        // Only discard the id after the server has confirmed an expired, unpaid
+        // Stripe session. An uncertain or completed attempt must never be reset.
+        if (data.code === 'checkout_expired') { try { sessionStorage.removeItem(key); } catch { /* no automatic retry */ } }
+        throw new Error(data.error || 'Could not open checkout.');
+      }
+      const url = new URL(data.url); if (url.protocol !== 'https:' || url.hostname !== 'checkout.stripe.com') throw new Error('Checkout address is invalid.');
+      location.assign(url.href);
+    } catch (err) { button.disabled = false; button.textContent = old; const status = el('p','preview-note',err.message + ' If you already paid, contact us rather than starting another payment.'); button.parentElement.append(status); }
+  }
   function renderProducts() {
     const grid = $('#product-grid'); grid.replaceChildren();
     const query = state.search.trim().toLocaleLowerCase();
@@ -89,7 +108,7 @@
       cover.append(el('span', 'card-title-overlay', piece.title)); cover.append(el('span', 'card-arrow', '↗'));
       cover.addEventListener('click', () => openPiece(piece));
       const info = el('div', 'product-info'); const text = el('div'); text.append(el('h3', '', piece.title), el('p', '', piece.artist || piece.instrument || 'Transcription'));
-      info.append(text, el('span', '', isSample(piece) ? 'SAMPLE' : (piece.priceLabel || 'VIEW PIECE'))); card.append(cover, info); grid.append(card);
+      info.append(text, el('span', '', isSample(piece) ? 'SAMPLE' : (priceFor(piece) || 'VIEW PIECE'))); card.append(cover, info); grid.append(card);
     });
   }
   function openPiece(piece) {
@@ -97,10 +116,11 @@
     const grid = el('div', 'dialog-grid'); const artwork = el('div', 'dialog-image'); artwork.append(image(piece), el('span', 'dialog-image-label', 'The music lives on.'));
     const copy = el('div', 'dialog-copy'); copy.append(el('p', 'eyebrow', isSample(piece) ? 'EXAMPLE / PREVIEW ONLY' : 'THE TRANSCRIPTION SUITE'));
     const title = el('h2', '', piece.title); title.id = 'dialog-title'; copy.append(title, el('p', '', piece.artist || 'Armonia Connect'), el('p', '', piece.description || 'A piece from the Armonia Connect collection.'));
-    const details = el('div', 'dialog-details'); [['INSTRUMENT', piece.instrument || '—'], ['PRICE', isSample(piece) ? 'Not for sale' : (piece.priceLabel || 'Ask for details')], ...(!isSample(piece) ? [['LEVEL', piece.level], ['KEY', piece.key], ['LENGTH', piece.duration], ['PARTS', piece.parts]].filter(([, value]) => typeof value === 'string' && value.trim()) : [])].forEach(([label, value]) => { const item = el('div'); item.append(el('span', '', label), el('strong', '', value)); details.append(item); }); copy.append(details);
+    const details = el('div', 'dialog-details'); [['INSTRUMENT', piece.instrument || '—'], ['PRICE', isSample(piece) ? 'Not for sale' : (priceFor(piece) || 'Ask for details')], ...(!isSample(piece) ? [['LEVEL', piece.level], ['KEY', piece.key], ['LENGTH', piece.duration], ['PARTS', piece.parts]].filter(([, value]) => typeof value === 'string' && value.trim()) : [])].forEach(([label, value]) => { const item = el('div'); item.append(el('span', '', label), el('strong', '', value)); details.append(item); }); copy.append(details);
     const actions = el('div', 'dialog-actions');
     const preview = safeUrl(piece.previewUrl); if (preview && !isSample(piece)) { const link = el('a', 'button button-outline', 'OPEN MUSIC PREVIEW ↗'); link.href = preview; link.target = '_blank'; link.rel = 'noopener noreferrer'; actions.append(link); }
-    const checkout = safeUrl(piece.checkoutUrl, {external:true}); if (checkout && !isSample(piece)) { const link = el('a', 'button button-dark', 'PURCHASE PIECE ↗'); link.href = checkout; link.target = '_blank'; link.rel = 'noopener noreferrer'; actions.append(link); }
+    if (!isSample(piece) && state.sales.has(piece.id)) { const buy = el('button', 'button button-dark', `BUY FOR ${priceFor(piece)} ↗`); buy.type = 'button'; buy.addEventListener('click', () => purchase(piece,buy)); actions.append(buy); copy.append(el('p','dialog-delivery-note','After successful payment, the PDF is sent to the email used at checkout.')); }
+    const checkout = safeUrl(piece.checkoutUrl, {external:true}); if (checkout && !isSample(piece) && !state.sales.has(piece.id)) { const link = el('a', 'button button-dark', 'PURCHASE PIECE ↗'); link.href = checkout; link.target = '_blank'; link.rel = 'noopener noreferrer'; actions.append(link); }
     const favorite = el('button', 'button button-outline', state.saved.includes(piece.id) ? 'SAVED ✓' : 'SAVE PIECE +'); favorite.type = 'button'; favorite.addEventListener('click', () => { toggleSaved(piece.id); favorite.textContent = state.saved.includes(piece.id) ? 'SAVED ✓' : 'SAVE PIECE +'; }); actions.append(favorite);
     const ask = el('button', 'button button-dark', isSample(piece) ? 'ASK ABOUT A TRANSCRIPTION ↗' : 'ASK ABOUT THIS PIECE ↗'); ask.type = 'button'; ask.addEventListener('click', () => { hideDialog(dialog); const form = $('#contact-form'); form.elements.type.value = isSample(piece) ? 'Custom transcription' : 'Question about a piece'; if (!isSample(piece)) form.elements.message.value = `Hi Isaak, I'd like to know more about ${piece.title}.`; $('#contact').scrollIntoView({behavior:'smooth'}); setTimeout(() => form.elements.name.focus(), 350); }); actions.append(ask); copy.append(actions);
     if (!isSample(piece)) {
@@ -111,7 +131,7 @@
     }
     if (isSample(piece)) copy.append(el('p', 'preview-note', 'Example listing only. No real transcription or payment is attached.'));
     else if (!preview) copy.append(el('p', 'preview-note', 'A music preview has not been added for this piece yet.'));
-    if (!isSample(piece) && !checkout) copy.append(el('p', 'preview-note', 'Online purchase is not configured for this piece. Get in touch to ask about availability.'));
+    if (!isSample(piece) && !checkout && !state.sales.has(piece.id)) copy.append(el('p', 'preview-note', 'Online purchase is not configured for this piece. Get in touch to ask about availability.'));
     grid.append(artwork, copy); content.append(grid); showDialog(dialog);
   }
   function renderSaved() {
@@ -139,6 +159,7 @@
       const hasExamples = state.pieces.some(isSample); $('.catalog-note > span:last-child').textContent = hasExamples ? 'EXAMPLE CONTENT — YOUR MUSIC COMING SOON' : 'CURATED WITH CARE';
       const filters = $('.filters'); const existing = new Set($$('.filter').map(button => button.dataset.filter));
       state.pieces.forEach(piece => { if (piece.instrument && !existing.has(piece.instrument)) { existing.add(piece.instrument); const button = el('button', 'filter', piece.instrument.toUpperCase()); button.type = 'button'; button.dataset.filter = piece.instrument; button.setAttribute('aria-pressed', 'false'); filters.append(button); } });
+      try { const salesResponse = await fetch('/api/transcription-sales',{cache:'no-store'}); if (salesResponse.ok) { const salesData = await salesResponse.json(); if (Array.isArray(salesData.products)) salesData.products.forEach(item => { if (typeof item.piece_id === 'string' && Number.isInteger(item.price_cents) && item.price_cents >= 50) state.sales.set(item.piece_id,item.price_cents); }); } } catch { /* browsing stays available when sales are unavailable */ }
       renderProducts(); renderNews(); updateSavedCount();
     } catch { $('#product-grid').replaceChildren(el('p', 'preview-note', 'The collection could not be loaded. Please try again later.')); $('#results-count').textContent = 'UNAVAILABLE'; $('#feature-open').disabled = true; }
   }
@@ -163,6 +184,13 @@
     const video = $('#hero-video'); if (!video.hidden) { if (paused) video.pause(); else video.play().catch(() => {}); }
   });
   $('#piece-dialog').addEventListener('close', event => event.currentTarget.querySelectorAll('iframe').forEach(frame => frame.remove()));
+  const checkoutStatus = new URL(location.href).searchParams.get('checkout');
+  if (checkoutStatus === 'success' || checkoutStatus === 'cancelled') {
+    const note = $('#purchase-status'); note.hidden = false;
+    note.textContent = checkoutStatus === 'success' ? 'Thank you. If your payment was successful, your PDF will be sent to the email used at checkout. If it does not arrive, please contact us.' : 'Checkout was cancelled. No payment was made in this checkout.';
+    if (checkoutStatus === 'success') { try { const piece = new URL(location.href).searchParams.get('piece'); if (piece) sessionStorage.removeItem(`armonia-transcription-checkout/${piece}`); } catch {} }
+    const clean = new URL(location.href); clean.searchParams.delete('checkout'); clean.searchParams.delete('piece'); history.replaceState(null,'',clean.pathname + clean.search + clean.hash);
+  }
   $('#year').textContent = String(new Date().getFullYear());
   if ('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) { document.documentElement.classList.add('js-motion'); const observer = new IntersectionObserver(entries => entries.forEach(entry => { if (entry.isIntersecting) { entry.target.classList.add('visible'); observer.unobserve(entry.target); } }), {threshold:.12}); $$('.reveal').forEach(node => observer.observe(node)); }
   init();
