@@ -13,6 +13,10 @@ for (const file of ['public/index.html','public/course/index.html','public/cours
   for (const target of ['/', '/course/', '/store/']) if (target !== own) assert(links.includes(target), `${file} is missing a link to ${target}`);
   dom.window.close();
 }
+for (const file of ['store/catalog.json', 'public/store/index.html']) {
+  const contents = await readFile(file, 'utf8');
+  assert(!contents.includes('The Armonia Connect transcription store has a wide selection'), `${file} must not advertise the unreleased suite`);
+}
 const generator = await readFile('store/build-store.mjs', 'utf8');
 assert(!generator.includes('href="/transcription/"'), 'Store regeneration must not reintroduce the suite link');
 const vercel = JSON.parse(await readFile('vercel.json', 'utf8'));
